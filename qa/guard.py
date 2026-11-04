@@ -72,6 +72,8 @@ async def main():
                         try: await p.select_option("#view", v)
                         except Exception: continue
                         await p.wait_for_timeout(900); before = await p.evaluate(STATE)
+                        try: await p.wait_for_function("(v)=>new URL(location).searchParams.get('view')===v", arg=v, timeout=8000)   # URL is written ~400 ms after a draw settles
+                        except Exception: pass
                         await p.reload(wait_until="networkidle"); await p.wait_for_timeout(1800); after = await p.evaluate(STATE)
                         res(before == after, f"{W}x{H} refresh keeps {before}", "" if before == after else "-> " + after)
                         L = await p.evaluate(LAYOUT)
