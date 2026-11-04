@@ -5,11 +5,15 @@
 #                                                 production deployment, write ROLLBACK_prod_<id8>_<YYYYMMDD>.md, deploy branch main,
 #                                                 run qa/guard.py on production and AUTO-ROLL BACK to the previous deployment if it fails.
 # --confirm only after Benjamin's explicit "Push" then "Deploy". Fast-forward only: HEAD must equal origin/main and origin/main must be
-# an ancestor of nothing local (no unpushed/diverged commits). Env (names only): CF_PAGES_KEY, CLOUDFLARE_ACCOUNT_ID, optional
+# an ancestor of nothing local (no unpushed/diverged commits). Env (names only): PNW_CLOUDFLARE_API_TOKEN (the account is pinned and checked), optional
 # QA_ACCESS_CLIENT_ID / QA_ACCESS_CLIENT_SECRET (Access service token so the guard can pass Access).
 set -euo pipefail; cd "$(dirname "$0")"; K=$(cd .. && pwd)
 PROJECT=pnw-weather-site; CONFIRM=0; [ "${1:-}" = "--confirm" ] && CONFIRM=1
-: "${CF_PAGES_KEY:?}" "${CLOUDFLARE_ACCOUNT_ID:?}"
+: "${PNW_CLOUDFLARE_API_TOKEN:?PNW token (new account) required}"
+# 11-04 safety: never use the shared CF_PAGES_KEY / CLOUDFLARE_ACCOUNT_ID (they belong to the OTHER site's account).
+CF_PAGES_KEY="$PNW_CLOUDFLARE_API_TOKEN"; CLOUDFLARE_ACCOUNT_ID=b6dc205037fd8e8c37d5267ee61dc302
+ACCTS=$(curl -s -H "Authorization: Bearer $CF_PAGES_KEY" https://api.cloudflare.com/client/v4/accounts | python3 -c "import json,sys;print(','.join(a['id'] for a in json.load(sys.stdin)['result']))")
+[ "$ACCTS" = "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "token does not see exactly the PNW account - refusing"; exit 1; }
 API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT"; AH="Authorization: Bearer $CF_PAGES_KEY"
 git -C "$K" fetch -q origin
 [ -z "$(git -C "$K" status --porcelain -- tools web deploy qa)" ] || { echo "working tree dirty: commit first"; exit 1; }

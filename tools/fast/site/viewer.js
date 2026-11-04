@@ -260,7 +260,7 @@ async function boot() {
   placeSteps(); addEventListener("resize", fitPhone); window.visualViewport && visualViewport.addEventListener("resize", fitPhone); (mq.addEventListener ? mq.addEventListener("change", placeSteps) : mq.addListener(placeSteps));
   setupPointer(); $("share") && ($("share").onclick = share); $("save") && ($("save").onclick = saveImage);
   $("obsbtn") && ($("obsbtn").onclick = obsOpen);
-  $("mgbtn") && ($("mgbtn").onclick = () => mgOpen("town")); $("pfbtn") && ($("pfbtn").onclick = () => mgOpen("pass"));
+  $("mgbtn") && ($("mgbtn").onclick = () => mgOpen("town")); $("pfbtn") && ($("pfbtn").onclick = () => mgOpen("pass")); $("pfcabtn") && ($("pfcabtn").onclick = () => mgOpen("capass"));
   $("prod").onchange = e => { S.prod = e.target.value; S.lastTab[S.tab || tabOf(S.prod)] = S.prod; draw(); };
   $("view").onchange = e => { S.view = e.target.value; resetZoom(); draw(); };
   const sl = $("step"), endDrag = () => { if (S.dragging) { S.dragging = false; draw(); } };
@@ -278,6 +278,7 @@ async function boot() {
   // ("the website glitches into pass mode every so often", Benjamin 10-31 2:01 AM).
   if (Q.get("obs")) obsOpen();
   if (Q.get("mg")) mgOpen(Q.get("mg") === "pass" ? "pass" : "town");
+  else if (Q.get("pf")) mgOpen(Q.get("pf") === "ca" ? "capass" : "pass");   // 11-04: an open Pass Forecaster survives a refresh (?pf= is dropped on Close)
   if (Q.has("mg") || Q.has("obs")) { const u = new URL(location); u.searchParams.delete("mg"); u.searchParams.delete("obs"); try { history.replaceState(null, "", u); } catch (e) {} }
   window.__ready = true;
   if (Q.get("bench")) bench();
@@ -1363,8 +1364,8 @@ function passCanvas(body, title, sub) {   // the Pass Forecaster table (cells, c
 }
 function mgSave() {
   const btn = $("mgsave"), sub = mgRunText(MG.run), [m, c] = MG.run.split("/");
-  if (MG.open === "pass") {
-    const cv = passCanvas($("mgbody"), "Pass Forecaster \u2013 Washington mountain passes", sub); if (!cv) return;
+  if (isPass(MG.open)) {
+    const cv = passCanvas($("mgbody"), MG.open === "capass" ? "California Pass Forecaster \u2013 Sierra and Southern California passes" : "Washington Pass Forecaster \u2013 Washington mountain passes", sub); if (!cv) return;
     return saveCanvas(cv, `Pass-Forecaster_${fileClean(S.man.models[m].site)}_${c}Z.png`, btn);
   }
   const ch = $("mgc"); if (!ch || !ch.width) return;
@@ -1904,11 +1905,13 @@ const snowWin = (T, f0, f1) => T.snow ? sumWin(T, T.snow, f0, f1) : sum6(T, T.sn
 const pcpWin = (T, f0, f1) => T.pcp6 ? sum6(T, T.pcp6, f0, f1) : sumWin(T, T.pcp, f0, f1);
 const ext = (T, a, f0, f1, fn) => { if (!a) return null; const v = a.filter((x, k) => x != null && T.f[k] > f0 && T.f[k] <= f1); return v.length ? fn(...v) : null; };
 
+const isPass = k => k === "pass" || k === "capass";
+function pfURL(kind) { try { const u = new URL(location); if (isPass(kind)) u.searchParams.set("pf", kind === "capass" ? "ca" : "wa"); else u.searchParams.delete("pf"); history.replaceState(null, "", u); } catch (e) {} }
 function mgOpen(kind) {
-  mgClose(); MG.open = kind; MG.run = S.runs[S.run] && S.runs[S.run].points ? S.run : (mgRuns()[0] || S.run);
+  mgClose(); MG.open = kind; pfURL(kind); MG.run = S.runs[S.run] && S.runs[S.run].points ? S.run : (mgRuns()[0] || S.run);
   const o = document.createElement("div"); o.id = "mg";
-  o.innerHTML = `<div class="mg-top"><b>${kind === "pass" ? "Pass Forecaster" : "Meteogram"}</b>
-    <label>Model <select id="mgrun"></select></label>${kind === "pass" ? "" : `<label>Place <select id="mgtown"></select></label>`}
+  o.innerHTML = `<div class="mg-top"><b>${kind === "capass" ? "California Pass Forecaster" : kind === "pass" ? "Washington Pass Forecaster" : "Meteogram"}</b>
+    <label>Model <select id="mgrun"></select></label>${isPass(kind) ? "" : `<label>Place <select id="mgtown"></select></label>`}
     <a id="mgpage" href="meteograms" title="Full meteograms page (old-site layout: plumes, member grids, multi-run)"><span class="lg">Meteograms page</span><span class="sm">Full page</span></a><button type="button" id="mgsave" title="Save this graphic as a picture (phones: Share / Save Image)">Save image</button><button type="button" id="mgx">Close</button></div><div id="mgbody"><div class="mg-msg">Loading\u2026</div></div>`;
   document.body.appendChild(o); $("mgx").onclick = mgClose; $("mgsave").onclick = mgSave;
   const runLabel = r => { const [m, c] = r.split("/"); return `${S.man.models[m].site} ${c.slice(8)}Z ${c.slice(4, 6)}-${c.slice(6, 8)}`; };
@@ -1918,12 +1921,12 @@ function mgOpen(kind) {
   if ($("mgtown")) $("mgtown").onchange = e => { MG.town = e.target.value; mgDraw(); };
   addEventListener("resize", mgResize); mgDraw();
 }
-function mgClose() { const o = $("mg"); if (o) o.remove(); MG.open = null; removeEventListener("resize", mgResize); }
+function mgClose() { const o = $("mg"); if (o) o.remove(); MG.open = null; pfURL(null); removeEventListener("resize", mgResize); }
 let mgT = null; function mgResize() { clearTimeout(mgT); mgT = setTimeout(() => MG.open && mgDraw(), 150); }
 async function mgDraw() {
   const body = $("mgbody"), D = await mgSeries(MG.run); if (!MG.open) return;
   if (!D) { body.innerHTML = `<div class="mg-msg">This run was made before town forecasts were added. Pick a newer run.</div>`; return; }
-  if (MG.open === "pass") return passTable(body, D);
+  if (isPass(MG.open)) return passTable(body, D);
   const sel = $("mgtown"), towns = D.points.filter(p => p.k !== "pass"), passes = D.points.filter(p => p.k === "pass");
   if (!D.points.some(p => p.n === MG.town)) MG.town = (D.points.find(p => p.n === "Seattle") || D.points[0]).n;
   sel.innerHTML = [["Towns (A\u2013Z)", towns], ["Mountain passes (A\u2013Z)", passes]].filter(g => g[1].length).map(([l, a]) =>
@@ -2049,13 +2052,17 @@ function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x || 1))), r
 // Pass summit elevations, ft (WSDOT MountainPass feed, wsdot.com/Travel/Real-time/Service/api/MountainPass/Details/<id>, read
 // 10-30-26 8:15 PM; same as temp_maps.WA_PASSES, checked 10-24 against USGS 3DEP). BC: DriveBC summit heights (fast_encode).
 const PASS_ELEV = { Snoqualmie: 3022, Stevens: 4061, White: 4500, Chinook: 5430, Blewett: 4102, Sherman: 5575, Satus: 3107, Wauconda: 4310,
-                    Disautel: 3252, Coquihalla: 4081, Allison: 4403, Duffey: 4199 };
+                    Disautel: 3252, Coquihalla: 4081, Allison: 4403, Duffey: 4199,
+                    // California / Sierra (regions.json CA_PASSES elev_ft; "Sonora Pass" = pass point next to the town of Sonora)
+                    Yuba: 6710, Donner: 7239, "Mount Rose": 8911, Echo: 7382, Luther: 7740, Carson: 8574, Ebbetts: 8736, "Sonora Pass": 9624,
+                    Tioga: 9945, Walker: 5250, Tehachapi: 3771, Tejon: 4144 };
+const CA_PASS = new Set(["Yuba", "Donner", "Mount Rose", "Echo", "Luther", "Carson", "Ebbetts", "Sonora Pass", "Tioga", "Walker", "Tehachapi", "Tejon"]);
 // 10-30 8:10 PM (Benjamin: "I don't see it on the phone. Show the lowest freezing level in feet. Next to every pass, show the
 // elevation of the pass."): elevation under each pass name; lowest freezing level is the 2nd column (it was the last one, off
 // the right edge of a phone); blue when it drops below the summit. Models without a freezing level (ECMWF IFS / AIFS / ensembles
 // / NBM) borrow it from the newest HRRR, RRFS or GFS run over the same hours, and the header says which.
 async function passTable(body, D) {
-  const passes = D.points.filter(p => p.k === "pass"); if (!passes.length) { body.innerHTML = `<div class="mg-msg">No passes in this model's views.</div>`; return; }
+  const passes = D.points.filter(p => p.k === "pass" && (MG.open === "capass") === CA_PASS.has(p.n)); if (!passes.length) { body.innerHTML = `<div class="mg-msg">No passes in this model's views.</div>`; return; }
   const T0 = mgTown(D, passes[0].n), fmax = T0.f[T0.f.length - 1], wins = [[0, 24], [24, 48], [48, 72]].filter(w => fmax > w[0]).map(([a, b]) => [a, Math.min(b, fmax)]);
   const f1 = x => x == null ? "\u2013" : x.toFixed(1), f2 = x => x == null ? "\u2013" : x.toFixed(2), r0 = x => x == null ? "\u2013" : Math.round(x);
   const ft = x => x == null || !isFinite(x) ? "\u2013" : (Math.round(x / 100) * 100).toLocaleString("en-US");
@@ -2068,13 +2075,13 @@ async function passTable(body, D) {
     const vt0 = Date.parse(T0.t[0]) - 1, vt1 = Date.parse(T0.t[0]) + (span - T0.f[0]) * 36e5 + 1;
     for (const m of ["hrrr", "rrfs", "gfs"]) {
       const c = (S.man.runs[m] || []).slice(-1)[0]; if (!c) continue;
-      const D2 = await mgSeries(`${m}/${c}`).catch(() => null); if (MG.run !== runAt || MG.open !== "pass") return;
+      const D2 = await mgSeries(`${m}/${c}`).catch(() => null); if (MG.run !== runAt || !isPass(MG.open)) return;
       if (!D2 || !mgTown(D2, passes[0].n) || !mgTown(D2, passes[0].n).frz) continue;
       const lo = p => { const T = mgTown(D2, p.n); if (!T || !T.frz) return null; const v = T.frz.filter((x, k) => x != null && Date.parse(T.t[k]) >= vt0 && Date.parse(T.t[k]) <= vt1); return v.length ? Math.min(...v) : null; };
       if (passes.some(p => lo(p) != null)) { frzOf = lo; frzSrc = `${S.man.models[m].site} ${c.slice(8)}Z`; break; }
     }
   }
-  let h = `<div class="mg-note">Run start ${fmtPT(new Date(Date.parse(T0.t[0]) - T0.f[0] * 36e5).toISOString(), { weekday: "short", month: "numeric", day: "numeric", hour: "numeric" })} PT. Elevation = highway summit (WSDOT). Temperatures corrected to summit height. Freezing level shaded blue when it is below the pass. ${T0.snowEst ? "Snow estimated 10:1 where 2 m temp \u2264 33\u00b0F. " : ""}Tap a pass for its meteogram.</div>
+  let h = `<div class="mg-note">Run start ${fmtPT(new Date(Date.parse(T0.t[0]) - T0.f[0] * 36e5).toISOString(), { weekday: "short", month: "numeric", day: "numeric", hour: "numeric" })} PT. Elevation = highway summit (${MG.open === "capass" ? "USGS / Caltrans" : "WSDOT"}). Temperatures corrected to summit height. Freezing level shaded blue when it is below the pass. ${T0.snowEst ? "Snow estimated 10:1 where 2 m temp \u2264 33\u00b0F. " : ""}Tap a pass for its meteogram.</div>
   <div class="mg-scroll"><table class="pf"><thead><tr><th>Pass<br><small>summit ft</small></th><th>Freezing lvl<br><small>lowest ft, ${span} h${frzSrc ? `<br>from ${frzSrc}` : ""}</small></th>${wins.map((w, k) => `<th>Snow \u2033<br><small>${hdr[k]}</small></th>`).join("")}${T0.kuch ? wins.map((w, k) => `<th>Kuchera \u2033<br><small>${hdr[k]}</small></th>`).join("") : ""}<th>Low \u00b0F<br><small>first ${span} h</small></th><th>High \u00b0F<br><small>first ${span} h</small></th><th>Precip \u2033<br><small>first ${span} h</small></th><th>Max gust<br><small>mph, ${span} h</small></th></tr></thead><tbody>`;
   for (const p of passes) { const T = mgTown(D, p.n), sn = wins.map(([a, b]) => snowWin(T, a, b)), el = PASS_ELEV[p.n], fz = frzOf(p);
     const col = x => x == null ? "" : x >= 12 ? ' class="s3"' : x >= 6 ? ' class="s2"' : x >= 1 ? ' class="s1"' : "";

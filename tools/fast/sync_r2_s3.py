@@ -4,7 +4,7 @@ CLOUDFLARE_ACCOUNT_ID). Keys = paths relative to the data dir (what /d/<key> ser
 usage: python3 sync_r2_s3.py DATA_DIR"""
 import os, sys, mimetypes, hashlib, boto3
 from concurrent.futures import ThreadPoolExecutor
-D = sys.argv[1].rstrip("/"); A = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+D = sys.argv[1].rstrip("/"); A = "b6dc205037fd8e8c37d5267ee61dc302"   # pinned: PNW account only (shared env CLOUDFLARE_ACCOUNT_ID is the other site)
 s3 = boto3.client("s3", endpoint_url=f"https://{A}.r2.cloudflarestorage.com", region_name="auto",
                   aws_access_key_id=os.environ["PNW_R2_ACCESS_KEY_ID"], aws_secret_access_key=os.environ["PNW_R2_SECRET_ACCESS_KEY"])
 B = "pnw-models-data"; have = {}

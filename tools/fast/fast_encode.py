@@ -567,10 +567,11 @@ PT_FIELDS = ("t2m", "d2m", "pw", "kinc", "fzinc", "gust", "u10", "v10", "mslp", 
              "nq1", "nq6", "ns6", "tstm", "maxt", "mint", "t2sd", "p32")
 def town_points(man, m):
     """Every town / pass slot of the model's views (deduped by name, A-Z): meteogram and Pass Forecaster sample points."""
-    pts = {}
+    pts = {}; towns = {t["name"] for V in man["models"][m]["views"].values() for t in V.get("towns", []) if t["kind"] == "town"}
     for vid, V in man["models"][m]["views"].items():
         for t in V.get("towns", []):
-            if t["name"] not in pts: pts[t["name"]] = dict(n=t["name"], k=t["kind"], fi=t["fi"], fj=t["fj"], **({"c": round(t["t2m_corr"], 2)} if "t2m_corr" in t else {}))
+            n = t["name"] + " Pass" if t["kind"] == "pass" and t["name"] in towns else t["name"]   # 11-04: Sonora Pass vs Sonora (town)
+            if n not in pts: pts[n] = dict(n=n, k=t["kind"], fi=t["fi"], fj=t["fj"], **({"c": round(t["t2m_corr"], 2)} if "t2m_corr" in t else {}))
     return sorted(pts.values(), key=lambda p: (p["n"].lower()))
 def sample_pts(a, P):
     """Bilinear sample of a cropped grid at fractional (fi, fj) points (nearest grid point already applied for 3 km grids)."""
@@ -647,6 +648,29 @@ CLIM_SOURCE = {"pr": "PRISM 1991-2020 normals (US, 4 km) + CPC Global Unified Ga
 def _clim_src(fn):
     return next(p for p in (os.environ.get("WX_CLIM_DIR", ""), os.path.join(HERE, "clim"))
                 if p and os.path.exists(os.path.join(p, fn)))   # 11-04: second site uses only its own clim/ (no first-site fallback)
+SIERRA_ROADS = {("Interstate", "80"), ("Interstate", "5"), ("Interstate", "15"), ("Federal", "50"), ("Federal", "395")}
+def major_roads(ax):
+    """Natural Earth 10m roads (public domain): the Sierra Passes view's major routes as a thick line with a dark casing, one small
+    label per route (I-80, US-50...) placed at the longest in-view piece, so the pass labels stay uncluttered."""
+    import cartopy.io.shapereader as shp, cartopy.crs as ccrs, matplotlib.patheffects as pe
+    pc = ccrs.PlateCarree(); x0, x1, y0, y1 = ax.get_extent(pc); best = {}
+    for r in shp.Reader(shp.natural_earth("10m", "cultural", "roads")).records():
+        a = r.attributes
+        if a.get("sov_a3") != "USA" or (a.get("level"), a.get("name")) not in SIERRA_ROADS: continue
+        g = r.geometry; bx = g.bounds
+        if bx[2] < x0 or bx[0] > x1 or bx[3] < y0 or bx[1] > y1: continue
+        ax.add_geometries([g], pc, facecolor="none", edgecolor="#2a2f38", linewidth=2.6, zorder=4.4)
+        ax.add_geometries([g], pc, facecolor="none", edgecolor="#e9dcc0", linewidth=1.4, zorder=4.5)
+        key = ("I-" if a["level"] == "Interstate" else "US-") + a["name"]
+        for ln in getattr(g, "geoms", [g]):
+            c = [(x, y) for x, y in ln.coords if x0 + 0.15 < x < x1 - 0.15 and y0 + 0.15 < y < y1 - 0.15]
+            if len(c) > len(best.get(key, [])): best[key] = c
+    for key, c in best.items():
+        if len(c) < 3: continue
+        x, y = c[len(c) // 2]
+        ax.text(x, y, key, transform=pc, fontsize=6.5, fontweight="bold", color="#1b1d22", ha="center", va="center", zorder=4.6,
+                bbox=dict(boxstyle="round,pad=0.18", fc="#e9dcc0", ec="#2a2f38", lw=0.6))
+
 def clim_static(m, out, LA, LO, var="z500", oro_m=None):
     """1991-2020 NCEP/NCAR R1 normals of `var` on the model's cropped grid (LA, LO 2-D, any grid kind), one 16-bit-in-RGB PNG
     per slot (value = lo + (R*256+G)/65535*(hi-lo)). z500, t850: 12 monthly means (the viewer blends the two months around the
@@ -896,6 +920,7 @@ def static(m, out, views_only=None, x2_only=False):
         if not os.path.exists(f"{out}/static/base_{vid}.png") or views_only:
             fig, ax, ky = layer_fig(vid)
             HS.outlines(ax, cf, res="10m" if vid in WA_LIKE else "50m"); HS.frame(ax)
+            if vid == "capasses": major_roads(ax)   # 11-04 (Benjamin 3:10 PM): interstates + major US highways on Sierra Passes
             nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
             for t in fig.texts[nt:]: t.set_visible(False)
             sizes[f"base_{vid}"] = save(fig, f"{out}/static/base_{vid}.png")

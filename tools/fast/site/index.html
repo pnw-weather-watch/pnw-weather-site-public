@@ -39,7 +39,7 @@ canvas{display:block;width:auto;height:auto;max-width:100%;max-height:100%;touch
 @media (max-height:500px) and (min-width:701px){#bar label{font-size:0}#bar label select{font-size:12px}#bar input[type=range]{min-width:120px}}
 body.bare #bar{display:none}
 /* side-by-side frames (compare.html): no page-level extras, smaller bar */
-body.embed #share,body.embed #obsbtn,body.embed #stat,body.embed #pfbtn{display:none}
+body.embed #share,body.embed #obsbtn,body.embed #stat,body.embed #pfbtn,body.embed #pfcabtn{display:none}
 body.embed #bar{gap:6px;padding:6px 8px}
 /* 11-01 (Benjamin t2027u: "move the compare views directly under the slider ... menus drop down BELOW the views so the views never change
    size or position"): in compare frames the map comes first, top-aligned, sized only by the frame width (capped to the frame height),
@@ -86,7 +86,7 @@ body.phone canvas{max-height:none}
 #obsov #obsx{margin-left:auto}
 #obsov #obs-root{flex:1;min-height:0;position:relative;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 0 calc(72px + env(safe-area-inset-bottom))}/* 11-03 t2226u: the whole Observations menu scrolls on phones (foot, notes and credits were cut off) */
 #obsov[hidden]{display:none}
-#pfbtn .sm,#mgpage .sm,#obsbtn .sm{display:none}@media (max-width:700px){#pfbtn .lg,#mgpage .lg,#obsbtn .lg{display:none}#pfbtn .sm,#mgpage .sm,#obsbtn .sm{display:inline}#mg #mgpage{padding:5px 6px}}
+#pfbtn .sm,#pfcabtn .sm,#mgpage .sm,#obsbtn .sm{display:none}@media (max-width:700px){#pfbtn .lg,#pfcabtn .lg,#mgpage .lg,#obsbtn .lg{display:none}#pfbtn .sm,#pfcabtn .sm,#mgpage .sm,#obsbtn .sm{display:inline}#mg #mgpage{padding:5px 6px}}
 #mgbody{flex:1;min-height:0;overflow:auto;padding:4px 8px calc(8px + env(safe-area-inset-bottom))}
 #mgbody canvas{display:block}
 .mg-msg{padding:20px;color:var(--muted)}.mg-note{color:var(--muted);font-size:12px;padding:6px 4px}
@@ -117,7 +117,7 @@ table.pf td small.el{color:var(--muted);font-weight:500;font-size:11px}table.pf 
   <button id="save" title="Save this map as a picture">Save image</button>
   <button id="share">Share</button>
   <button id="mgbtn" title="Hour-by-hour forecast for a town or pass">Meteogram</button>
-  <button id="pfbtn" title="Snow, temperature and wind for every mountain pass"><span class="lg">Pass Forecaster</span><span class="sm">Passes</span></button>
+  <button id="pfbtn" title="Snow, temperature and wind for Washington mountain passes"><span class="lg">Washington Pass Forecaster</span><span class="sm">WA Passes</span></button><button id="pfcabtn" title="Snow, temperature and wind for California / Sierra passes"><span class="lg">California Pass Forecaster</span><span class="sm">CA Passes</span></button>
   <button id="obsbtn" title="Live station observations (NWS / Environment Canada)"><span class="lg">Observations</span><span class="sm">Obs</span></button>
   <span id="stat"></span>
 </div>
