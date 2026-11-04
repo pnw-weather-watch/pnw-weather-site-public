@@ -906,13 +906,14 @@ def static(m, out, views_only=None, x2_only=False):
         tv_la = dict(getattr(ax, "town_values", {}) or {}); pr_la = dict(getattr(ax, "pass_raw", {}) or {})
         fig2, ax2, _ = layer_fig(vid); town_call(ax2, vid, (tw_la1, tw_lo1, tw_lo))
         tv_lo = dict(getattr(ax2, "town_values", {}) or {}); pr_lo = dict(getattr(ax2, "pass_raw", {}) or {}); plt.close(fig2)
-        lab2key = {v[0]: k for k, v in TM.WA_PASSES.items()}
+        PSET = TM.CA_PASSES if vid == "capasses" else TM.WA_PASSES   # 11-04 fix: Sierra pass numbers stayed "88" (looked up in the WA list)
+        lab2key = {v[0]: k for k, v in PSET.items()}
         fig.canvas.draw(); r = fig.canvas.get_renderer(); Wd, Hd = fig.get_size_inches() * fig.dpi; slots = []; last = None
         for t in arts:
             if t.get_text() != "88": last = t.get_text(); continue
             if not t.get_visible(): continue
             if last in tv_la: pla, plo, kind, el = tv_la[last], tv_lo.get(last), "town", None
-            elif last in lab2key and lab2key[last] in pr_la: k_ = lab2key[last]; pla, plo, kind, el = pr_la[k_], pr_lo.get(k_), "pass", TM.WA_PASSES[k_][3]
+            elif last in lab2key and lab2key[last] in pr_la: k_ = lab2key[last]; pla, plo, kind, el = pr_la[k_], pr_lo.get(k_), "pass", PSET[k_][3]
             else: continue
             if plo is None or not (np.isfinite(pla) and np.isfinite(plo)): continue
             fi_, fj_ = to_ij(np.array([[plo]]), np.array([[pla]])); fi_, fj_ = float(fi_[0, 0]) - i0, float(fj_[0, 0]) - j0
