@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Sync a local data dir to R2 bucket pnw-models-data with the R2 S3 token (env PNW_R2_ACCESS_KEY_ID / PNW_R2_SECRET_ACCESS_KEY,
+CLOUDFLARE_ACCOUNT_ID). Keys = paths relative to the data dir (what /d/<key> serves). Skips objects with the same size.
+usage: python3 sync_r2_s3.py DATA_DIR"""
+import os, sys, mimetypes, boto3
+from concurrent.futures import ThreadPoolExecutor
+D = sys.argv[1].rstrip("/"); A = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+s3 = boto3.client("s3", endpoint_url=f"https://{A}.r2.cloudflarestorage.com", region_name="auto",
+                  aws_access_key_id=os.environ["PNW_R2_ACCESS_KEY_ID"], aws_secret_access_key=os.environ["PNW_R2_SECRET_ACCESS_KEY"])
+B = "pnw-models-data"; have = {}
+for pg in s3.get_paginator("list_objects_v2").paginate(Bucket=B):
+    for o in pg.get("Contents", []): have[o["Key"]] = o["Size"]
+todo = [(os.path.join(r, f), os.path.relpath(os.path.join(r, f), D)) for r, _, fs in os.walk(D) for f in fs]
+todo = [(p, k) for p, k in todo if have.get(k) != os.path.getsize(p)]
+todo.sort(key=lambda t: t[1].endswith("manifest.json"))   # manifest last
+def put(t):
+    p, k = t; ct = mimetypes.guess_type(p)[0] or "application/octet-stream"
+    s3.upload_file(p, B, k, ExtraArgs={"ContentType": ct}); return k
+with ThreadPoolExecutor(16) as ex: n = sum(1 for _ in ex.map(put, [t for t in todo if not t[1].endswith("manifest.json")]))
+for t in todo:
+    if t[1].endswith("manifest.json"): put(t); n += 1
+print(f"uploaded {n} files, {len(have)} already there")
