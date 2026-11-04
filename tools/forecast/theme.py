@@ -1,0 +1,63 @@
+"""THEME LAYER for the map renderers (Python side). house_style.py and menu_maps.py call apply_*() at import end, so every
+palette, font, key size and marker color below replaces Benjamin's values without touching drawing logic.
+Values: Michael Weather Bot's "Coastal Daylight" theme (design/THEME_PROPOSAL.md v1) + his scales (anom v6, snow v6,
+temp850 v1, QPF, waves v4). Change looks here or in theme/*.json only."""
+import os, json
+import numpy as np
+HERE = os.path.dirname(os.path.abspath(__file__))
+TD = os.environ.get("WX_THEME_DIR", os.path.normpath(os.path.join(HERE, "..", "..", "theme")))
+FONTS = os.environ.get("WX_THEME_FONTS", os.path.normpath(os.path.join(HERE, "..", "fast", "site", "fonts")))
+J = lambda n: json.load(open(os.path.join(TD, n)))
+T = J("theme.json"); MAP = T["map"]
+
+def apply_house_style(g):
+    """g = house_style globals()."""
+    from matplotlib import font_manager
+    sm = g["smooth"]
+    # page / header / key chrome on rendered PNGs (header layout itself is house_style.header + the viewer's header())
+    g.update(BG=MAP["bg"], PANEL_EDGE=MAP["panel_edge"], INK=MAP["ink"], MUTED=MAP["muted"], ACCENT=MAP["accent"], BADGE=MAP["badge"],
+             COAST_DARK=MAP["coast"], H_COLOR=MAP["hi"], L_COLOR=MAP["lo"], BAR_LABEL_SIZE=T["key"]["label_size"])
+    # font: static Atkinson Hyperlegible (regular < 600 <= bold); replaces the variable-Montserrat instancer
+    fp = {}
+    def font(weight=500, size=12):
+        path = os.path.join(FONTS, "atkinson-hyperlegible-700.ttf" if weight >= 600 else "atkinson-hyperlegible-regular.ttf")
+        if path not in fp: font_manager.fontManager.addfont(path); fp[path] = 1
+        return font_manager.FontProperties(fname=path, size=size)
+    def use_for_plots():
+        import matplotlib as mpl
+        mpl.rcParams["font.family"] = font(500).get_name()
+    g.update(font=font, use_for_plots=use_for_plots, _fp={500: os.path.join(FONTS, "atkinson-hyperlegible-regular.ttf"), 700: os.path.join(FONTS, "atkinson-hyperlegible-700.ttf")})
+    # 500 mb height anomaly: Michael anom_scale v6 (white near normal, grey / grey-purple extremes)
+    A = J("michael_design/anom_scale.json")["products"]["h500_anom"]
+    E = np.array(A["edges"]); C = A["colors"]
+    g.update(ANOM_LEVELS=E, ANOM_COLORS=C[1:-1], ANOM_UNDER=C[0], ANOM_OVER=C[-1], ANOM_TICKS=A["ticks"])
+    mids = (E[:-1] + E[1:]) / 2.0
+    def _anom_color(m):   # used by t850a (27x) and the SLP anomaly palettes
+        return C[1:-1][int(np.clip(np.searchsorted(E, m) - 1, 0, len(C) - 3))]
+    g["_anom_color"] = _anom_color
+    # temperature: Michael temp850 v1 (-40..80 F, 2 F); 80..120 F extended to wine/orchid (KIT ADDITION, confirm with Michael)
+    TS = J("temp_scale.json"); te = TS["edges_F"]; tc = TS["colors"]
+    tmids = [(a + b) / 2 for a, b in zip(te[:-1], te[1:])]
+    hot = [82, 90, 100, 110, 120]; hotc = ["#7f1a3f", "#6a1046", "#8a2c78", "#b45aa8", "#dba3d3"]
+    def temp_color(f):
+        if f < te[0]: return tc[0]
+        if f <= te[-1]: return tc[1:-1][min(len(tc) - 3, int((f - te[0]) // 2))]
+        return sm([f], hot, hotc)[0]
+    L = g["TEMP_LEVELS"]; g["temp_color"] = temp_color
+    g["TEMP_COLORS"] = [temp_color(v) for v in (L[:-1] + L[1:]) / 2.0]
+    L8 = g["T850_LEVELS"]; g["T850_COLORS"] = [temp_color(c * 1.8 + 32) for c in (L8[:-1] + L8[1:]) / 2.0]
+    # precip (6 h / totals): Michael QPF ramp (no green); RAIN_* keeps Benjamin's level spacing, colors re-mapped onto Michael's edges
+    Q = J("qpf_wave_scales.json")["qpf"]; qe = Q["edges_in"]; qc = Q["colors"]
+    def rain_color(v):   # 3..12 in: Michael's ramp stops at 3 in; extended gold -> amber -> umber (KIT ADDITION, confirm with Michael)
+        if v >= qe[-1]: return sm([v], [3.0, 5.0, 8.0, 12.0], [qc[-1], "#f2b84b", "#c97b2e", "#7a3f1f"])[0]
+        return qc[1:-1][max(0, min(len(qc) - 3, int(np.searchsorted(qe, v, side="right") - 1)))]
+    g["rain_color"] = rain_color
+    g["RAIN_COLORS"] = [rain_color(v) for v in g["RAIN_LEVELS"][:-1]]; g["RAIN_OVER"] = qc[-1]
+    g["THEME"] = T; g["WAVE_SCALES"] = J("qpf_wave_scales.json")
+
+def apply_menu_maps(g):
+    """g = menu_maps globals(): snow accumulation = Michael snow v6 (amount map)."""
+    S = J("michael_design/snow_scale_v6.json"); ge = eval(S["gain_edges"]) if isinstance(S["gain_edges"], str) else S["gain_edges"]
+    gc = eval(S["gain_colors"]) if isinstance(S["gain_colors"], str) else S["gain_colors"]
+    g["SNOW_LEVELS"] = list(ge); g["SNOW_ANCH"] = list(zip(ge, gc[:-1]))
+    g["SNOW_V6"] = S

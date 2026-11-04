@@ -1,0 +1,4 @@
+Secrets scan of /workspace/second_site_kit (117 text files), 2026-11-03 22:25 PST
+Patterns: cloudflare_account_id(32hex), aws_key, github_token, bearer_value, private_key, slack_token, cf_token_like, generic_secret_assign, known_ids, access_aud, email
+Hits: 0
+
