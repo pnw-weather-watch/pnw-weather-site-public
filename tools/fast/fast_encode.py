@@ -645,8 +645,8 @@ CLIM_UNITS = {"z500": "m", "t850": "C", "t2m": "F", "pr": "mm/day", "pw": "in", 
 CLIM_SOURCE = {"pr": "PRISM 1991-2020 normals (US, 4 km) + CPC Global Unified Gauge 1991-2020 (land, 0.5 deg) + GPCP v2.3 1991-2020 (ocean, 2.5 deg); "
                      "built by clim/src/build_precip_clim.py"}
 def _clim_src(fn):
-    return next(p for p in (os.environ.get("WX_CLIM_DIR", ""), os.path.join(HERE, "clim"), "/workspace/wx-models-site/fast_deploy/clim")
-                if p and os.path.exists(os.path.join(p, fn)))
+    return next(p for p in (os.environ.get("WX_CLIM_DIR", ""), os.path.join(HERE, "clim"))
+                if p and os.path.exists(os.path.join(p, fn)))   # 11-04: second site uses only its own clim/ (no first-site fallback)
 def clim_static(m, out, LA, LO, var="z500", oro_m=None):
     """1991-2020 NCEP/NCAR R1 normals of `var` on the model's cropped grid (LA, LO 2-D, any grid kind), one 16-bit-in-RGB PNG
     per slot (value = lo + (R*256+G)/65535*(hi-lo)). z500, t850: 12 monthly means (the viewer blends the two months around the
@@ -908,11 +908,12 @@ def static(m, out, views_only=None, x2_only=False):
         tv_lo = dict(getattr(ax2, "town_values", {}) or {}); pr_lo = dict(getattr(ax2, "pass_raw", {}) or {}); plt.close(fig2)
         PSET = TM.CA_PASSES if vid == "capasses" else TM.WA_PASSES   # 11-04 fix: Sierra pass numbers stayed "88" (looked up in the WA list)
         lab2key = {v[0]: k for k, v in PSET.items()}
-        fig.canvas.draw(); r = fig.canvas.get_renderer(); Wd, Hd = fig.get_size_inches() * fig.dpi; slots = []; last = None
+        fig.canvas.draw(); r = fig.canvas.get_renderer(); Wd, Hd = fig.get_size_inches() * fig.dpi; slots = []; last = None; lastp = False
         for t in arts:
-            if t.get_text() != "88": last = t.get_text(); continue
+            if t.get_text() != "88": last = t.get_text(); lastp = t.get_style() == "italic"; continue   # italic name = pass label
             if not t.get_visible(): continue
-            if last in tv_la: pla, plo, kind, el = tv_la[last], tv_lo.get(last), "town", None
+            if lastp and last in lab2key and lab2key[last] in pr_la: k_ = lab2key[last]; pla, plo, kind, el = pr_la[k_], pr_lo.get(k_), "pass", PSET[k_][3]   # 11-04: Sonora Pass took Sonora town's value
+            elif last in tv_la: pla, plo, kind, el = tv_la[last], tv_lo.get(last), "town", None
             elif last in lab2key and lab2key[last] in pr_la: k_ = lab2key[last]; pla, plo, kind, el = pr_la[k_], pr_lo.get(k_), "pass", PSET[k_][3]
             else: continue
             if plo is None or not (np.isfinite(pla) and np.isfinite(plo)): continue
@@ -1513,10 +1514,13 @@ def static(m, out, views_only=None, x2_only=False):
             clim = {var: clim_static(m, out, crop_la, crop_lo, var, None if oro is None else oro[i0:i1, j0:j1] / 3.28084) for var in os.environ["WX_X2_CLIM"].split(",")}
             json.dump(clim, open(f"{out}/clim_{m}.json", "w"), indent=1)
         print(f"{m} x2 layers done (no clim / manifest)", flush=True); return
-    clim = {}
-    for var in sorted({P["clim"] for P in prods.values() if P.get("clim")}):
-        clim[var] = clim_static(m, out, crop_la, crop_lo, var, None if oro is None else oro[i0:i1, j0:j1] / 3.28084)
-    mp = f"{out}/manifest.json"; man = json.load(open(mp)) if os.path.exists(mp) else {}
+    clim = {}; mp = f"{out}/manifest.json"; man = json.load(open(mp)) if os.path.exists(mp) else {}
+    old_clim = ((man.get("models") or {}).get(m) or {}).get("clim") or {}
+    for var in sorted({P["clim"] for P in list(prods.values()) + list(prods_x.values()) if P.get("clim")}):   # 11-04: products_x too (mslpa -> slp)
+        try: clim[var] = clim_static(m, out, crop_la, crop_lo, var, None if oro is None else oro[i0:i1, j0:j1] / 3.28084)
+        except StopIteration:   # source normals not in this kit's clim/: keep the already-built slot files
+            if var in old_clim: clim[var] = old_clim[var]
+            else: print(f"clim {var}: no source in clim/ (skipped)", flush=True)
     man.update(dpi=DPI, style=dict(BG=HS.BG, INK=HS.INK, MUTED=HS.MUTED, ACCENT=HS.ACCENT))
     MI = minfo(m)
     man.setdefault("models", {})[m] = dict(name=MI["name"], site=MI["site"], res=MI["res"], grid=MD["grid"],
