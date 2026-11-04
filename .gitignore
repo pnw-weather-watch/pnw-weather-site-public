@@ -1,3 +1,5 @@
 deploy/public/
 __pycache__/
 local/
+deploy/functions/
+deploy/public/
