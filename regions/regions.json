@@ -305,15 +305,15 @@
    "pac": 1000,
    "pnw": 400,
    "pnwt": 400,
-   "ca": 400,
-   "hiw": 400
+   "ca": 300,
+   "hiw": 500
   },
   "prominence_mb": {
    "na": 3.0,
    "pac": 3.0,
    "pnw": 2.0,
    "pnwt": 2.0,
-   "ca": 2.0,
+   "ca": 1.5,
    "hiw": 2.0
   },
   "edge_km": {
@@ -321,8 +321,8 @@
    "pac": 600,
    "pnw": 450,
    "pnwt": 450,
-   "ca": 450,
-   "hiw": 450
+   "ca": 300,
+   "hiw": 400
   }
  },
  "barbs_across": {
@@ -585,5 +585,6 @@
    -120.9969
   ]
  ],
- "CA_PASS_TOWNS_note": "KIT ADDITION (city-center coordinates, GeoNames-style; verify): towns drawn on the Sierra Passes view the way the Cascade Passes view uses WA_TOWNS."
+ "CA_PASS_TOWNS_note": "KIT ADDITION (city-center coordinates, GeoNames-style; verify): towns drawn on the Sierra Passes view the way the Cascade Passes view uses WA_TOWNS.",
+ "hl_note": "11-3 Michael: ca matched to pnwt (similar frame size: 300 km / 1.5 mb / 300 km); hiw radius 500 km so weak subtropical centers are not doubled; edge 400 km."
 }
