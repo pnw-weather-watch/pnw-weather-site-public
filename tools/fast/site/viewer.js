@@ -778,6 +778,9 @@ async function render(lite) {
   // 1. color fill: value -> bin color, exactly the site's bins (contourf + BoundaryNorm)
   const smp = P.fill === "prt" ? (/^(ifs|ifs9)$/.test(run.split("/")[0]) ? sampleType : sampleNN) : (P.mask_edge || pid === "ssta") && P.min_show !== undefined ? (st_, F_, k_) => sampleMask(st_, F_, k_, P.min_show) : sample;
   const pal = palette(pid), mins = P.min_show, im = ctx.createImageData(st.W, st.H), o = im.data, F = D.fill, n = st.W * st.H;
+  // 11-04 (white base map rule): fields that leave dry / below-threshold points empty (QPF, precip, rain...) show the theme's white
+  // base under them, not the page's black. Dark-base products (snow, radar/reflectivity, pass views) keep the dark surround.
+  if (mins !== undefined && !/snow|sn[0-9]|kuch|refl|radar|dbz/i.test(pid) && !/passes/.test(vid) && pid !== "ssta") { ctx.fillStyle = (S.man.style.LAND || "#ffffff"); ctx.fillRect(st.x0, st.y0, st.W * (rs > 1 && !lite && !S.timer ? 1 : 1), st.H); }
   const vals = new Float32Array(n);
   if (lite) {   // half resolution: one sample per 2x2 block
     const W = st.W, H = st.H;
