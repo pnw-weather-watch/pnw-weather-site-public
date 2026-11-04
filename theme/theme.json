@@ -1,20 +1,64 @@
 {
  "name": "Coastal Daylight (from Michael Weather Bot's THEME_PROPOSAL.md v1, 11-3-26)",
- "ui": {"bg": "#0E1F33", "panel": "#16304A", "panel2": "#132a42", "line": "#24435f", "edge": "#5f7f99",
-        "ink": "#F3F7F8", "muted": "#9FB3C2", "accent": "#1F9E8F", "accent2": "#2FB9A8", "warn": "#F6C35A",
-        "canvas_bg": "#0E1F33", "canvas_ink": "#F3F7F8", "canvas_muted": "#9FB3C2", "dot": "#0B2545", "halo": "#ffffff"},
- "map": {"bg": "#FFFFFF", "land": "#FFFFFF", "ocean": "#EAF4F4", "lake": "#EAF4F4", "ink": "#0B2545", "muted": "#5B6B7C",
-         "accent": "#1F9E8F", "coast": "#7D8B99", "border": "#98A4AF", "state": "#B5BEC7", "hi": "#0B2545", "lo": "#E4572E",
-         "dark_base": "#0B2545", "panel_edge": "#5B6B7C", "badge": "#0B2545"},
- "lines": {"coast": 1.5, "country": 1.2, "state": 0.85, "isobar": 1.6, "isobar_halo": 3.6, "freeze": 2.6, "freeze_halo": 4.6},
- "font": {"family_css": "WXTheme", "regular": "fonts/atkinson-hyperlegible-regular.ttf", "bold": "fonts/atkinson-hyperlegible-700.ttf",
-          "license": "SIL Open Font License (fonts/OFL.txt)"},
- "key": {"label_size": 14, "emph_value_color": "#1F9E8F"},
+ "ui": {
+  "bg": "#05080D",
+  "panel": "#111A24",
+  "panel2": "#0C141D",
+  "line": "#22303F",
+  "edge": "#4A5D70",
+  "ink": "#F3F7F8",
+  "muted": "#9FB3C2",
+  "accent": "#1F9E8F",
+  "accent2": "#2FB9A8",
+  "warn": "#F6C35A",
+  "canvas_bg": "#05080D",
+  "canvas_ink": "#E8F0F7",
+  "canvas_muted": "#9FB3C8",
+  "dot": "#0B2545",
+  "halo": "#ffffff"
+ },
+ "map": {
+  "bg": "#05080D",
+  "land": "#FFFFFF",
+  "ocean": "#EAF4F4",
+  "lake": "#EAF4F4",
+  "ink": "#E8F0F7",
+  "muted": "#9FB3C8",
+  "accent": "#3CC8B4",
+  "coast": "#7D8B99",
+  "border": "#98A4AF",
+  "state": "#B5BEC7",
+  "hi": "#0B2545",
+  "lo": "#E4572E",
+  "dark_base": "#0B2545",
+  "panel_edge": "#3A4A5C",
+  "badge": "#0E1A26"
+ },
+ "lines": {
+  "coast": 1.6,
+  "country": 1.7,
+  "state": 1.25,
+  "isobar": 1.6,
+  "isobar_halo": 3.6,
+  "freeze": 2.6,
+  "freeze_halo": 4.6
+ },
+ "font": {
+  "family_css": "WXTheme",
+  "regular": "fonts/atkinson-hyperlegible-regular.ttf",
+  "bold": "fonts/atkinson-hyperlegible-700.ttf",
+  "license": "SIL Open Font License (fonts/OFL.txt)"
+ },
+ "key": {
+  "label_size": 14,
+  "emph_value_color": "#1F9E8F"
+ },
  "scales": {
-   "anomaly": "theme/michael_design/anom_scale.json (v6)",
-   "snow": "theme/michael_design/snow_scale_v6.json",
-   "temp_850_and_2m": "theme/michael_design/temp850_scale.py (COLD_ANCHORS / WARM_ANCHORS, -40..80 F)",
-   "qpf": "theme/michael_design/theme_coastal_daylight.py (QPF_EDGES / QPF_COLORS, no green)",
-   "waves": "theme/michael_design/theme_cd_waves_v4.py"
- }
+  "anomaly": "theme/michael_design/anom_scale.json (v6)",
+  "snow": "theme/michael_design/snow_scale_v6.json",
+  "temp_850_and_2m": "theme/michael_design/temp850_scale.py (COLD_ANCHORS / WARM_ANCHORS, -40..80 F)",
+  "qpf": "theme/michael_design/theme_coastal_daylight.py (QPF_EDGES / QPF_COLORS, no green)",
+  "waves": "theme/michael_design/theme_cd_waves_v4.py"
+ },
+ "note_11_3": "Benjamin 11-3: white base map inside the image, black empty space around it (like his site); thicker state and country lines."
 }

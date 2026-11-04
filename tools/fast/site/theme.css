@@ -1,6 +1,6 @@
 /* THEME LAYER: all page-chrome colors and the font. Edit here (and theme/theme.json for maps); no logic changes needed. */
 @font-face{font-family:WXTheme;src:url(fonts/atkinson-hyperlegible-regular.woff2) format("woff2"),url(fonts/atkinson-hyperlegible-regular.ttf) format("truetype");font-weight:100 599}
 @font-face{font-family:WXTheme;src:url(fonts/atkinson-hyperlegible-700.woff2) format("woff2"),url(fonts/atkinson-hyperlegible-700.ttf) format("truetype");font-weight:600 900}
-:root{--bg:#0E1F33;--panel:#16304A;--panel2:#132a42;--line:#24435f;--edge:#5f7f99;--ink:#F3F7F8;--muted:#9FB3C2;
+:root{--bg:#05080D;--panel:#111A24;--panel2:#0C141D;--line:#22303F;--edge:#4A5D70;--ink:#F3F7F8;--muted:#9FB3C2;
 --accent:#1F9E8F;--accent2:#2FB9A8;--warn:#F6C35A;--warnbg:#2a2416;--warnedge:#6b5a2e;
---canvas-bg:#0E1F33;--canvas-ink:#F3F7F8;--canvas-muted:#9FB3C2;--dot:#0B2545;--halo:#ffffff;--map-hi:#0B2545;--map-lo:#E4572E}
+--canvas-bg:#05080D;--canvas-ink:#E8F0F7;--canvas-muted:#9FB3C8;--dot:#0B2545;--halo:#ffffff;--map-hi:#0B2545;--map-lo:#E4572E}

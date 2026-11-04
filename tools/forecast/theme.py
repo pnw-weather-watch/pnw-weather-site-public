@@ -17,6 +17,9 @@ def apply_house_style(g):
     # page / header / key chrome on rendered PNGs (header layout itself is house_style.header + the viewer's header())
     g.update(BG=MAP["bg"], PANEL_EDGE=MAP["panel_edge"], INK=MAP["ink"], MUTED=MAP["muted"], ACCENT=MAP["accent"], BADGE=MAP["badge"],
              COAST_DARK=MAP["coast"], H_COLOR=MAP["hi"], L_COLOR=MAP["lo"], BAR_LABEL_SIZE=T["key"]["label_size"])
+    # map line widths (Benjamin 11-3: thicker state and country lines); country never thinner than state
+    Ln = T.get("lines", {})
+    if Ln: g.update(COAST_LW=Ln["coast"], STATE_LW=Ln["state"], COUNTRY_LW=max(Ln["country"], Ln["state"]), ISOBAR_LW=Ln["isobar"], ISOBAR_HALO=Ln["isobar_halo"])
     # font: static Atkinson Hyperlegible (regular < 600 <= bold); replaces the variable-Montserrat instancer
     fp = {}
     def font(weight=500, size=12):
