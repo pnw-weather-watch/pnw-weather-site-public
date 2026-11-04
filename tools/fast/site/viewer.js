@@ -656,7 +656,7 @@ const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), pars
 const palCache = {};
 function palette(pid) {
   const pk = S.run.split("/")[0] + pid; if (palCache[pk]) return palCache[pk];
-  const P = PRODS()[pid], L = P.levels, cols = P.colors.map(hex);
+  const P = PRODS()[pid], L = P.levels, cols = P.colors.map(c => c ? hex(c) : null);   // [THEME] null = no-fill band (snow change -1..0.1 in)
   const dL = L[1] - L[0], uniform = L.every((x, k) => Math.abs(x - (L[0] + k * dL)) < 1e-6 * Math.max(1, Math.abs(dL)));
   return (palCache[pk] = { L, uniform, L0: L[0], dL, n: cols.length, cols, under: P.under && hex(P.under), over: P.over && hex(P.over), Lend: L[L.length - 1] });
 }
@@ -853,9 +853,13 @@ async function render(lite) {
     if (!D.mx) D.mx = {};
     if (D.mx[vid] === undefined) { let mx = -Infinity; for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) { const v = D.fill[r * D.w + c]; if (v > mx) mx = v; } D.mx[vid] = mx; }
     if (isFinite(D.mx[vid]) && D.mx[vid] >= 0) {
-      maxv = D.mx[vid]; const yb = st.y0 + st.H, yc = yb + (LH - yb) * 0.5;
-      ctx.save(); ctx.font = `800 ${pt(11)}px WXTheme`; ctx.fillStyle = S.man.style.INK; ctx.textAlign = "right"; ctx.textBaseline = "middle";
-      ctx.fillText(`Max height: ${Math.round(maxv)} ft`, st.x0 + st.W, yc); ctx.restore();
+      // [THEME] Benjamin 11-3 (Michael's wave v4): "Maximum wave height: N ft" inside the map, bottom right, bigger, bold, drop shadow
+      maxv = D.mx[vid]; const pad = pt(10);
+      ctx.save(); ctx.font = `700 ${pt(15)}px WXTheme`; ctx.textAlign = "right"; ctx.textBaseline = "alphabetic";
+      ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = pt(3); ctx.shadowOffsetX = pt(1.2); ctx.shadowOffsetY = pt(1.2);
+      ctx.lineWidth = pt(2.2); ctx.strokeStyle = "#0b0f14"; ctx.lineJoin = "round";
+      const tx = `Maximum wave height: ${Math.round(maxv)} ft`, xr = st.x0 + st.W - pad, yr = st.y0 + st.H - pad;
+      ctx.strokeText(tx, xr, yr); ctx.shadowColor = "transparent"; ctx.fillStyle = "#ffffff"; ctx.fillText(tx, xr, yr); ctx.restore();
     }
   }
   const t3 = performance.now();
@@ -888,7 +892,7 @@ function creditLines(pid, P, towns) {
 window.creditLines = creditLines;
 function drawCredit(ctx, st, pid, P, LW, LH, towns) {
   const yb = st.y0 + st.H, top = yb + Math.max(3, LH * 0.004), L = creditLines(pid, P, towns);
-  const maxW = (MAXH_PIDS.test(pid) ? st.x0 + st.W - pt(11) * 9.5 : LW) - LW * 0.03;   // stay left of "Max height: NN ft"
+  const maxW = LW - LW * 0.03;   // [THEME] max wave text now sits inside the map
   ctx.save(); ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, top, LW * 0.985, LH - top);
   let fs = pt(9.5); ctx.font = `500 ${fs}px WXTheme`;
   const wid = () => Math.max(...L.map(l => ctx.measureText(l).width));
@@ -987,7 +991,12 @@ const COAST_TOWNS = { "Neah Bay": [48.37, -124.62, "a"], "La Push": [47.908, -12
   "Eureka": [40.802, -124.164, "r"], "Cape Mendocino": [40.44, -124.409, "r"], "Fort Bragg": [39.446, -123.805, "r"], "Bodega Bay": [38.333, -123.048, "r"],
   "San Francisco": [37.76, -122.51, "r"], "Half Moon Bay": [37.463, -122.428, "r"], "Santa Cruz": [36.974, -122.03, "r"], "Monterey": [36.6, -121.894, "r"],
   "Morro Bay": [35.366, -120.85, "r"], "Santa Barbara": [34.42, -119.698, "r"], "Malibu": [34.026, -118.78, "r"], "Los Angeles": [33.99, -118.48, "r"],
-  "San Diego": [32.715, -117.17, "r"] };   // BC (the lm / bc town pins for "Vancouver" sit at Vancouver WA)
+  "San Diego": [32.715, -117.17, "r"],
+  // [KIT] second site: more Oregon coast + Hawaii coast places (labels on the land side; numbers = wave value at the offshore point)
+  "Garibaldi": [45.558, -123.911, "r"], "Florence": [43.982, -124.1, "r"], "Brookings": [42.053, -124.284, "r"], "Point Arena": [38.909, -123.709, "r"],
+  "Point Conception": [34.449, -120.471, "r"], "Oceanside": [33.196, -117.38, "r"],
+  "Hanalei": [22.205, -159.5, "r"], "Haleiwa": [21.593, -158.103, "r"], "Honolulu": [21.28, -157.84, "r"], "Makapuu": [21.31, -157.65, "r"],
+  "Kahului": [20.895, -156.47, "r"], "Lahaina": [20.878, -156.683, "r"], "Hilo": [19.725, -155.07, "r"], "Kailua-Kona": [19.64, -155.996, "r"] };   // BC (the lm / bc town pins for "Vancouver" sit at Vancouver WA)
 const COAST_VIEWS = {   // order = priority; buoys: "first" = WA buoys placed before the added towns (Pacific NW views), else after
   // 11-01 9:31 AM (Benjamin t1998u "Remove any towns that aren't right on the water from this map. Replace oak harbor with smith island ... Don't
   // really want wave heights for seattle, everett, Tacoma, Olympia"): the Washington wave view drops the static town layer ("own") and draws only
@@ -999,7 +1008,12 @@ const COAST_VIEWS = {   // order = priority; buoys: "first" = WA buoys placed be
   wc: { style: "region", re: [], add: ["Shore Acres", "San Francisco", "Los Angeles", "San Diego", "Monterey", "Eureka", "Crescent City", "Newport",
         "Santa Barbara", "Half Moon Bay", "Santa Cruz", "Morro Bay", "Fort Bragg", "Bodega Bay", "Cape Mendocino", "Malibu", "Westport", "Tatoosh Island",
         "Coos Bay", "Cannon Beach", "Long Beach", "Ocean Shores", "La Push"], buoys: "after", side: "r" },
-  pnw: { style: "region", re: [], add: ["Ocean Shores", "Long Beach", "La Push", "Westport", "Tatoosh Island"], buoys: "after", side: "r" } };   // no other city labels here: town names go on the (empty) land side, buoy labels keep the ocean
+  pnw: { style: "region", re: [], add: ["Ocean Shores", "Long Beach", "La Push", "Westport", "Tatoosh Island", "Newport", "Coos Bay", "Brookings", "Garibaldi", "Florence"], buoys: "after", side: "r" },
+  // [KIT] second site views (California, wide Hawaii, whole Pacific)
+  ca: { style: "region", re: [], add: ["San Francisco", "Los Angeles", "San Diego", "Monterey", "Eureka", "Crescent City", "Santa Barbara", "Half Moon Bay",
+        "Santa Cruz", "Morro Bay", "Fort Bragg", "Bodega Bay", "Cape Mendocino", "Point Arena", "Point Conception", "Malibu", "Oceanside", "Brookings"], buoys: "after", side: "r" },
+  hiw: { style: "region", re: [], add: ["Hanalei", "Haleiwa", "Honolulu", "Makapuu", "Kahului", "Lahaina", "Hilo", "Kailua-Kona"], buoys: "after", side: "r" },
+  pac: { style: "region", re: [], add: ["Westport", "Newport", "Eureka", "San Francisco", "Los Angeles", "Hanalei", "Honolulu", "Hilo"], buoys: "after", side: "r" } };   // no other city labels here: town names go on the (empty) land side, buoy labels keep the ocean
 const coastPx = (st, V) => (la, lo) => { const cr = MD().crop || [0, 0, 0, 0], k = `${la},${lo}`; if (!st.coastPx) st.coastPx = {};
   if (!(k in st.coastPx)) { const q = gridInv(V, st, (90 - la) / 0.25 - cr[0], ((lo + 360) % 360) / 0.25 - cr[2], null);
     st.coastPx[k] = q && q[0] >= 0 && q[1] >= 0 && q[0] <= st.W && q[1] <= st.H ? [st.x0 + q[0], st.y0 + q[1]] : null; } return st.coastPx[k]; };
@@ -1063,7 +1077,10 @@ const OFFSHORE = { "Tatoosh Island": [48.392, -124.75], "La Push": [47.908, -124
   "Long Beach": [46.35, -124.077], "Cannon Beach": [45.89, -123.975], "Port Angeles": [48.13, -123.43],
   "Birch Bay": [48.91, -122.79], "Smith Island": [48.328, -122.831], "Admiralty Inlet": [48.135, -122.72], "Shore Acres": [43.326, -124.395],
   "Coos Bay": [43.35, -124.36], "Eureka": [40.80, -124.20], "San Francisco": [37.76, -122.52], "San Diego": [32.745, -117.265],
-  "Monterey": [36.61, -121.88], "Santa Barbara": [34.395, -119.69], "Los Angeles": [33.98, -118.50], "Crescent City": [41.74, -124.21] };
+  "Monterey": [36.61, -121.88], "Santa Barbara": [34.395, -119.69], "Los Angeles": [33.98, -118.50], "Crescent City": [41.74, -124.21],
+  "Garibaldi": [45.555, -123.97], "Florence": [43.98, -124.14], "Brookings": [42.045, -124.32], "Newport": [44.63, -124.09], "Point Arena": [38.91, -123.75],
+  "Point Conception": [34.44, -120.51], "Oceanside": [33.19, -117.42], "Hanalei": [22.235, -159.5], "Haleiwa": [21.61, -158.13], "Honolulu": [21.26, -157.86],
+  "Makapuu": [21.31, -157.62], "Kahului": [20.92, -156.47], "Lahaina": [20.87, -156.71], "Hilo": [19.74, -155.04], "Kailua-Kona": [19.64, -156.03] };
 const OFF_BRG = { "Anacortes": 0, "Coupeville": 0, "Friday Harbor": 90, "Bremerton": 180, "Poulsbo": 180, "Mukilteo": 315, "Edmonds": 270, "Kingston": 90,
   "Gig Harbor": 90, "Port Orchard": 0, "Bainbridge Is.": 90, "Port Ludlow": 90, "Vancouver": 270, "Richmond": 270, "North Vancouver": 180,
   "Delta (Ladner)": 270, "Tsawwassen": 270, "White Rock": 180, "Point Roberts": 270, "Nanaimo": 90, "Squamish": 180, "Port Alberni": 180,
