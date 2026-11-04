@@ -38,7 +38,7 @@ def apply_house_style(g):
     # temperature: Michael temp850 v1 (-40..80 F, 2 F); 80..120 F extended to wine/orchid (KIT ADDITION, confirm with Michael)
     TS = J("temp_scale.json"); te = TS["edges_F"]; tc = TS["colors"]
     tmids = [(a + b) / 2 for a, b in zip(te[:-1], te[1:])]
-    hot = [82, 90, 100, 110, 120]; hotc = ["#7f1a3f", "#6a1046", "#8a2c78", "#b45aa8", "#dba3d3"]
+    hot = [80, 86, 95, 105, 120]; hotc = ["#5c0f3a", "#7a1f66", "#9c3f94", "#c06fc0", "#e8b8e6"]   # [MICHAEL 11-3 fix] old start repeated the 78-80 F wine (no step at 80 F)
     def temp_color(f):
         if f < te[0]: return tc[0]
         if f <= te[-1]: return tc[1:-1][min(len(tc) - 3, int((f - te[0]) // 2))]
@@ -49,11 +49,30 @@ def apply_house_style(g):
     # precip (6 h / totals): Michael QPF ramp (no green); RAIN_* keeps Benjamin's level spacing, colors re-mapped onto Michael's edges
     Q = J("qpf_wave_scales.json")["qpf"]; qe = Q["edges_in"]; qc = Q["colors"]
     def rain_color(v):   # 3..12 in: Michael's ramp stops at 3 in; extended gold -> amber -> umber (KIT ADDITION, confirm with Michael)
-        if v >= qe[-1]: return sm([v], [3.0, 5.0, 8.0, 12.0], [qc[-1], "#f2b84b", "#c97b2e", "#7a3f1f"])[0]
+        if v >= qe[-1]: return sm([v], [3.0, 5.0, 8.0, 12.0], ["#ec9440", "#cc6a2a", "#9c4320", "#5c2414"])[0]   # [MICHAEL 11-3 fix] old start went near-white pale yellow above 3 in (vanished on the white base)
         return qc[1:-1][max(0, min(len(qc) - 3, int(np.searchsorted(qe, v, side="right") - 1)))]
     g["rain_color"] = rain_color
-    g["RAIN_COLORS"] = [rain_color(v) for v in g["RAIN_LEVELS"][:-1]]; g["RAIN_OVER"] = qc[-1]
+    g["RAIN_COLORS"] = [rain_color(v) for v in g["RAIN_LEVELS"][:-1]]; g["RAIN_OVER"] = "#3d1a0e"   # [MICHAEL 11-3] over 12 in: darker than the umber end (was pale yellow)
     g["THEME"] = T; g["WAVE_SCALES"] = J("qpf_wave_scales.json")
+    # waves v4 (Michael, 36 bands: theme/wave_scales_v4.json, exported from design/theme_cd_waves_v4.py) and the snow change scale v6
+    g["THEME_WAVES"] = J("wave_scales_v4.json"); g["THEME_SNOWCHG"] = J("michael_design/snow_scale_v6.json")
+
+def encoder_scales(HS):
+    """[THEME] scale tables for fast_encode: waves v4 (Hs 0-50 ft, max 0-85 ft) and snow depth change v6.
+    Returns {pid: dict(levels, colors, under, over, ticks, cm)}; a None color = no fill (viewer leaves it transparent)."""
+    from matplotlib.colors import ListedColormap
+    W = HS.THEME_WAVES; out = {}
+    def lc(cols, under, over):
+        cm = ListedColormap([c or "#00000000" for c in cols]); cm.set_under(under or "#00000000"); cm.set_over(over or "#00000000"); return cm
+    for pid, k in (("waves", "wave_height"), ("wavemax", "wave_max")):
+        e, c = W[k]["edges_ft"], W[k]["colors"]
+        out[pid] = dict(levels=[float(x) for x in e], colors=c[1:-1], under=None, over=c[-1], ticks=W[k]["ticks"], cm=lc(c[1:-1], None, c[-1]))
+    S = HS.THEME_SNOWCHG; le, lcol, ge, gcol = S["loss_edges"], S["loss_colors"], S["gain_edges"], S["gain_colors"]
+    levels = [float(x) for x in le] + [float(x) for x in ge]          # -24 .. -1, 0.1 .. 60 (the -1..0.1 band = no fill)
+    cols = [c.lower() for c in lcol[1:]] + [None] + [c.lower() for c in gcol[:-1]]
+    out["dsnod"] = dict(levels=levels, colors=cols, under=lcol[0].lower(), over=gcol[-1].lower(), ticks=[-24, -12, -6, -3, -1, 1, 3, 6, 12, 24, 36, 48, 60],
+                        cm=lc(cols, lcol[0], gcol[-1]), outline_over=S["top_outline"])
+    return out
 
 def apply_menu_maps(g):
     """g = menu_maps globals(): snow accumulation = Michael snow v6 (amount map)."""

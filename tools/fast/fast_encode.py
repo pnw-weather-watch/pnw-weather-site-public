@@ -125,11 +125,7 @@ ENS_EXTRA = {"tp": ("tp", None, "p90", 39.3701, 0), "sf": ("sf", None, "p90", 39
              "tcc": ("tcc", None, "m", 1.0, 0), "pwat": (("tcwv", "tcw"), None, "m", 0.0393701, 0)}
 # 10-30 meteograms page: per-member values at these places (old site's 22 meteogram towns + passes + a few more), one small
 # mem_fFFF.json per ensemble step -> plumes / member views drawn in the browser. Names = run.json "points" names.
-MEM_POINTS = ("Seattle", "Tacoma", "Everett", "Arlington", "Bellingham", "Olympia", "Portland", "Port Angeles", "Forks", "Aberdeen",
-              "Ocean Shores", "Spokane", "Yakima", "Wenatchee", "Tri-Cities", "Walla Walla", "Moses Lake", "Ellensburg", "Pullman", "Omak",
-              "Bellevue", "Granite Falls", "Mount Vernon", "Leavenworth", "North Bend", "Enumclaw", "Longview", "Centralia", "Port Townsend",
-              "Sequim", "Chelan", "Winthrop", "Colville", "Packwood", "Skykomish", "Goldendale", "Shelton", "Monroe",
-              "Snoqualmie", "Stevens", "White", "Blewett", "Chinook", "Satus", "Sherman", "Wauconda", "Disautel")
+MEM_POINTS = tuple(t["name"] for t in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "regions", "stations.json")))["stations"])   # [KIT] PNW / CA / HI stations
 MEM_SCALE = {"2t": 10, "tp": 100, "sf": 10, "10fg": 1, "mx2t": 1, "mn2t": 1, "t850": 10, "gh": 1, "msl": 10, "mucape": 1, "tcc": 1, "pwat": 100}   # stored as ints (value * scale)
 SPAG_LEVELS = (5520, 5760)   # 552 / 576 dam member lines (trough / ridge)
 class EpsReader:
@@ -814,6 +810,7 @@ def static(m, out, views_only=None, x2_only=False):
     import cartopy.crs as ccrs, cartopy.feature as cf
     from matplotlib.colors import BoundaryNorm, to_hex
     import house_style as HS, temp_maps as TM, menu_maps as M
+    from theme import encoder_scales as _theme_scales
     HS.use_for_plots(); extra_views(TM, ccrs)
     pc = ccrs.PlateCarree(); MD = MODELS[m]; vids = MD["views"]
     la, lo, oro = model_grid(m); ny_, nx_ = la.shape
@@ -1330,6 +1327,16 @@ def static(m, out, views_only=None, x2_only=False):
                          pct=[0.5, 99.5], dec=1, **SV)
     prods["lr75"] = dict(prods["lr03"], title="700-500 mb Lapse Rate", fields=["lr75"], cmap_of="lr03",
                          extra="temperature drop per km between 700 and 500 mb  \u00b7  7+ = steep (stronger updrafts, hail)  \u00b7  {lo} to {hi} in view")
+    # [THEME] Michael's wave scales v4 (36 bands) and snow depth change scale v6 replace the old tables (keys get new names: _cd4 / _sc6)
+    if hasattr(HS, "THEME_WAVES"):
+        TSC = _theme_scales(HS)
+        for pid in ("waves", "swellhs", "wavemax", "wavemax24", "dsnod"):
+            if pid not in prods: continue
+            src = "waves" if pid in ("waves", "swellhs") else "wavemax" if pid.startswith("wavemax") else "dsnod"; t = TSC[src]
+            prods[pid].update(levels=t["levels"], colors=t["colors"], under=t["under"], over=t["over"], ticks=t["ticks"], _cm=t["cm"],
+                              keyver="_cd4" if src != "dsnod" else "_sc6")
+            prods[pid].pop("kw", None); prods[pid].pop("cmap_of", None)
+            if src == "dsnod": prods[pid]["outline_over"] = t["outline_over"]
     ALLP = {k: dict(v) for k, v in prods.items()}   # before the per-model filter (ensemble picks shared products below)
     for v in ALLP.values(): v.pop("only", None)
     prods = {k: v for k, v in prods.items() if as_model(m) in v.pop("only", (as_model(m),))}
