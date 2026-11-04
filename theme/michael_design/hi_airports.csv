@@ -1,0 +1,9 @@
+city,icao,station_name,lat,lon,elev_m,source
+Honolulu,PHNL,Daniel K Inouye International Airport,21.3275,-157.94306,3.0,https://api.weather.gov/stations/PHNL (retrieved 2026-11-03)
+Kahului,PHOG,Kahului Airport,20.8925,-156.43694,15.8,https://api.weather.gov/stations/PHOG (retrieved 2026-11-03)
+Hilo,PHTO,Hilo International Airport,19.72222,-155.05583,11.0,https://api.weather.gov/stations/PHTO (retrieved 2026-11-03)
+Kailua-Kona,PHKO,Kona (Keahole) Airport,19.74083,-156.05056,13.1,https://api.weather.gov/stations/PHKO (retrieved 2026-11-03)
+Lihue,PHLI,Lihue Airport,21.98389,-159.34111,45.1,https://api.weather.gov/stations/PHLI (retrieved 2026-11-03)
+Kaunakakai,PHMK,Molokai Airport,21.15,-157.1,138.1,https://api.weather.gov/stations/PHMK (retrieved 2026-11-03)
+Lanai City,PHNY,Lanai Airport,20.78556,-156.95139,399.0,https://api.weather.gov/stations/PHNY (retrieved 2026-11-03)
+Kapolei,PHJR,Kalaeloa Airport,21.30833,-158.06806,10.1,https://api.weather.gov/stations/PHJR (retrieved 2026-11-03)

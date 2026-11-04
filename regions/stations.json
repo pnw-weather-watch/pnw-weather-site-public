@@ -1,0 +1,825 @@
+{
+ "note": "Second-site meteogram / member / requested-town stations: official NWS reporting stations (api.weather.gov, public domain, retrieved 11-3-26); passes at the summit. Source CSVs in theme/michael_design/*_airports.csv.",
+ "stations": [
+  {
+   "id": "bellingham",
+   "name": "Bellingham",
+   "label": "Bellingham (KBLI)",
+   "lat": 48.79911,
+   "lon": -122.54064,
+   "icao": "KBLI",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "seattle",
+   "name": "Seattle",
+   "label": "Seattle (KSEA)",
+   "lat": 47.44472,
+   "lon": -122.31361,
+   "icao": "KSEA",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "olympia",
+   "name": "Olympia",
+   "label": "Olympia (KOLM)",
+   "lat": 46.97333,
+   "lon": -122.90333,
+   "icao": "KOLM",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "hoquiam",
+   "name": "Hoquiam",
+   "label": "Hoquiam (KHQM)",
+   "lat": 46.97111,
+   "lon": -123.92,
+   "icao": "KHQM",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "portangeles",
+   "name": "Port Angeles",
+   "label": "Port Angeles (KCLM)",
+   "lat": 48.12194,
+   "lon": -123.50661,
+   "icao": "KCLM",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "wenatchee",
+   "name": "Wenatchee",
+   "label": "Wenatchee (KEAT)",
+   "lat": 47.39749,
+   "lon": -120.20121,
+   "icao": "KEAT",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "yakima",
+   "name": "Yakima",
+   "label": "Yakima (KYKM)",
+   "lat": 46.56402,
+   "lon": -120.53484,
+   "icao": "KYKM",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "spokane",
+   "name": "Spokane",
+   "label": "Spokane (KGEG)",
+   "lat": 47.62139,
+   "lon": -117.52778,
+   "icao": "KGEG",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "tricities",
+   "name": "Tri-Cities",
+   "label": "Tri-Cities (KPSC)",
+   "lat": 46.26955,
+   "lon": -119.11813,
+   "icao": "KPSC",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "wallawalla",
+   "name": "Walla Walla",
+   "label": "Walla Walla (KALW)",
+   "lat": 46.09462,
+   "lon": -118.2858,
+   "icao": "KALW",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "portland",
+   "name": "Portland",
+   "label": "Portland (KPDX)",
+   "lat": 45.59578,
+   "lon": -122.60917,
+   "icao": "KPDX",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "astoria",
+   "name": "Astoria",
+   "label": "Astoria (KAST)",
+   "lat": 46.15694,
+   "lon": -123.8825,
+   "icao": "KAST",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "salem",
+   "name": "Salem",
+   "label": "Salem (KSLE)",
+   "lat": 44.90493,
+   "lon": -123.00096,
+   "icao": "KSLE",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "eugene",
+   "name": "Eugene",
+   "label": "Eugene (KEUG)",
+   "lat": 44.13333,
+   "lon": -123.21444,
+   "icao": "KEUG",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "newport",
+   "name": "Newport",
+   "label": "Newport (KONP)",
+   "lat": 44.58028,
+   "lon": -124.05806,
+   "icao": "KONP",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "northbend",
+   "name": "North Bend",
+   "label": "North Bend (KOTH)",
+   "lat": 43.41948,
+   "lon": -124.2437,
+   "icao": "KOTH",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "medford",
+   "name": "Medford",
+   "label": "Medford (KMFR)",
+   "lat": 42.37503,
+   "lon": -122.87696,
+   "icao": "KMFR",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "klamathfalls",
+   "name": "Klamath Falls",
+   "label": "Klamath Falls (KLMT)",
+   "lat": 42.14703,
+   "lon": -121.72548,
+   "icao": "KLMT",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "redmond",
+   "name": "Redmond",
+   "label": "Redmond (KRDM)",
+   "lat": 44.25588,
+   "lon": -121.14059,
+   "icao": "KRDM",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "pendleton",
+   "name": "Pendleton",
+   "label": "Pendleton (KPDT)",
+   "lat": 45.69757,
+   "lon": -118.83444,
+   "icao": "KPDT",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "boise",
+   "name": "Boise",
+   "label": "Boise (KBOI)",
+   "lat": 43.56704,
+   "lon": -116.24053,
+   "icao": "KBOI",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "lewiston",
+   "name": "Lewiston",
+   "label": "Lewiston (KLWS)",
+   "lat": 46.37472,
+   "lon": -117.01444,
+   "icao": "KLWS",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "missoula",
+   "name": "Missoula",
+   "label": "Missoula (KMSO)",
+   "lat": 46.92083,
+   "lon": -114.0925,
+   "icao": "KMSO",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "kalispell",
+   "name": "Kalispell",
+   "label": "Kalispell (KGPI)",
+   "lat": 48.30417,
+   "lon": -114.26361,
+   "icao": "KGPI",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "crescentcity",
+   "name": "Crescent City",
+   "label": "Crescent City (KCEC)",
+   "lat": 41.78028,
+   "lon": -124.23667,
+   "icao": "KCEC",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "burns",
+   "name": "Burns",
+   "label": "Burns (KBNO)",
+   "lat": 43.59488,
+   "lon": -118.95791,
+   "icao": "KBNO",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "omak",
+   "name": "Omak",
+   "label": "Omak (KOMK)",
+   "lat": 48.46116,
+   "lon": -119.52086,
+   "icao": "KOMK",
+   "region": "pnw",
+   "kind": "town"
+  },
+  {
+   "id": "eureka",
+   "name": "Eureka",
+   "label": "Eureka (KACV)",
+   "lat": 40.97806,
+   "lon": -124.10861,
+   "icao": "KACV",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "redding",
+   "name": "Redding",
+   "label": "Redding (KRDD)",
+   "lat": 40.51461,
+   "lon": -122.2977,
+   "icao": "KRDD",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "chico",
+   "name": "Chico",
+   "label": "Chico (KCIC)",
+   "lat": 39.79879,
+   "lon": -121.85795,
+   "icao": "KCIC",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "sacramento",
+   "name": "Sacramento",
+   "label": "Sacramento (KSMF)",
+   "lat": 38.70071,
+   "lon": -121.59479,
+   "icao": "KSMF",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "sanfrancisco",
+   "name": "San Francisco",
+   "label": "San Francisco (KSFO)",
+   "lat": 37.61961,
+   "lon": -122.36558,
+   "icao": "KSFO",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "oakland",
+   "name": "Oakland",
+   "label": "Oakland (KOAK)",
+   "lat": 37.72126,
+   "lon": -122.22115,
+   "icao": "KOAK",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "sanjose",
+   "name": "San Jose",
+   "label": "San Jose (KSJC)",
+   "lat": 37.35917,
+   "lon": -121.92417,
+   "icao": "KSJC",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "santarosa",
+   "name": "Santa Rosa",
+   "label": "Santa Rosa (KSTS)",
+   "lat": 38.5,
+   "lon": -122.81667,
+   "icao": "KSTS",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "monterey",
+   "name": "Monterey",
+   "label": "Monterey (KMRY)",
+   "lat": 36.59047,
+   "lon": -121.84875,
+   "icao": "KMRY",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "stockton",
+   "name": "Stockton",
+   "label": "Stockton (KSCK)",
+   "lat": 37.88972,
+   "lon": -121.22361,
+   "icao": "KSCK",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "modesto",
+   "name": "Modesto",
+   "label": "Modesto (KMOD)",
+   "lat": 37.62549,
+   "lon": -120.9549,
+   "icao": "KMOD",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "merced",
+   "name": "Merced",
+   "label": "Merced (KMCE)",
+   "lat": 37.28306,
+   "lon": -120.50778,
+   "icao": "KMCE",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "fresno",
+   "name": "Fresno",
+   "label": "Fresno (KFAT)",
+   "lat": 36.78,
+   "lon": -119.71944,
+   "icao": "KFAT",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "visalia",
+   "name": "Visalia",
+   "label": "Visalia (KVIS)",
+   "lat": 36.31667,
+   "lon": -119.4,
+   "icao": "KVIS",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "bakersfield",
+   "name": "Bakersfield",
+   "label": "Bakersfield (KBFL)",
+   "lat": 35.43361,
+   "lon": -119.05667,
+   "icao": "KBFL",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "santamaria",
+   "name": "Santa Maria",
+   "label": "Santa Maria (KSMX)",
+   "lat": 34.89408,
+   "lon": -120.45212,
+   "icao": "KSMX",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "sanluisobispo",
+   "name": "San Luis Obispo",
+   "label": "San Luis Obispo (KSBP)",
+   "lat": 35.23611,
+   "lon": -120.63611,
+   "icao": "KSBP",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "santabarbara",
+   "name": "Santa Barbara",
+   "label": "Santa Barbara (KSBA)",
+   "lat": 34.42611,
+   "lon": -119.84361,
+   "icao": "KSBA",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "losangeles",
+   "name": "Los Angeles",
+   "label": "Los Angeles (KLAX)",
+   "lat": 33.93806,
+   "lon": -118.38889,
+   "icao": "KLAX",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "longbeach",
+   "name": "Long Beach",
+   "label": "Long Beach (KLGB)",
+   "lat": 33.81167,
+   "lon": -118.14639,
+   "icao": "KLGB",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "burbank",
+   "name": "Burbank",
+   "label": "Burbank (KBUR)",
+   "lat": 34.19967,
+   "lon": -118.36538,
+   "icao": "KBUR",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "ontario",
+   "name": "Ontario",
+   "label": "Ontario (KONT)",
+   "lat": 34.05316,
+   "lon": -117.57685,
+   "icao": "KONT",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "riverside",
+   "name": "Riverside",
+   "label": "Riverside (KRAL)",
+   "lat": 33.95189,
+   "lon": -117.44511,
+   "icao": "KRAL",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "santaana",
+   "name": "Santa Ana",
+   "label": "Santa Ana (KSNA)",
+   "lat": 33.6798,
+   "lon": -117.8674,
+   "icao": "KSNA",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "palmsprings",
+   "name": "Palm Springs",
+   "label": "Palm Springs (KPSP)",
+   "lat": 33.82219,
+   "lon": -116.50431,
+   "icao": "KPSP",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "sandiego",
+   "name": "San Diego",
+   "label": "San Diego (KSAN)",
+   "lat": 32.73361,
+   "lon": -117.18306,
+   "icao": "KSAN",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "elcentro",
+   "name": "El Centro",
+   "label": "El Centro (KIPL)",
+   "lat": 32.83417,
+   "lon": -115.57861,
+   "icao": "KIPL",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "southlaketahoe",
+   "name": "South Lake Tahoe",
+   "label": "South Lake Tahoe (KTVL)",
+   "lat": 38.89836,
+   "lon": -119.99615,
+   "icao": "KTVL",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "bishop",
+   "name": "Bishop",
+   "label": "Bishop (KBIH)",
+   "lat": 37.37111,
+   "lon": -118.35806,
+   "icao": "KBIH",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "palmdale",
+   "name": "Palmdale",
+   "label": "Palmdale (KPMD)",
+   "lat": 34.62972,
+   "lon": -118.08139,
+   "icao": "KPMD",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "barstow",
+   "name": "Barstow",
+   "label": "Barstow (KDAG)",
+   "lat": 34.85361,
+   "lon": -116.78667,
+   "icao": "KDAG",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "alturas",
+   "name": "Alturas",
+   "label": "Alturas (KAAT)",
+   "lat": 41.48362,
+   "lon": -120.5615,
+   "icao": "KAAT",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "ukiah",
+   "name": "Ukiah",
+   "label": "Ukiah (KUKI)",
+   "lat": 39.12783,
+   "lon": -123.20011,
+   "icao": "KUKI",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "honolulu",
+   "name": "Honolulu",
+   "label": "Honolulu (PHNL)",
+   "lat": 21.3275,
+   "lon": -157.94306,
+   "icao": "PHNL",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "kahului",
+   "name": "Kahului",
+   "label": "Kahului (PHOG)",
+   "lat": 20.8925,
+   "lon": -156.43694,
+   "icao": "PHOG",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "hilo",
+   "name": "Hilo",
+   "label": "Hilo (PHTO)",
+   "lat": 19.72222,
+   "lon": -155.05583,
+   "icao": "PHTO",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "kailuakona",
+   "name": "Kailua-Kona",
+   "label": "Kailua-Kona (PHKO)",
+   "lat": 19.74083,
+   "lon": -156.05056,
+   "icao": "PHKO",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "lihue",
+   "name": "Lihue",
+   "label": "Lihue (PHLI)",
+   "lat": 21.98389,
+   "lon": -159.34111,
+   "icao": "PHLI",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "kaunakakai",
+   "name": "Kaunakakai",
+   "label": "Kaunakakai (PHMK)",
+   "lat": 21.15,
+   "lon": -157.1,
+   "icao": "PHMK",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "lanaicity",
+   "name": "Lanai City",
+   "label": "Lanai City (PHNY)",
+   "lat": 20.78556,
+   "lon": -156.95139,
+   "icao": "PHNY",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "kapolei",
+   "name": "Kapolei",
+   "label": "Kapolei (PHJR)",
+   "lat": 21.30833,
+   "lon": -158.06806,
+   "icao": "PHJR",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "yubapass",
+   "name": "Yuba",
+   "label": "Yuba Pass",
+   "lat": 39.61741,
+   "lon": -120.48995,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "donnerpass",
+   "name": "Donner",
+   "label": "Donner Pass",
+   "lat": 39.33987,
+   "lon": -120.34396,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "mountrosesummit",
+   "name": "Mount Rose",
+   "label": "Mount Rose Summit",
+   "lat": 39.31325,
+   "lon": -119.89659,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "echosummit",
+   "name": "Echo",
+   "label": "Echo Summit",
+   "lat": 38.81297,
+   "lon": -120.0302,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "lutherpass",
+   "name": "Luther",
+   "label": "Luther Pass",
+   "lat": 38.78686,
+   "lon": -119.94686,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "carsonpass",
+   "name": "Carson",
+   "label": "Carson Pass",
+   "lat": 38.6938,
+   "lon": -119.98853,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "ebbettspass",
+   "name": "Ebbetts",
+   "label": "Ebbetts Pass",
+   "lat": 38.54436,
+   "lon": -119.81186,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "sonorapass",
+   "name": "Sonora",
+   "label": "Sonora Pass",
+   "lat": 38.3277,
+   "lon": -119.63685,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "tiogapass",
+   "name": "Tioga",
+   "label": "Tioga Pass",
+   "lat": 37.91104,
+   "lon": -119.25794,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "walkerpass",
+   "name": "Walker",
+   "label": "Walker Pass",
+   "lat": 35.66246,
+   "lon": -118.02675,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "tehachapipass",
+   "name": "Tehachapi",
+   "label": "Tehachapi Pass",
+   "lat": 35.10219,
+   "lon": -118.2837,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "tejonpass",
+   "name": "Tejon",
+   "label": "Tejon Pass",
+   "lat": 34.80137,
+   "lon": -118.87539,
+   "icao": null,
+   "region": "ca",
+   "kind": "pass"
+  },
+  {
+   "id": "snoqualmiepass",
+   "name": "Snoqualmie",
+   "label": "Snoqualmie Pass",
+   "lat": 47.4245,
+   "lon": -121.413,
+   "icao": null,
+   "region": "pnw",
+   "kind": "pass"
+  },
+  {
+   "id": "stevenspass",
+   "name": "Stevens",
+   "label": "Stevens Pass",
+   "lat": 47.7466,
+   "lon": -121.089,
+   "icao": null,
+   "region": "pnw",
+   "kind": "pass"
+  }
+ ]
+}

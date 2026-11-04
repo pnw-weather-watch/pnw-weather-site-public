@@ -352,6 +352,7 @@ REGION_REQUESTED = ("Seattle", "Portland", "Spokane", "Victoria", "Bellingham", 
                     "Chehalis", "Long Beach", "Cannon Beach", "Yakima", "Wenatchee", "Winthrop", "Oroville", "Omak",
                     "Tri-Cities", "Pendleton", "Walla Walla")
 _PLACES = None
+REQUESTED_PTS = {}   # [KIT] name -> (name, lat, lon, side), filled by regions.py from regions/stations.json
 # Upper-air tabs (Benjamin 10-25-26 10:09 PM: "don't need town names when showing upper air stuff"): no town dots, names or
 # numbers on these maps in any view (menu_maps.finish skips towns(); render_t850 never calls it). Ground-level tabs keep them.
 UPPER_AIR_TABS = {"t925", "t850", "t700", "t500", "t300", "mslp500", "pw", "pwanom", "ivt", "w850", "w500", "w250", "thick", "t850anom"}
@@ -371,7 +372,7 @@ def region_places(vid):
         if p[0] in seen: dup.add(p[0]); continue   # same name twice in one frame (Vancouver BC + WA): keep the bigger one only
         seen.add(p[0]); pl.append(p)
     tier = lambda pop: next(i for i, t in enumerate(tiers) if pop >= t) + 1
-    wa = {t[0]: t for t in WA_TOWNS}
+    wa = {t[0]: t for t in WA_TOWNS}; wa.update(REQUESTED_PTS)   # [KIT] + the second site's stations (regions.py)
     out = [(p[0], p[2], p[1], 1) for p in pl if tier(p[4]) == 1]
     names = {n for n, *_ in out}
     for n in REGION_REQUESTED:

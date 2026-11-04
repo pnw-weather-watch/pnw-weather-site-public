@@ -27,30 +27,8 @@ OUT = os.path.join(os.environ.get("SITE_DIR", os.path.join(os.path.normpath(os.p
 CACHE = os.environ.get("METEO_CACHE", os.path.join(os.environ.get("SITE_BATCH", ".site_batch"), "meteo_cache"))
 UA = {"User-Agent": "wx-models meteograms (personal, non-scheduled)"}
 
-TOWNS = {  # id: (name, lat, lon). Official reporting-station points (ICAO verified 10-24-26 on aviationweather.gov), passes at the summit.
-    "seattle": ("Seattle (SeaTac)", 47.44467, -122.31442),  # KSEA Seattle-Tacoma Intl
-    "tacoma": ("Tacoma (Narrows)", 47.26744, -122.57624),  # KTIW Tacoma Narrows
-    "everett": ("Everett (Paine Field)", 47.92323, -122.28308),  # KPAE Paine Field
-    "arlington": ("Arlington", 48.15839, -122.15914),  # KAWO Arlington Municipal
-    "bellingham": ("Bellingham", 48.7991, -122.5407),  # KBLI Bellingham Intl
-    "olympia": ("Olympia", 46.97371, -122.90494),  # KOLM Olympia Regional
-    "vancouver": ("Vancouver WA (Pearson)", 45.62102, -122.65421),  # KVUO Pearson Field
-    "portangeles": ("Port Angeles", 48.12193, -123.50657),  # KCLM Port Angeles Intl
-    "forks": ("Forks (Quillayute)", 47.93695, -124.55757),  # KUIL Quillayute Airport, nearest official station to Forks
-    "aberdeen": ("Aberdeen (Hoquiam)", 46.97288, -123.93079),  # KHQM Bowerman Airport, Hoquiam
-    "oceanshores": ("Ocean Shores", 46.9737, -124.1563),  # town point; no official station (nearest: KHQM, 17 km east)
-    "spokane": ("Spokane", 47.62169, -117.52796),  # KGEG Spokane Intl
-    "yakima": ("Yakima", 46.56398, -120.53489),  # KYKM McAllister Field
-    "wenatchee": ("Wenatchee (Pangborn)", 47.39748, -120.20126),  # KEAT Pangborn Memorial
-    "kennewick": ("Tri-Cities (Pasco)", 46.2695, -119.11817),  # KPSC Tri-Cities Airport, Pasco
-    "wallawalla": ("Walla Walla", 46.09457, -118.28572),  # KALW Walla Walla Regional
-    "moseslake": ("Moses Lake", 47.19295, -119.31459),  # KMWH Grant County Intl
-    "ellensburg": ("Ellensburg", 47.03376, -120.53135),  # KELN Bowers Field
-    "pullman": ("Pullman", 46.74377, -117.11582),  # KPUW Pullman-Moscow Regional
-    "omak": ("Omak", 48.46114, -119.52091),  # KOMK Omak Airport
-    "snoqualmie": ("Snoqualmie Pass", 47.4245, -121.413),  # I-90 summit; no METAR station there
-    "stevens": ("Stevens Pass", 47.7466, -121.089),  # US 2 summit; no METAR station there
-}
+# [KIT] second site: PNW, California and Hawaii stations (regions/stations.json; NWS reporting stations, passes at the summit)
+TOWNS = {t["id"]: (t["label"], t["lat"], t["lon"]) for t in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "regions", "stations.json")))["stations"]}
 
 # ---- style: same dark base as the forecast maps (WATER 29,30,34 / LAND 62,64,68), 32 F line, blue <= 32
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

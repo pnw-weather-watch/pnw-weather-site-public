@@ -21,6 +21,10 @@ def apply(TM, ccrs, FE=None):
         TM.VIEWS[vid] = d
     TM.SMOOTH.update(R["smooth"])
     for vid, (tiers, mx) in R["region_towns"].items(): TM.REGION_TOWNS[vid] = (tuple(tiers), mx)
+    # [KIT] stations (regions/stations.json) are the requested towns on every region view (placed right after tier 1)
+    _st = [t for t in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "regions", "stations.json")))["stations"] if t["kind"] == "town"]
+    TM.REQUESTED_PTS = {t["name"]: (t["name"], t["lat"], t["lon"], "r") for t in _st}
+    TM.REGION_REQUESTED = tuple(dict.fromkeys(list(TM.REGION_REQUESTED) + [t["name"] for t in _st]))
     HS.HL_RADIUS_KM.update(R["hl"]["radius_km"]); HS.HL_PROMINENCE_MB.update(R["hl"]["prominence_mb"]); HS.HL_EDGE_KM.update(R["hl"]["edge_km"])
     HS.BARBS_ACROSS.update(R["barbs_across"])
     TM.CA_PASS_TOWNS = [tuple(t) for t in R.get("CA_PASS_TOWNS", [])]
