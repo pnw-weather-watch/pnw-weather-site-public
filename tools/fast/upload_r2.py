@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Upload fast-style data to R2 bucket <R2_BUCKET> (S3 API; keys derived from the Cloudflare API token in CF_PAGES_KEY,
+"""Upload fast-style data to R2 bucket pnw-models-data (S3 API; keys derived from the Cloudflare API token in CF_PAGES_KEY,
 access key = token id, secret = sha256(token); the token is never printed).
   upload_r2.py --data <site/data> [--run 2026102918] [--static] [--keep 2] [--dry-run]
 Order: static (if asked) -> run files -> run.json -> manifest (lists only runs present in R2, newest --keep) -> prune older runs."""
@@ -7,7 +7,7 @@ import os, sys, json, hashlib, argparse, urllib.request, mimetypes, time
 from concurrent.futures import ThreadPoolExecutor
 import boto3
 from botocore.config import Config
-BUCKET = os.environ.get("R2_BUCKET", "<R2_BUCKET>")
+BUCKET = os.environ.get("R2_BUCKET", "pnw-models-data")
 CT = {".png": "image/png", ".json": "application/json", ".bin": "application/octet-stream", ".webp": "image/webp"}
 
 def client():

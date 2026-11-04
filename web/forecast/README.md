@@ -6,7 +6,7 @@ GitHub Actions workflow `.github/workflows/forecast-site.yml` and uploaded strai
 Images never enter this repository.
 
 ## Deploy targets
-- `<PAGES_PROJECT>` (Cloudflare Pages, direct upload): the viewer, every map frame and the manifest,
+- `pnw-weather-site` (Cloudflare Pages, direct upload): the viewer, every map frame and the manifest,
   plus the `/m/` Pages Function from `web/meteo-proxy/`.
 - `wx-forecast-meteograms` (Cloudflare Pages, direct upload): meteogram charts, used when the repo
   variable `METEO_SPLIT=1`. Without it everything goes to one project.

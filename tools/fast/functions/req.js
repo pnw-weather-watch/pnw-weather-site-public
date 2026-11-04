@@ -5,15 +5,18 @@
 // env.DATA = R2 binding to the second site's NEW bucket only (never the first site's bucket).
 // CONFIG: the second site's own Access team domain. Set the Pages env var ACCESS_TEAM (e.g. https://<your-team>.cloudflareaccess.com)
 // or replace the placeholder. Never use the first site's team. Unset/placeholder = every request refused (403).
-const TEAM_PLACEHOLDER = "https://<SECOND_SITE_ACCESS_TEAM>.cloudflareaccess.com";
+const TEAM_PLACEHOLDER = "https://broad-king-ded7.cloudflareaccess.com";
 let TEAM = TEAM_PLACEHOLDER;
+const AUD_DEFAULT = "cefe9b6d425b0bb842dd3c8e4d2919a3899b7d7de5e2a7676c789cc82fbc5230"; // Access app 63a0dd46 (pnw-weather-site.pages.dev)
+let AUD = AUD_DEFAULT;
 const b64u = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
 let certs = null, certsAt = 0;
 async function accessUser(request) {
   const jwt = request.headers.get("cf-access-jwt-assertion"); if (!jwt) return null;
   const [h, p, s] = jwt.split("."); if (!s) return null;
   const head = JSON.parse(new TextDecoder().decode(b64u(h))), body = JSON.parse(new TextDecoder().decode(b64u(p)));
-  if (body.iss !== TEAM || !(body.exp * 1000 > Date.now())) return null;
+  const aud = Array.isArray(body.aud) ? body.aud : [body.aud];
+  if (body.iss !== TEAM || !aud.includes(AUD) || !(body.exp * 1000 > Date.now())) return null;
   if (!certs || Date.now() - certsAt > 3600e3) { certs = (await (await fetch(`${TEAM}/cdn-cgi/access/certs`)).json()).keys || []; certsAt = Date.now(); }
   const jwk = certs.find((k) => k.kid === head.kid); if (!jwk) return null;
   const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
@@ -22,7 +25,7 @@ async function accessUser(request) {
 }
 const J = (o, st = 200) => new Response(JSON.stringify(o), { status: st, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 export async function onRequest({ request, env }) {
-  TEAM = env.ACCESS_TEAM || TEAM_PLACEHOLDER; if (TEAM.includes("<")) return J({ error: "Access team not configured" }, 403);
+  TEAM = env.ACCESS_TEAM || TEAM_PLACEHOLDER; AUD = env.ACCESS_AUD || AUD_DEFAULT; if (TEAM.includes("<")) return J({ error: "Access team not configured" }, 403);
   if (!env.DATA) return J({ error: "no storage" }, 500);
   let who = null; try { who = await accessUser(request); } catch (e) { who = null; }
   if (!who) return J({ error: "Access login needed" }, 403);

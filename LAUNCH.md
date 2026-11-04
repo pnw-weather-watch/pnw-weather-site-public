@@ -67,3 +67,9 @@ To roll back, run `POST /accounts/<ACCOUNT_ID>/pages/projects/<PAGES_PROJECT>/de
 8. **Header and corner-tag layout is unchanged** (same layout, as Benjamin asked). Your THEME_PROPOSAL describes a time tile and a vertical key. Those would change the layout, so they aren't applied. Ask Benjamin before changing them.
 9. The smoke test ran against an old local HRRR sample only (Washington and Pacific NW high-res views). Waves, ensembles, member lookup and new-region rendering still need checking on real data on your preview.
 10. The workflow still lists `aensm`, `epsm` and `oisst` jobs. Keep or drop them as you choose.
+
+## Wired config (2026-11-04)
+- Cloudflare account: new account (id via `GET /accounts`), Pages project `pnw-weather-site` (production branch `main`, not deployed), R2 bucket `pnw-models-data`.
+- Pages binding `DATA` -> R2 `pnw-models-data` set via API on preview AND production configs. Env vars `ACCESS_TEAM=https://broad-king-ded7.cloudflareaccess.com`, `ACCESS_AUD=<aud of Access app 63a0dd46-14e2-44b3-a529-f5decd294522>` (req.js now checks iss + aud + exp + signature).
+- Access apps: pnw-weather-site.pages.dev and *.pnw-weather-site.pages.dev, owner@example.com only.
+- GitHub repo secrets NOT set (names only): CF_PAGES_KEY, CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY. Workflow schedule stays disabled.

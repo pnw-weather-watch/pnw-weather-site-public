@@ -1,4 +1,4 @@
-// GET/HEAD /d/<key> -> R2 bucket <R2_BUCKET> (binding DATA). The whole host is behind Cloudflare Access.
+// GET/HEAD /d/<key> -> R2 bucket pnw-models-data (binding DATA). The whole host is behind Cloudflare Access.
 // Cache: run data is immutable (run + step in the key), static layers 1 day, manifest/run.json 30 s.
 export async function onRequest({ request, params, env }) {
   if (request.method !== "GET" && request.method !== "HEAD") return new Response("method not allowed", { status: 405 });

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Read-only GitHub Actions timing check for <GITHUB_OWNER>/wx-models (box only; changes nothing).
+"""Read-only GitHub Actions timing check for pnw-weather-watch/pnw-weather-site (box only; changes nothing).
   python3 gh_run_timing.py [--workflow fast-models.yml] [--runs 15] [--all-workflows]
 Shows, in Pacific time: when each run was queued, how long it waited to start, how long it ran, its result, and per-job
 durations (slowest first) plus the gap between scheduled runs (GitHub throttles cron). Token: $GH_DEPLOY_KEY (never printed)."""
 import os, sys, json, argparse, urllib.request, datetime as dt
 from zoneinfo import ZoneInfo
-PT = ZoneInfo("America/Los_Angeles"); REPO = "<GITHUB_OWNER>/wx-models"
+PT = ZoneInfo("America/Los_Angeles"); REPO = "pnw-weather-watch/pnw-weather-site"
 def api(path):
     rq = urllib.request.Request(f"https://api.github.com/repos/{REPO}/{path}", headers={"Authorization": "Bearer " + os.environ["GH_DEPLOY_KEY"],
                                 "Accept": "application/vnd.github+json"})

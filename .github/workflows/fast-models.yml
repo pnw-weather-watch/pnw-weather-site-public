@@ -1,6 +1,6 @@
-# [KIT TEMPLATE] from Benjamin's newest fast-models.yml. Replace <R2_BUCKET>, <PAGES_PROJECT>, <GITHUB_OWNER>; set your own repo secrets (names only here).
+# [KIT TEMPLATE] from Benjamin's newest fast-models.yml. Replace pnw-models-data, pnw-weather-site, pnw-weather-watch; set your own repo secrets (names only here).
 # Studio (studio_views) and Social steps are not used by this kit. Pick your model matrix and cron yourself.
-# Fast-style model data -> R2 bucket <R2_BUCKET> (read by the hidden fast page, Pages branch "fast" of <PAGES_PROJECT>,
+# Fast-style model data -> R2 bucket pnw-models-data (read by the hidden fast page, Pages branch "fast" of pnw-weather-site,
 # behind Cloudflare Access). Separate from the live site: this job never deploys Pages and never touches forecast-*.yml.
 # Every 15 min: newest HRRR, RRFS, NBM, GFS, ECMWF 0.25 and AIFS cycles (00/06/12/18Z) and ECMWF + AIFS ENS (00/12Z), only the hours that are out and not yet in R2
 # (progressive). One job per model runs in parallel; manifest.json is updated with an ETag check so jobs never clash.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the hidden fast page (branch "fast" of Pages project <PAGES_PROJECT>; data comes from R2 via functions/d)
+# Build the hidden fast page (branch "fast" of Pages project pnw-weather-site; data comes from R2 via functions/d)
 set -e; cd "$(dirname "$0")"; SRC=site
 rm -rf public; mkdir -p public/fonts
 mkdir -p public/obs; OBS=${OBS_SRC:-../../web/forecast/obs}; cp $OBS/obs.js $OBS/obs.css $OBS/basemap.json public/obs/; [ ! -f $OBS/obsimg.js ] || cp $OBS/obsimg.js public/obs/   # live obs module (read-only copy of the old site's); 11-03 obsimg.js = radar + GOES-West layers (fast site only)

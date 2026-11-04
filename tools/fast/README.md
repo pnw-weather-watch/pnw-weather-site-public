@@ -1,7 +1,7 @@
 # Fast-style maps (hidden preview page)
 
-Browser-drawn maps from small data images in Cloudflare R2 (bucket `<R2_BUCKET>`), shown on the hidden page
-https://fast.<PAGES_PROJECT>.pages.dev (preview branch `fast` of Pages project <PAGES_PROJECT>, behind Cloudflare Access).
+Browser-drawn maps from small data images in Cloudflare R2 (bucket `pnw-models-data`), shown on the hidden page
+https://fast.pnw-weather-site.pages.dev (preview branch `fast` of Pages project pnw-weather-site, behind Cloudflare Access).
 Nothing here touches the live site: the live workflows (forecast-*.yml) never read this folder, and the fast page is a
 preview deployment (production stays on branch main).
 
@@ -12,4 +12,4 @@ preview deployment (production stays on branch main).
   R2 also expires `runs/` after 3 days.
 - `publish_static.py` uploads the static layers + manifest models (keeps the runs lists in R2).
 - `site/` viewer, `functions/d/[[path]].js` the Pages Function serving `/d/*` from R2. Deploy: `build_fast_page.sh` then
-  `wrangler pages deploy public --project-name=<PAGES_PROJECT> --branch=fast`.
+  `wrangler pages deploy public --project-name=pnw-weather-site --branch=fast`.
