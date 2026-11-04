@@ -15,7 +15,7 @@ CF_PAGES_KEY="$PNW_CLOUDFLARE_API_TOKEN"; CLOUDFLARE_ACCOUNT_ID=b6dc205037fd8e8c
 ACCTS=$(curl -s -H "Authorization: Bearer $CF_PAGES_KEY" https://api.cloudflare.com/client/v4/accounts | python3 -c "import json,sys;print(','.join(a['id'] for a in json.load(sys.stdin)['result']))")
 [ "$ACCTS" = "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "token does not see exactly the PNW account - refusing"; exit 1; }
 API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT"; AH="Authorization: Bearer $CF_PAGES_KEY"
-git -C "$K" fetch -q origin
+if [ -n "${PNW_GITHUB_TOKEN:-}" ]; then git -C "$K" -c http.extraheader="Authorization: Basic $(printf 'x-access-token:%s' "$PNW_GITHUB_TOKEN" | base64 -w0)" fetch -q origin; else git -C "$K" fetch -q origin; fi   # private repo
 [ -z "$(git -C "$K" status --porcelain -- tools web deploy qa)" ] || { echo "working tree dirty: commit first"; exit 1; }
 H=$(git -C "$K" rev-parse HEAD); O=$(git -C "$K" rev-parse origin/main)
 [ "$H" = "$O" ] || { echo "HEAD $H != origin/main $O (fast-forward only: push first, never force)"; exit 1; }
