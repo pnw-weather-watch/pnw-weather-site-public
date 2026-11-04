@@ -887,6 +887,7 @@ function creditLines(pid, P, towns) {
   const a = [ec ? `Data: \u00a9 ${CREDIT_YEAR} ECMWF (www.ecmwf.int), CC BY 4.0. Modified.` : (pid === "t2m" ? "" : "Data: NOAA (public domain).")];
   if (towns) a.push("Places: GeoNames (geonames.org), CC BY 4.0."); a.push("Basemap: Natural Earth.");
   L.push(a.filter(Boolean).join("  "));
+  try { const fe = document.getElementById("licsrc"); if (fe) fe.textContent = ec ? `Data: \u00a9 ${CREDIT_YEAR} ECMWF (www.ecmwf.int), CC BY 4.0 \u00b7 ` : ""; } catch (e) {}   // 11-04: GFS/NOAA pages never credit ECMWF
   return L;
 }
 window.creditLines = creditLines;
