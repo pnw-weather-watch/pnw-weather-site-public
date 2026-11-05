@@ -52,3 +52,9 @@
 | 23:20 | INDEX sweep: #10/#11/#12/#13/#16/#17/#18/#19 done on preview; WA Maps HOLD. DETAILS_CHECKLIST: remaining open mostly style-doc / NBM look / partial [~] items. No production deploy. |
 
 | 23:26-23:43 | Polish pass (preview only, no prod): Playwright chromium reinstalled; full-size retakes of extended ensemble hours + meteograms colors. Soft DETAILS leftovers ticked where code-verified (NBM site temp scale ≠ WA Maps posters; OBS_STYLE; remaining [~] → [x]). Final overall preview QA with rotated Access service token `pnw-qa`: **FINAL_OK 576 / FINAL_FAIL 0** (`qa/guard_preview_final_20261104.log`). Wrote `SUMMARY_overnight_20261104.md` (built items, commits, shot paths, open decisions for Benjamin: PacIOOS, PNW towns, new sources; what Push/Deploy would promote). WA Maps still HOLD. | (polish commit) | eps_ext_f96_{t2m,elows}_pnw_{desktop,phone}.png, aens_ext_f120_t2m_pnw_*.png, epsm_ext_f120_{slp,snow}_pnw_*.png, meteograms_colors_seattle_{desktop,phone}.png |
+
+## Stretch 3 (11-04 23:20 PT onward, builder #3; hidden preview only, no production deploy)
+| Time PT | Item | Commit | Screenshots (local/shots/20261104/) |
+|---|---|---|---|
+| 23:20 | Box restart ~23:14 PT: no jobs were running. Found `local/data/runs/eps/.../run.json` restored to the stale F51-F96 prefix (F3-F48 missing); restored the merged 32-step file from R2 `preview/` (read only, PNW account). Restarted EPS (F99-F144) and AIFS ENS (F126-F192, F198-F240) extends in the background. | (data) | - |
+| 23:50 | NBM 2.5 km 00Z run F1-F168 (80 steps) and RRFS 3 km 00Z run F1-F84 (60 steps) built and wired on the preview (NOAA public domain, no new source). Local guard nbm+rrfs: 123 OK / 0 FAIL (qa/guard_local_nbm_rrfs_20261104.log, copy in backups/nbm_rrfs_20261104/). No WA Maps posters (site temp scale, no logo/summary text). | 9671c75 | nbm_t2m_pnwhr, nbm_snow24_passes, nbm_gust_ca, nbm_qpf24_wa, rrfs_refc_pnwhr, rrfs_t2m_socal, rrfs_qpf24_passes (_desktop/_phone.png) |
