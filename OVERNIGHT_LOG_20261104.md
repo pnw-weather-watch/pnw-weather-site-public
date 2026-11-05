@@ -12,3 +12,5 @@
 ## Checks
 - Production guard (read-only, no deploy) 19:40: 139 OK, 0 FAIL. Its manifest is unchanged (no new views, runs gfs + ifs only).
 - Preview manifest: new views + eps + oisst.
+
+| 20:00 | Benjamin Push+Deploy: promote preview/ to live R2 (1387 new objects), production deploy of built products | (pending) | production screenshots |
