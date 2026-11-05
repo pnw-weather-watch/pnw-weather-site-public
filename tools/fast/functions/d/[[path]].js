@@ -3,8 +3,12 @@
 export async function onRequest({ request, params, env }) {
   if (request.method !== "GET" && request.method !== "HEAD") return new Response("method not allowed", { status: 405 });
   const key = [].concat(params.path || []).join("/");
-  if (!key || key.includes("..") || !env.DATA) return new Response("not found", { status: 404 });
-  const obj = await env.DATA.get(key, { onlyIf: request.headers, range: request.headers });
+  if (!key || key.includes("..") || key.startsWith("preview/") || !env.DATA) return new Response("not found", { status: 404 });
+  // 11-04 preview data area: any host other than the production one reads "preview/<key>" first, then falls back to the live key.
+  // Production (pnw-weather-site.pages.dev) reads only the live keys, exactly as before.
+  const prod = new URL(request.url).hostname === "pnw-weather-site.pages.dev";
+  let obj = prod ? null : await env.DATA.get("preview/" + key, { onlyIf: request.headers, range: request.headers });
+  if (!obj) obj = await env.DATA.get(key, { onlyIf: request.headers, range: request.headers });
   if (!obj) return new Response("not found", { status: 404 });
   const h = new Headers(); obj.writeHttpMetadata(h); h.set("etag", obj.httpEtag);
   if (obj.uploaded) h.set("last-modified", obj.uploaded.toUTCString());   // meteograms page "Updated" stamp
