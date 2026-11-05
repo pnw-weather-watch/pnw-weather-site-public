@@ -1026,8 +1026,9 @@ const COAST_VIEWS = {   // order = priority; buoys: "first" = WA buoys placed be
   // [KIT] second site views (California, wide Hawaii, whole Pacific)
   ca: { style: "region", re: [], add: ["San Francisco", "Los Angeles", "San Diego", "Monterey", "Eureka", "Crescent City", "Santa Barbara", "Half Moon Bay",
         "Santa Cruz", "Morro Bay", "Fort Bragg", "Bodega Bay", "Cape Mendocino", "Point Arena", "Point Conception", "Malibu", "Oceanside", "Brookings"], buoys: "after", side: "r" },
-  hiw: { style: "region", re: [], add: ["Hanalei", "Haleiwa", "Honolulu", "Makapuu", "Kahului", "Lahaina", "Hilo", "Kailua-Kona"], buoys: "after", side: "r" },
-  bigi: { style: "region", re: [], add: ["Hilo", "Kailua-Kona"], buoys: "after", side: "r" },
+  // 11-05: own=true so inland static towns (Wahiawa, Lanai City, Volcano, …) stay off the wave maps; numbers = ECMWF/model offshore
+  hiw: { style: "region", own: true, re: [], add: ["Hanalei", "Haleiwa", "Honolulu", "Makapuu", "Kahului", "Lahaina", "Hilo", "Kailua-Kona"], buoys: "after", side: "r", order: ["Hanalei", "Haleiwa", "Honolulu", "Makapuu", "Kahului", "Lahaina", "Hilo", "Kailua-Kona"] },
+  bigi: { style: "region", own: true, re: [], add: ["Hilo", "Kailua-Kona"], buoys: "after", side: "r", order: ["Hilo", "Kailua-Kona"] },
   bay: { style: "region", re: [], add: ["San Francisco", "Half Moon Bay", "Santa Cruz", "Monterey", "Bodega Bay", "Point Arena"], buoys: "after", side: "r" },
   orco: { style: "region", re: [], add: ["Astoria", "Cannon Beach", "Garibaldi", "Newport", "Florence", "Shore Acres", "Coos Bay", "Brookings"], buoys: "after", side: "r" },
   pac: { style: "region", re: [], add: ["Westport", "Newport", "Eureka", "San Francisco", "Los Angeles", "Hanalei", "Honolulu", "Hilo"], buoys: "after", side: "r" } };   // no other city labels here: town names go on the (empty) land side, buoy labels keep the ocean
