@@ -197,6 +197,96 @@
    "models": "hires+global",
    "from": "NEW (whole state with extra Pacific to the west, like the PNW wide view)"
   },
+  "socal": {
+   "label": "Southern California",
+   "size": [
+    15,
+    15
+   ],
+   "proj": [
+    "lcc",
+    -118.0,
+    34.3,
+    [
+     32,
+     36.5
+    ]
+   ],
+   "ll": [
+    -121.6,
+    -114.4,
+    31.4,
+    37.1
+   ],
+   "box": [
+    -124.5,
+    -111.5,
+    29.0,
+    39.5
+   ],
+   "models": "hires+global",
+   "from": "11-04 Benjamin: Fresno/Bakersfield top, LA, San Diego, Mexicali/Ensenada, Las Vegas right edge"
+  },
+  "cenca": {
+   "label": "Central California",
+   "size": [
+    14,
+    16
+   ],
+   "proj": [
+    "lcc",
+    -121.3,
+    37.0,
+    [
+     35,
+     39
+    ]
+   ],
+   "ll": [
+    -124.3,
+    -118.6,
+    34.2,
+    39.9
+   ],
+   "box": [
+    -127.0,
+    -116.0,
+    32.0,
+    42.0
+   ],
+   "models": "hires+global",
+   "from": "11-04 Benjamin: Reno/Sacramento top, San Jose, Bakersfield, Santa Barbara bottom"
+  },
+  "norca": {
+   "label": "Northern California",
+   "size": [
+    15,
+    16
+   ],
+   "proj": [
+    "lcc",
+    -122.6,
+    39.6,
+    [
+     38,
+     41.5
+    ]
+   ],
+   "ll": [
+    -126.0,
+    -119.5,
+    36.9,
+    42.5
+   ],
+   "box": [
+    -129.0,
+    -117.0,
+    34.5,
+    45.0
+   ],
+   "models": "hires+global",
+   "from": "11-04 Benjamin: Crescent City top-left to Sacramento/San Jose bottom, Reno right edge"
+  },
   "capasses": {
    "label": "Sierra Passes",
    "size": [
@@ -263,7 +353,10 @@
   "passes": 0.0,
   "ca": 0.4,
   "capasses": 0.0,
-  "hiw": 0.6
+  "hiw": 0.6,
+  "socal": 0.3,
+  "cenca": 0.3,
+  "norca": 0.3
  },
  "region_towns": {
   "pnwhr": [
@@ -297,6 +390,30 @@
     5000
    ],
    30
+  ],
+  "socal": [
+   [
+    300000,
+    60000,
+    15000
+   ],
+   45
+  ],
+  "cenca": [
+   [
+    300000,
+    60000,
+    15000
+   ],
+   45
+  ],
+  "norca": [
+   [
+    300000,
+    60000,
+    15000
+   ],
+   45
   ]
  },
  "hl": {
@@ -306,7 +423,10 @@
    "pnw": 400,
    "pnwt": 400,
    "ca": 300,
-   "hiw": 500
+   "hiw": 500,
+   "socal": 250,
+   "cenca": 250,
+   "norca": 250
   },
   "prominence_mb": {
    "na": 3.0,
@@ -314,7 +434,10 @@
    "pnw": 2.0,
    "pnwt": 2.0,
    "ca": 1.5,
-   "hiw": 2.0
+   "hiw": 2.0,
+   "socal": 1.5,
+   "cenca": 1.5,
+   "norca": 1.5
   },
   "edge_km": {
    "na": 500,
@@ -322,7 +445,10 @@
    "pnw": 450,
    "pnwt": 450,
    "ca": 300,
-   "hiw": 400
+   "hiw": 400,
+   "socal": 250,
+   "cenca": 250,
+   "norca": 250
   }
  },
  "barbs_across": {
@@ -332,25 +458,37 @@
   "pnwt": 20,
   "pnwhr": 20,
   "ca": 20,
-  "hiw": 18
+  "hiw": 18,
+  "socal": 18,
+  "cenca": 18,
+  "norca": 18
  },
  "model_views": {
   "hrrr": [
    "pnwhr",
    "passes",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "capasses"
   ],
   "rrfs": [
    "pnwhr",
    "passes",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "capasses"
   ],
   "nbm": [
    "pnwhr",
    "passes",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "capasses"
   ],
   "gfs": [
@@ -360,6 +498,9 @@
    "pnwt",
    "passes",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "capasses",
    "hiw"
   ],
@@ -370,6 +511,9 @@
    "pnwt",
    "passes",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "capasses",
    "hiw"
   ],
@@ -377,6 +521,9 @@
    "pnwt",
    "passes",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "capasses",
    "hiw"
   ],
@@ -386,6 +533,9 @@
    "pnw",
    "pnwt",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "hiw"
   ],
   "eps": [
@@ -394,6 +544,9 @@
    "pnw",
    "pnwt",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "hiw"
   ],
   "aens": [
@@ -402,6 +555,9 @@
    "pnw",
    "pnwt",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "hiw"
   ],
   "oisst": [
@@ -409,6 +565,9 @@
    "pac",
    "pnw",
    "ca",
+   "socal",
+   "cenca",
+   "norca",
    "hiw"
   ]
  },
