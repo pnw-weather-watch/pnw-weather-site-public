@@ -41,3 +41,6 @@ Draft staged at bot store `drafts/weather_bot_status_20261105.md`.
 - **Security note:** until 0349e13 the QA scripts sent the Access service-token (`pnw-qa`) headers to every origin the page called (e.g. mesonet.agron.iastate.edu on the Observations tab). Fixed (headers now scoped to the Pages host). Recommend rotating the `pnw-qa` token in the new Cloudflare Access when convenient (values never logged in the repo; 0 hits).
 - The one 03:55 morning-guard failure (phone refresh norca->cenca) did not reproduce (aifs re-run 0 FAIL).
 - Data freshness: preview model runs are the Nov 4 cycles (GFS 18Z, ECMWF/AIFS 12Z, EPS 00Z, HRRR/RRFS/NBM 00Z Nov 5); no cycle refresh was run overnight (publishing a fresh cycle is a live-data step to decide).
+
+## 05:30 PT check (builder #8)
+- Request queue still empty (nothing from Michael Snyder). GFS all-views guard on preview: 121 OK / 0 FAIL (`qa/guard_preview_gfs_regress_20261105.log`). No production deploy, WA Maps off, no new data sources.

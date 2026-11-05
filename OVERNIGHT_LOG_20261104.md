@@ -110,3 +110,9 @@
 | 04:35 | Full-size polish shots (CA views Southern/Central/Northern + PNW town labels, desktop 1440x900 and phone 1170x2532): framing, towns, 0 HTTP errors. | - | local/shots/20261105/polish_{socal,cenca,norca}_t2m_gfs_{desktop,phone}.png, polish_pnw_towns_t2m_ifs_{desktop,phone}.png |
 | 04:50 | **Console sweep** (every tab/toolbar button on index + compare + meteograms, desktop+phone): found third-party CORS errors on Observations (IEM ASOS currents). Root cause = QA scripts used Playwright `extra_http_headers`, which attaches the Access service-token headers to EVERY request incl. third-party origins (token leak + CORS preflight failures). Not a site bug. | - | qa/sweep_ui_20261105.log |
 | 05:05 | **Fix**: qa/_access.py scopes the token headers to *.pnw-weather-site.pages.dev only (guard.py, interaction_check.py, preview shots, tabs_check). Sweep after fix: only expected `/req` 403 (service token is not the Access user JWT; by design). Guard rrfs after patch: **81 OK / 0 FAIL**. Secret-value scan of repo: 0 hits. | 0349e13 | qa/guard_preview_rrfs_scoped_20261105.log, backups/qa_token_scope_20261105/, local/shots/20261105/sweep_*_{desktop,phone}.png, sweep_obs_{desktop,phone}.png |
+
+## Stretch 8 (11-05 05:21 PT onward, builder #8; hidden preview only, no production deploy)
+| Time PT | Item | Commit | Evidence |
+|---|---|---|---|
+| 05:21 | Request queue re-read (read-only, tools/fast/read_requests.py): "no requests", nothing from Michael Snyder. Box check: no jobs running, tree clean. All queued items already done per log; no new sources used, WA Maps OFF. | - | - |
+| 05:25-05:29 | Regression sweep on preview (GFS, all views incl. socal/cenca/norca/bay/orco/bigi/pnw towns, desktop+phone): **121 OK / 0 FAIL**, console errors 0. | (log commit) | qa/guard_preview_gfs_regress_20261105.log |
