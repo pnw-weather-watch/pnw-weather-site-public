@@ -987,7 +987,7 @@ def static(m, out, views_only=None, x2_only=False):
     LTGP_A = [(0.01, "#e6dcf5"), (0.05, "#c3a6ec"), (0.1, "#9b6fe0"), (0.25, "#f2e34b"), (0.5, "#f4a43a"), (1, "#e2462f"), (2, "#8c1450")]
     JET_L = list(M.JET_LEVELS); W5_L = list(M.W500_LEVELS)
     CM.update(qpf1=CM["qpf"], qpf3=CM["qpf"], qpf6=CM["qpf"], qpf12=CM["qpf"], qpf24=CM["qpf"], qpf48=CM["qpf"], mslpqpf=CM["qpf"],
-              snow1=CM["snow"], snow6=CM["snow"], gust6=CM["gust10"])
+              snow1=CM["snow"], snow6=CM["snow"], gust3=CM["gust10"], gust6=CM["gust10"])
     T8A_L = np.arange(-15, 16, 1); SLPA_L = np.arange(-80, 31, 2)   # 11-02 (Benjamin t2103u): negative end 50 mb deeper (-30 -> -80)
     CM.update(t2ma=TM.t2a_cmap(), t850a=HS.cmap([HS._anom_color(27.0 * x) for x in (T8A_L[:-1] + T8A_L[1:]) / 2.0], HS.ANOM_UNDER, HS.ANOM_OVER))
     # -30..+30 mb unchanged (onto the +-450 m anomaly ramp); 11-02: below -30 the light grays turn through gray-lavender, lavender,
@@ -1178,9 +1178,12 @@ def static(m, out, views_only=None, x2_only=False):
         "snow6": dict(title="6 h Snowfall", fields=["asnow"], window=6, wfield="asnow", fill="window", key="Snow (in)", ticks=[0.1, 1, 3, 6, 10, 15, 24], tickfmt=True,
                       **table(M.SNOW_LEVELS, CM["snow"], "max"), extra="snowfall in the 6 h ending at the valid time (model snow density)  \u00b7  max {hi} in in view",
                       pct=[0, 100], dec=1, fmt="in1", only=("hrrr", "rrfs")),
+        "gust3": dict(title="3 h Max Wind Gust", fields=["gust"], window=3, wmax=True, wfield="gust", fill="window", key="Gust (mph)", ticks=GUST_TICKS,
+                      **table(GUST_L, CM["gust10"], "max"), extra="highest gust over the model hours in the 3 h ending at the valid time  ·  up to {hi} mph in view",
+                      pct=[1, 99.9], only=("hrrr", "rrfs", "gfs", "ifs", "aifs")),
         "gust6": dict(title="6 h Max Wind Gust", fields=["gust"], window=6, wmax=True, wfield="gust", fill="window", key="Gust (mph)", ticks=GUST_TICKS,
                       **table(GUST_L, CM["gust10"], "max"), extra="highest gust over the model hours in the 6 h ending at the valid time  \u00b7  up to {hi} mph in view",
-                      pct=[1, 99.9], only=("hrrr", "rrfs", "gfs", "ifs")),
+                      pct=[1, 99.9], only=("hrrr", "rrfs", "gfs", "ifs", "aifs")),
         "ltng6": dict(title="6 h Max Lightning Threat", fields=["ltng"], window=6, wmax=True, wfield="ltng", fill="window", key="Flashes per km\u00b2 per 5 min",
                       ticks=LTNG_L, tickfmt=True, **table(LTNG_L, CM["ltng"], "max"), extra="highest hourly flash density in the 6 h ending at the valid time  \u00b7  up to {hi} in view",
                       pct=[0, 99.9], dec=2, towns="names", only=("hrrr", "rrfs")),

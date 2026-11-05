@@ -43,17 +43,17 @@ const ObsImg = (() => {
   const GIBS_DOM = (layer) => `https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/1.0.0/${layer}/default/2km/all/`;
   // box = [west, south, east, north] degrees; px = image width x height (radar detail 0.0125 deg ~1 km, satellite detail 0.02 deg ~1.5-2 km)
   const SRC = {
-    radar: { label: "Radar", kind: "rad", layer: "conus_bref_qcd", fmt: "image/png", alpha: 0.88, n: 12, stepMin: 5, refreshMin: 4,
+    radar: { label: "Radar", kind: "rad", layer: "conus_bref_qcd", fmt: "image/png", alpha: 0.88, n: 48, stepMin: 5, refreshMin: 4,
       tiles: { detail: { box: [-130, 39, -104, 53], px: [2080, 1120] }, wide: { box: [-130, 30, -100, 55], px: [1200, 1250] } },
       credit: "Radar: NOAA/NWS MRMS base reflectivity (public domain)" },
-    ir: { label: "Clean IR", kind: "gibs", layer: "GOES-West_ABI_Band13_Clean_Infrared", fmt: "image/jpeg", alpha: 1, n: 12, stepMin: 10, refreshMin: 10,
+    ir: { label: "Clean IR", kind: "gibs", layer: "GOES-West_ABI_Band13_Clean_Infrared", fmt: "image/jpeg", alpha: 1, n: 24, stepMin: 10, refreshMin: 10,
       tiles: { detail: { box: [-140, 37, -100, 57], px: [2000, 1000] }, wide: { box: [-180, 15, -55, 78], px: [3125, 1575] } },
       credit: "Satellite: NOAA GOES-West Clean IR (band 13) via NASA GIBS/ESDIS" },
-    gc: { label: "GeoColor", kind: "gibs", layer: "GOES-West_ABI_GeoColor", fmt: "image/jpeg", alpha: 1, n: 12, stepMin: 10, refreshMin: 10,
+    gc: { label: "GeoColor", kind: "gibs", layer: "GOES-West_ABI_GeoColor", fmt: "image/jpeg", alpha: 1, n: 24, stepMin: 10, refreshMin: 10,
       tiles: { detail: { box: [-140, 37, -100, 57], px: [2000, 1000] }, wide: { box: [-180, 15, -55, 78], px: [3125, 1575] } },
       credit: "Satellite: NOAA GOES-West GeoColor, NOAA/NESDIS/STAR, CIRA/NOAA via NASA GIBS/ESDIS" },
     // detail = PNW sector over the West US sector; wide = West US sector (the box is only used to pick the tile)
-    wv: { label: "Water vapor", kind: "star", alpha: 1, n: 12, stepMin: 5, refreshMin: 4,
+    wv: { label: "Water vapor", kind: "star", alpha: 1, n: 48, stepMin: 5, refreshMin: 4,
       tiles: { detail: { box: [-126, 32, -108, 50] }, wide: { box: [-160, 20, -100, 62] } },
       credit: "Satellite: NOAA GOES-West Mid-Level Water Vapor (band 9), NOAA/NESDIS/STAR" },
   };
@@ -354,7 +354,11 @@ const ObsImg = (() => {
     .obs-root .obs-img .oi-t{font:12.5px "IBM Plex Mono",ui-monospace,monospace;color:var(--o-muted);white-space:nowrap}
     .obs-root .obs-img input[type=range]{width:min(180px,32vw);accent-color:var(--o-verm)}
     #obsov .obs-img button[aria-pressed="true"],#obsp .obs-img button[aria-pressed="true"],.obs-root .obs-img button[aria-pressed="true"]{background:#f4f2ee;color:#15171c;border-color:#f4f2ee;font-weight:600}
-    .obs-root .obs-img button.oi-play{min-width:38px;padding:5px 10px}.obs-root .obs-img .oi-loop{display:contents}.obs-root .obs-img .oi-loop[hidden]{display:none!important}
+    .obs-root .obs-img button.oi-play{min-width:38px;padding:5px 10px}
+    .obs-root .obs-img .oi-loop{display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%;margin-top:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,.12)}
+    .obs-root .obs-img .oi-loop[hidden]{display:none!important}
+    .obs-root .obs-img .oi-loop .oi-sep{display:none}
+    .obs-root .obs-img #oi-slide{width:min(480px,92vw);flex:1 1 280px;max-width:480px;accent-color:#6ec8ff}
     .obs-root .obs-img .oi-lab{font-size:13px;color:var(--o-muted)}
     .obs-root.obs-min #oviews,.obs-root.obs-min #olayers,.obs-root.obs-min .obs-img>:not(.oi-loop),.obs-root.obs-min .obs-img .oi-loop>.oi-sep:first-child{display:none!important}
     .obs-root.obs-min .obs-img{margin-top:0}
@@ -367,9 +371,9 @@ const ObsImg = (() => {
     bar.innerHTML = `<button type="button" id="oi-radar" aria-pressed="false" title="NWS radar mosaic (MRMS base reflectivity), last hour">Radar</button>
       <span class="oi-sep"></span>
       <span class="oi-lab">Satellite:</span>
-      <button type="button" id="oi-ir" aria-pressed="false" title="GOES-West Clean IR (band 13, 10.3 um): cloud-top temperature, day and night. Last 2 hours, about 40-60 min behind">Clean IR</button>
-      <button type="button" id="oi-gc" aria-pressed="false" title="GOES-West GeoColor (true color by day, IR at night), last 2 hours, about 40-60 min behind">GeoColor</button>
-      <button type="button" id="oi-wv" aria-pressed="false" title="GOES-West mid-level water vapor (band 9, 6.9 um) from NOAA/NESDIS/STAR: moisture around 500 mb (white / green moist, blue drier, yellow dry). Every 5 min (10 min on the wide view), about 5-10 min behind. Last hour (2 hours wide)">Water vapor</button>
+      <button type="button" id="oi-ir" aria-pressed="false" title="GOES-West Clean IR (band 13, 10.3 um): cloud-top temperature, day and night. Last 4 hours, about 40-60 min behind">Clean IR</button>
+      <button type="button" id="oi-gc" aria-pressed="false" title="GOES-West GeoColor (true color by day, IR at night), last 4 hours, about 40-60 min behind">GeoColor</button>
+      <button type="button" id="oi-wv" aria-pressed="false" title="GOES-West mid-level water vapor (band 9, 6.9 um) from NOAA/NESDIS/STAR: moisture around 500 mb (white / green moist, blue drier, yellow dry). Every 5 min (10 min on the wide view), about 5-10 min behind. Last 4 hours">Water vapor</button>
       <span class="oi-loop" id="oi-loop" hidden><span class="oi-sep"></span><button type="button" class="oi-play" id="oi-play" aria-label="Pause loop">&#10074;&#10074;</button>
       <input type="range" id="oi-slide" min="0" max="0" value="0" aria-label="Loop frame"><span class="oi-t" id="oi-t"></span></span>`;
     const ly = root.querySelector("#olayers"); ly.after(bar);

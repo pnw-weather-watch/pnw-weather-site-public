@@ -60,14 +60,15 @@ Rollback target for the last prod deploy remains **`b51db3eb`** (record `ROLLBAC
 
 ## Open decisions for Benjamin
 
-1. **PacIOOS SWAN (UH 500 m waves)** — **not used.** Terms are free redistributable but “not intended for legal use”; commercial/monetized use unclear. Needs an explicit OK before wiring (`CREDITS_LEGAL.md`).  
+1. **PacIOOS SWAN (UH 500 m waves)** — **NEVER used** (Benjamin 11-05: Hawaii waves = ECMWF IFS open wave only).
 2. **PNW town labels** — density / extra Western–Eastern WA towns already partly addressed; any further “more town labels” framing or light/dark base retune for NBM-look temps still a taste call (PRODUCT_LOOKS_PLAN).  
 3. **New sources (rule 7)** already in use or pending acknowledgment:  
    - **NCEP/NCAR R1 via NOAA PSL** climatology (public domain; PSL asks for credits-page acknowledgment) — used for anomalies / MSLP normals. Confirm OK for the live site.  
    - **NDBC buoys as a forecast/wave data source** — currently **not** used as a new modeled source (map already has NDBC buoy *labels* on wave views from shipped JSON). Confirm if buoy *observations* should feed products.  
    - Optional views still pending earlier taste: Bay Area / Oregon coast / Big Island-only frames (S/C/N CA already shipped).  
-4. **WA Maps tab** — remains **on hold** until you say otherwise.  
-5. **Push + Deploy** — say the words when preview should become production (promote `preview/` → live R2 + Pages main).
+4. **WA Maps tab** — **OFF the list entirely** (Benjamin 11-05 12:16 AM: never build).
+5. **NOAA WaveWatch III / GFS-Wave as a second wave source** — from Weather Bot's review; treat as a **new source** (rule 7). **Do not newly wire / expand it** until Benjamin OKs. A `gfsw` model already sits on the hidden preview from earlier overnight work — confirm keep, credit-only, or remove before Push/Deploy. Hawaii stays on **ECMWF IFS open wave** only.
+6. **Push + Deploy** — say the words when preview should become production (promote `preview/` → live R2 + Pages main).
 
 ---
 
@@ -76,3 +77,12 @@ Rollback target for the last prod deploy remains **`b51db3eb`** (record `ROLLBAC
 `61e1ed9` SST · `51cf1be` obs CA/HI · `70cf9da` / `8287d31` meteogram colors · `ebe1766` / `92987b2` CA views · `dc362ad` preview data · `811210d` / `cb2e161` EPS · `5fed335` radar/sat · `12d5698` members/mkeys · `566e288` epsm CVD · `ded9016` guard harden · `b89ca6b` extend-safe steps · `9e3abdb` closeout · *(polish commit follows)*.
 
 Final polish-pass QA (Access token rotated for `pnw-qa`; Playwright chromium reinstalled): **FINAL_OK 576 / FINAL_FAIL 0** — `qa/guard_preview_final_20261104.log` (started 23:27 PT; all GUARD_MODELS batches OK on first attempt). Earlier full guard same night: **577 OK / 0 FAIL** (`qa/guard_preview_full_20261104.log`).
+
+
+## Stretch 4 status (preview, ~01:10 PT 11-05)
+
+- **Hawaii waves:** ECMWF IFS open wave; coast-only town numbers (1/4-mi offshore). Commits `f5ef608`, `80ef26c`.
+- **Views:** Bay Area (`bay`), Oregon coast (`orco`), Big Island (`bigi`) on preview.
+- **PNW towns:** 29 labels on t2m / names on mslpa (CA-like tiers).
+- **Ensembles:** EPS mean F3–F240 (64 steps); epsm F6–F240 (30); AENS F6–F240 (40).
+- **Weather Bot B (in progress):** pass/meteogram snow scale floors; ECMWF `gust3`/`gust6`; obs sat 4-hour loop + scrubber row; F+ badge / elows key verify; no Studio/Social.

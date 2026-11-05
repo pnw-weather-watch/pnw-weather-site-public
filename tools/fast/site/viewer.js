@@ -26,7 +26,7 @@ const $ = id => document.getElementById(id);
     : per === "1h" ? "snow1" : hh ? "snow" + hh : "snow";
   if (t === "snowkuch" && hh) prod = "kuch" + hh;
   if (t === "frzr" && hh) prod = "fzra" + hh;
-  if (t === "gusts") prod = p90 ? "egust90" : per === "max6h" && m !== "nbm" ? "gust6" : per === "max12h" && m !== "nbm" ? "gust12" : per === "max24h" && m !== "nbm" ? "gust24" : "gust10";
+  if (t === "gusts") prod = p90 ? "egust90" : per === "max3h" && m !== "nbm" ? "gust3" : per === "max6h" && m !== "nbm" ? "gust6" : per === "max12h" && m !== "nbm" ? "gust12" : per === "max24h" && m !== "nbm" ? "gust24" : "gust10";
   if (t === "lows") prod = m === "eps" ? "elow" : "nmint";
   if (t === "highs") prod = m === "eps" ? "ehigh" : "nmaxt";
   if (t === "waves") prod = per === "max24h" ? "wavemax" : "waves";
@@ -382,7 +382,7 @@ const PRODS = () => allProds(MD()), VIEWS = () => MD().views;
 // The Product menu lists only the open tab's products, in the order below (Pivotal: winds by level, 250 -> 850 mb);
 // product ids / URLs are unchanged (?prod= picks its tab). Products not listed here land in an "Other" tab.
 const TABS = [
-  ["sfc", "Surface", ["t2m", "feels", "d2m", "t2ma", "nmaxt", "nmint", "ehigh", "elow", "et2sd", "ep32", "gust10", "gust6", "gust12", "gust24", "gustmax", "egust90",
+  ["sfc", "Surface", ["t2m", "feels", "d2m", "t2ma", "nmaxt", "nmint", "ehigh", "elow", "et2sd", "ep32", "gust10", "gust3", "gust6", "gust12", "gust24", "gustmax", "egust90",
                       "aifswind", "slp", "elows", "tcc", "vis", "fog", "ir"]],
   ["pcp", "Precip", ["qpf", "qpf1", "nqpf1", "qpf3", "qpf6", "nqpf6", "qpf12", "qpf24", "qpf48", "nqpf12", "nqpf24", "nqpf48", "nqpftot", "eqpf90", "mslpqpf", "ptype", "refc", "pw", "pwa", "ivt",
                      "qpfa", "qpfpct"]],
@@ -1177,7 +1177,7 @@ function drawCoast(ctx, st, D, P, V, LW, LH, WT) {
   ctx.restore();
 }
 const MAXH_PIDS = /^wavemax(24)?$/;
-const UNITS = { ssta: "\u00b0F", ivt: " kg/m/s", fog: "", waves: " ft", wavemax: " ft", ehigh: "\u00b0F", elow: "\u00b0F", d2m: "\u00b0F", feels: "\u00b0F", gustmax: " mph", t925w: "\u00b0C", t850w: "\u00b0C", t700w: "\u00b0C", t500w: "\u00b0C", t300w: "\u00b0C", w850: " kt", thick: " dam", slp: " mb", pw: " in", pwa: " in", ptype: "", qpfa: " in", qpfpct: "%", eqpf90: " in", esnow: " in", esnow90: " in", egust90: " mph", epcape: "%", elows: "%", spag: " m", nqpf1: " in", nqpf6: " in", nsnow6: " in", ntstm: "%", nmaxt: "\u00b0F", nmint: "\u00b0F", dsnod: " in", qpf3: " in", qpf12: " in", qpf48: " in", snow1: " in", snow6: " in", gust6: " mph", ltng6: " /km\u00b2/5 min", qpf1: " in", qpf6: " in", qpf24: " in", mslpqpf: " in", t2ma: "\u00b0F", t850a: "\u00b0C", et2sd: "\u00b0F", ep32: "%", ez500: " m", w500: " kt", w300: " kt", w250: " kt", z500anom: " m", mucape: " J/kg", sbcape: " J/kg", ltng: " /km\u00b2/5 min", ltgp: " in", t2m: "\u00b0F", gust10: " mph", aifswind: " mph", t850: "\u00b0C", t700: "\u00b0C", tcc: "%", vis: " mi", ir: "\u00b0C",
+const UNITS = { ssta: "\u00b0F", ivt: " kg/m/s", fog: "", waves: " ft", wavemax: " ft", ehigh: "\u00b0F", elow: "\u00b0F", d2m: "\u00b0F", feels: "\u00b0F", gustmax: " mph", t925w: "\u00b0C", t850w: "\u00b0C", t700w: "\u00b0C", t500w: "\u00b0C", t300w: "\u00b0C", w850: " kt", thick: " dam", slp: " mb", pw: " in", pwa: " in", ptype: "", qpfa: " in", qpfpct: "%", eqpf90: " in", esnow: " in", esnow90: " in", egust90: " mph", epcape: "%", elows: "%", spag: " m", nqpf1: " in", nqpf6: " in", nsnow6: " in", ntstm: "%", nmaxt: "\u00b0F", nmint: "\u00b0F", dsnod: " in", qpf3: " in", qpf12: " in", qpf48: " in", snow1: " in", snow6: " in", gust3: " mph", gust6: " mph", ltng6: " /km\u00b2/5 min", qpf1: " in", qpf6: " in", qpf24: " in", mslpqpf: " in", t2ma: "\u00b0F", t850a: "\u00b0C", et2sd: "\u00b0F", ep32: "%", ez500: " m", w500: " kt", w300: " kt", w250: " kt", z500anom: " m", mucape: " J/kg", sbcape: " J/kg", ltng: " /km\u00b2/5 min", ltgp: " in", t2m: "\u00b0F", gust10: " mph", aifswind: " mph", t850: "\u00b0C", t700: "\u00b0C", tcc: "%", vis: " mi", ir: "\u00b0C",
                 refc: " dBZ", qpf: " in", snow: " in", frz: " ft", snowlvl: " ft" };
 // value under the cursor / tap (item 1) and swipe to step (item 6)
 function readout(ev) {
@@ -1415,7 +1415,7 @@ async function share() {
 // Peak gust tag (Benjamin 10-31 1:53 AM "on the wind gust maps, include a peak wind gust number in one corner of the map"): the
 // highest value of the plotted field over the visible map (every drawn pixel, so it follows the view's crop), rounded to mph,
 // in a dark box in the map's lower-right corner, clear of the title, key, F badge and Save/Share (those sit above the map).
-const GUST_PIDS = /^(gust(6|10|12|24|max)|egust90)$/;
+const GUST_PIDS = /^(gust(3|6|10|12|24|max)|egust90)$/;
 function drawPeak(ctx, st, vals) {
   let hi = -Infinity; for (let k = 0; k < vals.length; k++) { const v = vals[k]; if (v > hi) hi = v; }
   if (!isFinite(hi)) return null;
@@ -2045,7 +2045,7 @@ function mgChart(cv, T, box) {
       const pc = T.pcp6 && !T.pcp ? null : T.pcp, sn = T.snow || null, sn6 = T.snow6 || null, p6 = T.pcp6 || null;
       const hiP = Math.max(0.1, ...(pc || []).filter(v => v != null), ...(p6 || []).filter(v => v != null)), scP = scale(0, niceStep(hiP) * Math.ceil(hiP / niceStep(hiP)));
       const runS = sn ? sn.reduce((acc, v, k) => (acc.push((acc[k - 1] || 0) + (v || 0)), acc), []) : sn6 ? (() => { let q = 0; return sn6.map((v, k) => T.f[k] % 6 === 0 ? (q += v || 0) : null); })() : [];
-      const anySnow = (sn || sn6 || []).some(v => v > 0.05), hiS = Math.max(1, ...runS.filter(v => v != null)), topS = niceStep(hiS) * Math.ceil(hiS / niceStep(hiS)), scS = scale(0, topS);
+      const anySnow = (sn || sn6 || []).some(v => v > 0.05), hiS = Math.max(12, ...runS.filter(v => v != null).concat([0])), topS = niceStep(hiS) * Math.ceil(hiS / niceStep(hiS)), scS = scale(0, topS);
       const pTop = niceStep(hiP) * Math.ceil(hiP / niceStep(hiP)); axis(0, pTop, scP, "\u2033", false, "#6fd38a");
       if (p6 && T.pcp) bars(p6.map((v, k) => T.f[k] % 6 === 0 && T.f[k] > 36 ? v : null), scP, "#3ea95888", 2.2);
       if (pc) bars(pc, scP, "#3ea958"); else if (p6) bars(p6.map((v, k) => T.f[k] % 6 === 0 ? v : null), scP, "#3ea958", 2.2);
@@ -2057,8 +2057,9 @@ function mgChart(cv, T, box) {
       const sn = T.snow || null, sn6 = T.snow6 || null;
       const s6 = T.f.map((f, k) => f % 6 !== 0 ? null : sn ? sumWin(T, sn, f - 6, f) : sn6[k]);
       let q = 0; const runS = sn ? sn.map(v => (q += v || 0)) : sn6.map((v, k) => T.f[k] % 6 === 0 ? (q += v || 0) : null), tot = q;
-      const hiB = Math.max(1, ...s6.filter(v => v != null)), topB = niceStep(hiB) * Math.ceil(hiB / niceStep(hiB)), scB = scale(0, topB);
-      const hiR = Math.max(1, ...runS.filter(v => v != null)), topR = niceStep(hiR) * Math.ceil(hiR / niceStep(hiR)), scR = scale(0, topR);
+      // 11-05 Weather Bot / Benjamin: scale floors so small storms look small — 6 h snow axis at least 12 in
+      const hiB = Math.max(12, ...s6.filter(v => v != null).concat([0])), topB = niceStep(hiB) * Math.ceil(hiB / niceStep(hiB)), scB = scale(0, topB);
+      const hiR = Math.max(12, ...runS.filter(v => v != null).concat([0])), topR = niceStep(hiR) * Math.ceil(hiR / niceStep(hiR)), scR = scale(0, topR);
       axis(0, topB, scB, "\u2033", false, "#9fc8ff"); axis(0, topR, scR, "\u2033", true, TH.canvas_ink);
       c.fillStyle = "#5b9dff"; const gap6 = Math.max(1, (X(T.t[n - 1]) - X(T.t[0])) / Math.max(1, (t1 - t0) / 216e5) * 0.12);
       s6.forEach((v, k) => { if (v == null || v < 0.05) return; const xb = X(T.t[k]), xa = X(new Date(Date.parse(T.t[k]) - 216e5).toISOString());
@@ -2153,7 +2154,7 @@ function obsOpen() {
     const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "obs/obs.css"; document.head.appendChild(l);
     const sc = document.createElement("script"); sc.src = "obs/obs.js"; sc.onerror = bad; document.body.appendChild(sc);
     // 11-03: radar + GOES-West layers (obs/obsimg.js, off by default); the obs map still opens if it fails to load
-    sc.onload = () => { const s2 = document.createElement("script"); s2.src = "obs/obsimg.js?v=20261103sm1"; s2.onload = ok; s2.onerror = ok; document.body.appendChild(s2); };
+    sc.onload = () => { const s2 = document.createElement("script"); s2.src = "obs/obsimg.js?v=20261105loop4"; s2.onload = ok; s2.onerror = ok; document.body.appendChild(s2); };
   });
   obsLoad.then(() => Obs.show(), () => { $("obs-root").textContent = "Observations could not load."; obsLoad = null; });
 }

@@ -473,6 +473,9 @@ const capRun = (sec, c) => { const t = runTime(c); return `${sec.tag} ${c.slice(
 const mrLabel = (c) => `${c.slice(8)}Z ${+c.slice(4, 6)}/${+c.slice(6, 8)}`;
 const SHADES = ["#b5b7bb", "#8c8f95", "#6c6f75"];
 const floor0 = (top) => (lo, hi) => [0, Math.max(hi, top == null ? 0.25 : top)];
+// 11-05 Weather Bot: pass/meteogram scale floors — small storms stay visually small
+const SCALE_FLOOR_SNOW6 = 12;   // inches per 6 h (and similar snow accum charts)
+const SCALE_FLOOR_SNOWRATE = 3; // inches per hour
 const bottom0 = (lo, hi) => [0, hi];
 function membersItems(S_, color, lw, alpha, meanLabel) {   // meteo_suite.members(): member lines, mean (white, 3), median (orange dashed)
   return [{ t: "multi", S: S_, color, lw: lw || 0.8, alpha: alpha == null ? 0.55 : alpha },
@@ -581,12 +584,12 @@ async function build(sec, prod, town) {
     const S0 = get(k === "plume_tp" ? "tp" : "sf"); if (!S0) return memEmpty(sec, "Plumes"); const A = withZero(S0, c), col = k === "plume_tp" ? K.RAIN : K.SNOW;
     const mu = colStat(A, nanmean), md = colStat(A, (a) => pct(a, 0.5)), lastM = nanmean(A.m.map((a) => a[a.length - 1])), lastD = pct(A.m.map((a) => a[a.length - 1]), 0.5);
     return fr(k, k === "plume_tp" ? "Total Precipitation Plume" : "Total Snow Plume (10:1)", k === "plume_tp" ? "inches (liquid)" : "inches of snow",
-      [{ t: "multi", S: A, color: col, lw: 0.9, alpha: 0.45 }, { t: "line", x: A.x, y: mu, color: K.MEAN, lw: 3, label: `Mean ${(lastM || 0).toFixed(2)} in` }, { t: "line", x: A.x, y: md, color: K.WARM, lw: 2, dash: "--", label: `Median ${(lastD || 0).toFixed(2)} in` }, ...(R ? refLine(R, A.x, (x) => refVal(R, k === "plume_tp" ? "apcpTot" : "snowTot", x, t0)) : [])], "upper left", floor0(0.25));
+      [{ t: "multi", S: A, color: col, lw: 0.9, alpha: 0.45 }, { t: "line", x: A.x, y: mu, color: K.MEAN, lw: 3, label: `Mean ${(lastM || 0).toFixed(2)} in` }, { t: "line", x: A.x, y: md, color: K.WARM, lw: 2, dash: "--", label: `Median ${(lastD || 0).toFixed(2)} in` }, ...(R ? refLine(R, A.x, (x) => refVal(R, k === "plume_tp" ? "apcpTot" : "snowTot", x, t0)) : [])], "upper left", floor0(k === "plume_tp" ? 0.25 : SCALE_FLOOR_SNOW6));
   }
   if (k === "spread_tp") { const S0 = get("tp"); if (!S0) return memEmpty(sec, "Spread charts"); const A = withZero(S0, c);
     return fr(k, "Spread: Total Precipitation", "inches (liquid)", bandsItems(A.x, A.m, K.RAIN, "Total"), "upper left", bottom0); }
   if (k === "lines_sf24") { const S0 = get("sf"); if (!S0) return memEmpty(sec, "Member lines"); const A = roll(withZero(S0, c), 24);
-    return fr(k, "24-Hour Snow (10:1): Members and Mean", "inches in prior 24 h", [...membersItems(A, K.SNOW), ...(R ? refLine(R, A.x, (x) => refVal(R, "snowTot", x, x - 24 * 36e5)) : [])], "upper left", floor0(0.25)); }
+    return fr(k, "24-Hour Snow (10:1): Members and Mean", "inches in prior 24 h", [...membersItems(A, K.SNOW), ...(R ? refLine(R, A.x, (x) => refVal(R, "snowTot", x, x - 24 * 36e5)) : [])], "upper left", floor0(SCALE_FLOOR_SNOW6)); }
   if (k === "lines_tcc") { const S0 = get("tcc"); if (!S0) return M.st.some((s) => s.d.v && s.d.v.tcc) ? memEmpty(sec, "Member lines") : memEmpty(sec, "Member cloud cover lines");
     return fr(k, "Cloud Cover: Members and Mean", "%", membersItems(S0, K.MUTED), "upper right", () => [0, 100]); }
   if (k === "lines_cape") { const S0 = get("mucape"); if (!S0) return noField("most-unstable CAPE");
@@ -669,7 +672,7 @@ async function multiRun(sec, prod, town, runs, base) {
   if (ensM) {
     const wn = m === "eps" ? "3 h window to F+144, then 6 h" : "6 h window", what = { mr_t2m: "2 m Temperature", mr_tmax: `Max Temperature (${wn} ending each step)`, mr_tmin: `Min Temperature (${wn} ending each step)`, mr_qpf6: "6-Hour Precipitation", mr_snow6: "6-Hour Snow (10:1)", mr_qpf24: "24-Hour Precipitation", mr_snow24: "24-Hour Snow (10:1)", mr_qpf: "Total Precipitation", mr_snow: "Total Snow (10:1)" }[k];
     return Object.assign(base, { fig: "frame", title: `${town.label} Multi-run: ${what}`, sub: `Ensemble mean of the last ${n} ${sec.id === "eps" ? "ENS" : sec.label} runs, newest bold`,
-      panels: [{ ylab: temp ? "\u00b0F" : "inches", legend: "upper left", ylim: temp ? null : floor0(0.25), items: [...items, ...(temp ? [{ t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: "#ffffff", lw: 1.2, dash: "--" }] : [])] }] });
+      panels: [{ ylab: temp ? "\u00b0F" : "inches", legend: "upper left", ylim: temp ? null : floor0(SCALE_FLOOR_SNOW6), items: [...items, ...(temp ? [{ t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: "#ffffff", lw: 1.2, dash: "--" }] : [])] }] });
   }
   const what = { mr_t2m: "2 m Temperature", mr_qpf6: "6-Hour Precipitation", mr_snow6: "6-Hour Snow", mr_qpf24: "24-Hour Precipitation", mr_qpf: "Total Precipitation", mr_snow: "Total Snow" }[k];
   return Object.assign(base, { fig: "frame", hourly: !!sec.hrs, title: `${town.label} ${sec.tag} Multi-run: ${what}`, sub: `Last ${n} ${sec.hrs ? "long " : ""}${sec.tag} runs, newest bold`,
