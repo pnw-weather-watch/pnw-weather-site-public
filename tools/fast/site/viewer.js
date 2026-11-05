@@ -776,6 +776,7 @@ async function render(lite) {
         const b = n.querySelector("#jumprun"); if (b) b.onclick = async () => { await loadRun(r2); S.run = r2; $("run").value = r2; n.hidden = true; setLists(); draw(); }; });
     }
     const V = VIEWS()[vid], cv = $("map"), st2 = await viewStatic(vid);
+    if (!st2) return;
     const ctx = sizeMap(cv, V, lite), [LW, LH] = V.fig; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH); ctx.drawImage(layer(st2.base, st2.baseU, cv._rs), 0, 0, LW, LH);
     header(ctx, V, PRODS()[pid].title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${window.__vjNoJump || S.dragging ? "no map at this hour" : "not in this model run"}`, step.badge);
     S.cur = null; window.__drawn = `${pid}/${vid}/${f}`;
@@ -783,6 +784,7 @@ async function render(lite) {
     return;
   }
   if (seq !== drawSeq) return;
+  if (!st) return;   // 11-05 viewStatic soft-miss (run.grid still loading)
   const t1 = performance.now();
   const V = VIEWS()[vid], P = PRODS()[pid], cv = $("map");
   const ctx = sizeMap(cv, V, lite), [LW, LH] = V.fig, rs = cv._rs; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH);
