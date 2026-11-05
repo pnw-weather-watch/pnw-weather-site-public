@@ -3,13 +3,12 @@
   read_requests.py              newest 20 (time PT, who, page, state, text)
   read_requests.py --json       the same as JSON
   read_requests.py --mark KEY done|seen|queued   set a request's status (shown in the box's recent list)
-Second site copy. Env only (no secrets in files): R2_BUCKET (the second site's NEW bucket), CF_PAGES_KEY,
-CLOUDFLARE_ACCOUNT_ID (same as upload_r2.py)."""
+Second site copy. Env only (no secrets in files): PNW_R2_ACCESS_KEY_ID / PNW_R2_SECRET_ACCESS_KEY (account pinned in upload_r2.py); R2_BUCKET defaults to pnw-models-data."""
 import sys, json, argparse, datetime as dt, os
 from zoneinfo import ZoneInfo
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from upload_r2 import client
-BUCKET = os.environ.get("R2_BUCKET") or sys.exit("set R2_BUCKET to the second site's bucket")
+BUCKET = os.environ.get("R2_BUCKET", "pnw-models-data")
 ap = argparse.ArgumentParser(); ap.add_argument("--json", action="store_true"); ap.add_argument("-n", type=int, default=20); ap.add_argument("--mark", nargs=2)
 a = ap.parse_args(); s3 = client()
 if a.mark:

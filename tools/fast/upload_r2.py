@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Upload fast-style data to R2 bucket pnw-models-data (S3 API; keys derived from the Cloudflare API token in CF_PAGES_KEY,
-access key = token id, secret = sha256(token); the token is never printed).
+"""Upload fast-style data to R2 bucket pnw-models-data (S3 API; PNW R2 keys from env PNW_R2_ACCESS_KEY_ID / PNW_R2_SECRET_ACCESS_KEY, account pinned).
   upload_r2.py --data <site/data> [--run 2026102918] [--static] [--keep 2] [--dry-run]
 Order: static (if asked) -> run files -> run.json -> manifest (lists only runs present in R2, newest --keep) -> prune older runs."""
 import os, sys, json, hashlib, argparse, urllib.request, mimetypes, time
@@ -11,11 +10,10 @@ BUCKET = os.environ.get("R2_BUCKET", "pnw-models-data")
 CT = {".png": "image/png", ".json": "application/json", ".bin": "application/octet-stream", ".webp": "image/webp"}
 
 def client():
-    tok = os.environ["CF_PAGES_KEY"]; acc = os.environ.get("CLOUDFLARE_ACCOUNT_ID") or os.environ["ACC"]
-    rq = urllib.request.Request("https://api.cloudflare.com/client/v4/user/tokens/verify", headers={"Authorization": "Bearer " + tok})
-    tid = json.load(urllib.request.urlopen(rq))["result"]["id"]
-    return boto3.client("s3", endpoint_url=f"https://{acc}.r2.cloudflarestorage.com", aws_access_key_id=tid,
-                        aws_secret_access_key=hashlib.sha256(tok.encode()).hexdigest(), region_name="auto",
+    # 11-04 safety: pinned to the PNW account (b6dc...) and the PNW R2 S3 keys; the shared CF_PAGES_KEY / CLOUDFLARE_ACCOUNT_ID belong to the OTHER site and are never read
+    acc = "b6dc205037fd8e8c37d5267ee61dc302"
+    return boto3.client("s3", endpoint_url=f"https://{acc}.r2.cloudflarestorage.com", aws_access_key_id=os.environ["PNW_R2_ACCESS_KEY_ID"],
+                        aws_secret_access_key=os.environ["PNW_R2_SECRET_ACCESS_KEY"], region_name="auto",
                         config=Config(max_pool_connections=32, retries={"max_attempts": 5, "mode": "standard"}))
 
 def main():
