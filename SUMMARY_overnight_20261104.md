@@ -84,6 +84,6 @@ Final polish-pass QA (Access token rotated for `pnw-qa`; Playwright chromium rei
 - **Hawaii waves:** ECMWF IFS open wave; coast-only town numbers (1/4-mi offshore). Commits `f5ef608`, `80ef26c`.
 - **Views:** Bay Area (`bay`), Oregon coast (`orco`), Big Island (`bigi`) on preview with full product support.
 - **PNW towns:** 29 labels on t2m / names on mslpa (CA-like tiers).
-- **Ensembles:** **epsm complete F6–F360** (40 steps) on preview; EPS/AENS still encoding past F240 toward F360 (files ~F294 / ~F300 at 01:45 PT). `run.json` `expected` = full cadence (`298eac2`).
+- **Ensembles (full cadence on preview):** EPS mean **F3–F360** (84), epsm **F6–F360** (40), AENS **F6–F360** (60). `run.json` `expected` = full cadence (`298eac2`).
 - **Weather Bot B (preview):** snow scale floors (≥12 in/6 h pass+meteogram; ≥3 in/h snow-rate on pass winter meteogram) `c6077eb` + `a9aae70`; ECMWF `gust3`/`gust6`; obs sat **4-hour** loop + scrubber row (~480 px); F+ badge / elows key / buoys+H/L verified in shots. No Studio/Social. Preview deploy `d5ddd687` (HEAD `a9aae70`).
 - **WW3 / gfsw:** open decision #5 only — not newly wired.
