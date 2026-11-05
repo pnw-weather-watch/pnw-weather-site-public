@@ -26,3 +26,12 @@
 | 21:20 | QA: interaction check (readout, zoom, save, share, peak gust, missing hour, preload, view default, WA + CA Pass Forecasters) on the preview: 10/10 OK; the preload test now picks a run with steps (newest GFS 18Z is a single-step run). Ticked checklist: local/DETAILS_CHECKLIST_ticked_20261104.md (13 more lines) | 5a6658e | qa/interaction_preview_20261104.log |
 | 21:30 | Safety: upload_r2.py / read_requests.py pinned to the PNW account and PNW R2 keys (they used the shared CF_PAGES_KEY); request queue read: empty, nothing from Michael Snyder yet | b4c7b3c | - |
 | 21:35 | Verification of queued items on the preview: dashed 540 dam thickness line and 32F line (white dashes, thin black edge), darker blues, WA + CA Pass Forecaster tabs, meteogram colors, S/C/N California views | (earlier commits 964d696, b3bc105, 2eaef2b, 70cf9da, ebe1766) | check_thick540_pnw_desktop/phone.png, check_thick540_zoom.png, check_t2m_blues_pnw_desktop/phone.png |
+
+| 21:28 | HOLD (clarified 21:29): do NOT build the current site's "WA Maps" page graphics (NBM 2.5 km predicted low/high/gust/snow posters with WAWX Chasers logo, big titles, town temps, summary text) until Benjamin says otherwise. Normal model products and Washington regional views (Pacific Northwest, Cascade Passes, etc.) stay in the queue. |
+
+| 21:30 | HOLD reinforced: do NOT build a "WA Maps" tab or any WA Maps-style graphics (NBM poster maps with logo/big titles). Build everything else. Normal model products + Washington regional views OK. |
+
+| 21:31 | NOTE (overnight builder #2, 21:31 PT): two builders are active in this folder. Claimed by this builder: AIFS (aifs), AIFS ENS (aens), then GFS-Wave, HRRR/RRFS/NBM high-res views, remaining DETAILS_CHECKLIST ticks. Member grids / EPS members / mslpa keys (backups/batch_mgrid_20261104) are left to the other builder. No WA Maps graphics (HOLD above). Commits stay local, nothing pushed to origin/main, no production deploy. | - | - |
+
+| 21:30 | HOLD reinforced: no "WA Maps" tab / WA Maps-style graphics. Build everything else. |
+| 21:35 | #12 member grids + #13 member meteograms (EPS mem data F3-F48 + epsm F6-F72); MSLP a80 keys for socal/cenca/norca into site mkeys; epsm model wired on preview | (pending) | mgrid_tmax_*, mlines_t2m_*, mgrid_qpf_*, meteograms_honolulu_*, mslpa_a80_*_desktop.png, epsm_mslp_m01_pnw_desktop.png |

@@ -30,7 +30,7 @@ MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lo
     "gfs":  dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 6, 12, 18), steps=list(range(3, 361, 3)), keep=3),
     "ifs":  dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 6, 12, 18), steps=list(range(3, 145, 3)) + list(range(150, 361, 6)),
                  steps_short=list(range(3, 145, 3)), short_cycles=(6, 18), keep=4, keep_long=True),
-    "aifs": dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 6, 12, 18), steps=list(range(6, 361, 6)), keep=3),
+    "aifs": dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 6, 12, 18), steps=list(range(6, 361, 6)), keep=3, grid_from="ifs"),   # 11-04: reuses the IFS normals slots
     # ECMWF IFS 9 km (Benjamin 10-31 1:58 AM "build the euro 9km option"): the same IFS run on ECMWF's free 0.1 deg open data
     # (ifs/0p1/oper, -sfc / -pl files, out about 2 h after the 0.25 deg files, since 10-20-26). Kept small: Washington-scale
     # views + Pacific NW tight only (no North America / Pacific NW wide), 0-144 h every 3 h, newest run only. The crop at 0.1 deg
