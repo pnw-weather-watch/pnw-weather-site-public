@@ -15,6 +15,7 @@ HDR = {}
 if os.environ.get("QA_ACCESS_CLIENT_ID"): HDR = {"CF-Access-Client-Id": os.environ["QA_ACCESS_CLIENT_ID"], "CF-Access-Client-Secret": os.environ.get("QA_ACCESS_CLIENT_SECRET", "")}
 DATA = "/d/" if not B.startswith("http://127.") and not B.startswith("http://localhost") else "/data/"
 fails = []
+ONLY = set(filter(None, os.environ.get("GUARD_MODELS", "").split(",")))
 def res(ok, name, extra=""):
     print(("OK  " if ok else "FAIL"), name, extra, flush=True)
     if not ok: fails.append(name)
@@ -63,6 +64,7 @@ async def main():
             res(all(first[m] == newest[m] for m in first), f"{W}x{H} newest run listed first per model", json.dumps(first))
             res((await p.evaluate("()=>document.getElementById('run').value")) == runs[0], f"{W}x{H} newest run loaded by default")
             for m in first:
+                if ONLY and m not in ONLY: continue   # GUARD_MODELS=aens,gfsw limits the per-model loops (default: all)
                 await p.select_option("#run", newest[m]); await p.wait_for_timeout(1500)
                 views = await p.evaluate("()=>[...document.getElementById('view').options].map(o=>o.value)")
                 prods = await p.evaluate("()=>[...document.getElementById('prod').options].map(o=>o.value)")
