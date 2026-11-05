@@ -809,8 +809,15 @@ async function render(lite) {
   ctx.save(); ctx.beginPath(); ctx.rect(st.x0, st.y0, st.W, st.H); ctx.clip();
   if (P.freeze !== undefined) {
     const lines = contour(st, vals, P.freeze, lite ? 4 : 3);   // lite: 4 px grid = only exact (even-pixel) samples
-    strokeLines(ctx, lines, "#ffffff", pt(3.0), [pt(3.7 * P.freeze_lw), pt(1.6 * P.freeze_lw)]);   // matplotlib halo: 3 pt stroke, dashed with the line
-    strokeLines(ctx, lines, P.freeze_color, pt(P.freeze_lw), [pt(3.7 * P.freeze_lw), pt(1.6 * P.freeze_lw)]);
+    // 11-04 (Benjamin 5:18 PM): solid WHITE freezing line with a thin BLACK outline (reads on white and dark bases); was black dashed
+    if (pid === "thick") {   // 540 dam thickness is a snow-line guide, not a freezing line: keeps its dashed look
+      strokeLines(ctx, lines, "#ffffff", pt(3.0), [pt(3.7 * P.freeze_lw), pt(1.6 * P.freeze_lw)]);
+      strokeLines(ctx, lines, P.freeze_color, pt(P.freeze_lw), [pt(3.7 * P.freeze_lw), pt(1.6 * P.freeze_lw)]);
+    } else {
+      const fw = pt(Math.max(1.4, 1.6 * (P.freeze_lw || 1)));
+      strokeLines(ctx, lines, "#000000", fw + pt(1.2), []);
+      strokeLines(ctx, lines, "#ffffff", fw, []);
+    }
   }
   const gk = `${rk(run)}/${pid}/${vid}/${f}`;
   // 11-03 small fixes (tight wave views: swell-period line labels hidden under town / buoy labels, leaving a gap cut in the line):
@@ -846,7 +853,7 @@ async function render(lite) {
     for (let r = r0; r < r1; r += 2) for (let c = c0; c < c1; c += 2) a[n++] = D.fill[r * D.w + c]; D.pct[vid] = a.subarray(0, n).sort(); }
   const fin = D.pct[vid];
   const pc = p => fin[Math.min(fin.length - 1, Math.max(0, Math.round(p / 100 * (fin.length - 1))))];
-  let extra = (P.isobars && !D.iso && P.extra_noh ? P.extra_noh : P.extra).replace("{lo}", pc(P.pct[0]).toFixed(P.dec || 0)).replace("{hi}", pc(P.pct[1]).toFixed(P.dec || 0));
+  let extra = (P.isobars && !D.iso && P.extra_noh ? P.extra_noh : P.extra).replace("{lo}", pc(P.pct[0]).toFixed(P.dec || 0)).replace("{hi}", pc(P.pct[1]).toFixed(P.dec || 0)).replace(/ line dashed/g, pid === "thick" ? " line dashed" : " line white");
   if (pid === "gust10" && run.startsWith("eps/") && f <= 144 && f % 3 === 0) extra = extra.replace("in the 6 h ending", "in the 3 h ending");   // 10-31 EPS 3-hourly to F+144
   header(ctx, V, P.title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${extra}`, step.badge);
   S.peak = GUST_PIDS.test(pid) ? drawPeak(ctx, st, vals) : null;

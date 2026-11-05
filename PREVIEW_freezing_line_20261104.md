@@ -1,0 +1,11 @@
+# Freezing line: solid white with a thin black outline (Benjamin 5:18 PM PT, 11-04)
+- Was a black dashed line with a white halo. Now a solid white line (about 1.6 pt) with a black outline about 0.6 pt each side, drawn in `viewer.js` (freeze block).
+  - It reads on the white base and on dark or colored fills.
+- Products:
+  - 32°F line: t2m (2 m Temperature), feels (Feels-Like).
+  - 0°C line: t850, t850w, t925w, t700, t700w.
+  - Unchanged: the 1000-500 mb thickness 540 dam line stays dashed (it's a snow-line guide, not a freezing line).
+  - Dewpoint has no freezing line.
+- Run-line text: "32°F line dashed" now reads "32°F line white". The viewer rewrites older manifests and fast_encode.py emits the new text.
+- Screenshots in local/shots/20261104/: freezing_line_BEFORE.png, freezing_line_AFTER.png (GFS 18Z 11-4 F93, valid Sun 11-8 7 AM PT, PNW), freezing_line_AFTER_phone.png.
+- Backup: backups/freezing_line_20261104/.
