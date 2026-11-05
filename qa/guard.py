@@ -57,6 +57,9 @@ async def main():
             p.on("console", lambda m: m.type == "error" and errs.append(m.text)); p.on("pageerror", lambda e: errs.append("PAGEERROR " + str(e)))
             p.on("response", lambda rr: rr.status >= 400 and errs.append(f"{rr.status} {rr.url}"))
             await p.goto(B + "/index.html", wait_until="networkidle"); await p.wait_for_timeout(3000)
+            ok_run = await p.evaluate("()=>!!document.getElementById('run')")
+            if not ok_run:
+                res(False, f"{W}x{H} run menu present", "missing #run"); await ctx.close(); continue
             runs = await p.evaluate("()=>[...document.getElementById('run').options].map(o=>o.value)")
             first = {}
             for v in runs: first.setdefault(v.split("/")[0], v)
