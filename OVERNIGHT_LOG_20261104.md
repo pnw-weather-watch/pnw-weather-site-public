@@ -45,3 +45,8 @@
 | 22:46 | QA guard hardened (commit vs networkidle); full preview guard by GUARD_MODELS batches: **577 OK / 0 FAIL** (all models) | ded9016 | qa/guard_preview_full_20261104.log |
 | 22:46 | Ensemble extend: epsm F6-F120 (20 steps) on preview. EPS mean / AENS extend in progress beyond F48 (partial hours encoded; run.json merged as unbroken prefix grows). | (data) | - |
 | 22:46 | #18 radar/sat CA+HI confirmed (obsimg region detail boxes + radsat_* shots). DETAILS_CHECKLIST gaps closed where verified (dsnod, coast CA/HI, wave scales, mslpa a80, member lookup, obs CA/HI). WA Maps HOLD. | - | radsat_ca_*, radsat_hi_* |
+
+| 23:20 | Ensemble coverage on preview (after merge fix): **epsm F6–F120** (20 steps), **EPS mean F3–F96** (32 steps), **AENS F6–F120** (20 steps). fast_encode steps() keeps earlier hours on --steps extends (b89ca6b). |
+| 23:20 | Full preview QA (GUARD_MODELS batches, hardened goto): **577 OK / 0 FAIL** — qa/guard_preview_full_20261104.log. |
+| 23:20 | epsm CVD keys live on preview: gust10/slp/snow/z500anom (theme/epsm_cvd_scales.json). Screenshots earlier: epsm_{gust10,slp,snow,z500anom}_pnw_{desktop,phone}.png. |
+| 23:20 | INDEX sweep: #10/#11/#12/#13/#16/#17/#18/#19 done on preview; WA Maps HOLD. DETAILS_CHECKLIST: remaining open mostly style-doc / NBM look / partial [~] items. No production deploy. |
