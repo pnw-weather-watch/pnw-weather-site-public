@@ -68,3 +68,5 @@
 | 00:40-00:52 | Preview deploy + R2 sync; AFTER shots HI/PNW towns/bay/orco/bigi/epsm F240. | f5ef608 80ef26c | local/shots/20261105/*AFTER* , bay_*, orco_*, bigi_*, epsm_ext_f240_* |
 | 00:52 | Ensembles on preview: **EPS F3–F240**, **epsm F6–F240**, **AENS F6–F240**. WA Maps OFF. | (data) | - |
 | 01:07+ | Weather Bot B (preview): snow scale floors; ECMWF gust3+gust6; sat 4h loop + scrubber row; F+/elows verify; WW3 → open decision only. | (pending) | gust6_BEFORE_*, elows_key_check_*, badge_F_check_* |
+
+| 01:09-01:18 | Weather Bot B shipped on preview: snow scale floors (pass/meteogram ≥12 in/6h); **gust3** + gust6 on ECMWF/IFS (+GFS/HRRR/RRFS/AIFS); obs sat **4 h loop** + scrubber own row (~480 px). F+ badge placement OK; elows member color key + density key OK; buoys/towns/H/L on wave/temp maps. No Studio/Social. WW3 → SUMMARY open decision. Commit **c6077eb**, preview deploy 9c9042d6. | c6077eb | gust3_AFTER_*, gust6_AFTER_*, buoys_hl_waves_pnw_*, obs_sat_loop4_AFTER_*, pass_snow_floor_*, elows_key_check_*, badge_F_check_* |
