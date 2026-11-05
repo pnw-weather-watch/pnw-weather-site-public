@@ -88,11 +88,18 @@ def main():
             if err: print(f"f{s:03d} {err}", flush=True); continue
             done[s] = info; tot[0] += info["size"]; tot[1] += info["grib"]
             print(f"f{s:03d} {len(info['members'])} members {info['size']/1e3:.0f} KB (grib {info['grib']/1e6:.1f} MB) {info['sec']} s", flush=True)
+    # Index every cadence hour that already has 50 members on disk (not only --steps window),
+    # so a F252-360 extend does not wipe F6-F240 from run.json the way a want-only loop did.
+    for s in STEPS:
+        if s in done: continue
+        ms = [n for n in range(1, 51) if os.path.exists(f"{rd}/m{n:02d}/mem_f{s:03d}.webp")]
+        if len(ms) >= 50:
+            done[s] = dict(members=ms, size=sum(os.path.getsize(f"{rd}/m{n:02d}/mem_f{s:03d}.webp") for n in ms))
     steps = []
-    for s in want:
+    for s in STEPS:
         if s not in done: break
         steps.append(step_meta(c, s))
     mems = sorted(set.intersection(*[set(d["members"]) for d in done.values()])) if done else []
     json.dump(run_json(c, steps, mems, crop), open(f"{rd}/run.json", "w"), indent=1)
-    print(f"epsm {a.cycle}: {len(steps)}/{len(want)} steps, {len(mems)} members, files {tot[0]/1e6:.1f} MB, grib {tot[1]/1e9:.2f} GB", flush=True)
+    print(f"epsm {a.cycle}: {len(steps)}/{len(STEPS)} steps (wanted {len(want)}), {len(mems)} members, files {tot[0]/1e6:.1f} MB, grib {tot[1]/1e9:.2f} GB", flush=True)
 if __name__ == "__main__": main(); sys.stdout.flush(); os._exit(0)
