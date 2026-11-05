@@ -11,7 +11,7 @@ set -euo pipefail; cd "$(dirname "$0")"; K=$(cd .. && pwd)
 PROJECT=pnw-weather-site; CONFIRM=0; [ "${1:-}" = "--confirm" ] && CONFIRM=1
 : "${PNW_CLOUDFLARE_API_TOKEN:?PNW token (new account) required}"
 # 11-04 safety: never use the shared CF_PAGES_KEY / CLOUDFLARE_ACCOUNT_ID (they belong to the OTHER site's account).
-CF_PAGES_KEY="$PNW_CLOUDFLARE_API_TOKEN"; CLOUDFLARE_ACCOUNT_ID=b6dc205037fd8e8c37d5267ee61dc302
+CF_PAGES_KEY="$PNW_CLOUDFLARE_API_TOKEN"; export CLOUDFLARE_ACCOUNT_ID=b6dc205037fd8e8c37d5267ee61dc302 CLOUDFLARE_API_TOKEN="$PNW_CLOUDFLARE_API_TOKEN"
 ACCTS=$(curl -s -H "Authorization: Bearer $CF_PAGES_KEY" https://api.cloudflare.com/client/v4/accounts | python3 -c "import json,sys;print(','.join(a['id'] for a in json.load(sys.stdin)['result']))")
 [ "$ACCTS" = "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "token does not see exactly the PNW account - refusing"; exit 1; }
 API="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PROJECT"; AH="Authorization: Bearer $CF_PAGES_KEY"
