@@ -1,11 +1,17 @@
-# Freezing line: solid white with a thin black outline (Benjamin 5:18 PM PT, 11-04)
-- Was a black dashed line with a white halo. Now a solid white line (about 1.6 pt) with a black outline about 0.6 pt each side, drawn in `viewer.js` (freeze block).
-  - It reads on the white base and on dark or colored fills.
-- Products:
-  - 32°F line: t2m (2 m Temperature), feels (Feels-Like).
-  - 0°C line: t850, t850w, t925w, t700, t700w.
-  - Unchanged: the 1000-500 mb thickness 540 dam line stays dashed (it's a snow-line guide, not a freezing line).
-  - Dewpoint has no freezing line.
-- Run-line text: "32°F line dashed" now reads "32°F line white". The viewer rewrites older manifests and fast_encode.py emits the new text.
-- Screenshots in local/shots/20261104/: freezing_line_BEFORE.png, freezing_line_AFTER.png (GFS 18Z 11-4 F93, valid Sun 11-8 7 AM PT, PNW), freezing_line_AFTER_phone.png.
-- Backup: backups/freezing_line_20261104/.
+# Dashed lines: narrow white dashes with a very thin black outline (Benjamin 5:25 + 5:26 PM PT, 11-04; replaces the 5:18 solid version)
+- Maps: the old dash pattern (3.7 x lw on, 1.6 x lw off) and the old narrow width (freeze_lw) are kept.
+  - Dashes are WHITE with a black outline about 0.25 pt each side (the solid version used 0.6 pt).
+  - Products and lines changed:
+    - 32°F line on t2m and feels.
+    - 0°C line on t850, t850w, t925w, t700, t700w.
+    - 540 dam line on thick (1000-500 mb Thickness + MSLP).
+- Meteogram:
+  - The dashed 32°F reference line and its legend sample are now white dashes with a 0.5 px black edge; the "= freezing (32°F)" label is white.
+  - The dotted "chance ≤ 32°F" line, its right axis and its label are now white with a black edge too, so the axis still matches its line.
+- Note under the title reads "... line dashed" (same as before the solid version).
+- Shots in local/shots/20261104/:
+  - freezing_line_dashed_white_AFTER.png and freezing_line_dashed_white_zoom.png (GFS 18Z 11-4 F93 t2m PNW; zoom is a 2x crop of Idaho/Montana).
+  - thickness_540_dashed_white_AFTER.png and thickness_540_dashed_white_zoom.png (same run and hour).
+  - meteogram_dashed_white_AFTER.png (Seattle, GFS 00Z).
+  - Older solid-version shots: freezing_line_AFTER*.png.
+- Backups in backups/freezing_line_20261104/: viewer.js (original), viewer.solid.js (solid version).

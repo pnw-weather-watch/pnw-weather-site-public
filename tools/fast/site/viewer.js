@@ -811,12 +811,14 @@ async function render(lite) {
     const lines = contour(st, vals, P.freeze, lite ? 4 : 3);   // lite: 4 px grid = only exact (even-pixel) samples
     // 11-04 (Benjamin 5:18 PM): solid WHITE freezing line with a thin BLACK outline (reads on white and dark bases); was black dashed
     if (pid === "thick") {   // 540 dam thickness is a snow-line guide, not a freezing line: keeps its dashed look
-      strokeLines(ctx, lines, "#ffffff", pt(3.0), [pt(3.7 * P.freeze_lw), pt(1.6 * P.freeze_lw)]);
-      strokeLines(ctx, lines, P.freeze_color, pt(P.freeze_lw), [pt(3.7 * P.freeze_lw), pt(1.6 * P.freeze_lw)]);
+      const dash = [pt(3.7 * P.freeze_lw), pt(1.6 * P.freeze_lw)];   // 11-04 5:26 PM: same white-dash style as the freezing lines
+      strokeLines(ctx, lines, "#000000", pt(P.freeze_lw) + pt(0.5), dash);
+      strokeLines(ctx, lines, "#ffffff", pt(P.freeze_lw), dash);
     } else {
-      const fw = pt(Math.max(1.4, 1.6 * (P.freeze_lw || 1)));
-      strokeLines(ctx, lines, "#000000", fw + pt(1.2), []);
-      strokeLines(ctx, lines, "#ffffff", fw, []);
+      // 11-04 5:25 PM: WHITE dashes, same narrow width + dash pattern as the old black dashes, very thin black outline (~0.25 pt each side)
+      const dash = [pt(3.7 * P.freeze_lw), pt(1.6 * P.freeze_lw)];
+      strokeLines(ctx, lines, "#000000", pt(P.freeze_lw) + pt(0.5), dash);
+      strokeLines(ctx, lines, "#ffffff", pt(P.freeze_lw), dash);
     }
   }
   const gk = `${rk(run)}/${pid}/${vid}/${f}`;
@@ -853,7 +855,7 @@ async function render(lite) {
     for (let r = r0; r < r1; r += 2) for (let c = c0; c < c1; c += 2) a[n++] = D.fill[r * D.w + c]; D.pct[vid] = a.subarray(0, n).sort(); }
   const fin = D.pct[vid];
   const pc = p => fin[Math.min(fin.length - 1, Math.max(0, Math.round(p / 100 * (fin.length - 1))))];
-  let extra = (P.isobars && !D.iso && P.extra_noh ? P.extra_noh : P.extra).replace("{lo}", pc(P.pct[0]).toFixed(P.dec || 0)).replace("{hi}", pc(P.pct[1]).toFixed(P.dec || 0)).replace(/ line dashed/g, pid === "thick" ? " line dashed" : " line white");
+  let extra = (P.isobars && !D.iso && P.extra_noh ? P.extra_noh : P.extra).replace("{lo}", pc(P.pct[0]).toFixed(P.dec || 0)).replace("{hi}", pc(P.pct[1]).toFixed(P.dec || 0));
   if (pid === "gust10" && run.startsWith("eps/") && f <= 144 && f % 3 === 0) extra = extra.replace("in the 6 h ending", "in the 3 h ending");   // 10-31 EPS 3-hourly to F+144
   header(ctx, V, P.title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${extra}`, step.badge);
   S.peak = GUST_PIDS.test(pid) ? drawPeak(ctx, st, vals) : null;
@@ -1995,8 +1997,9 @@ function mgChart(cv, T, box) {
     const axis = (lo, hi, sc, unit, right, color) => { c.font = `500 ${small ? 9 : 11}px WXTheme`; c.fillStyle = color || TH.canvas_muted; c.textBaseline = "middle"; c.textAlign = right ? "left" : "right";
       const stp = niceStep((hi - lo) / 4); for (let v = Math.ceil(lo / stp) * stp; v <= hi + 1e-9; v += stp) { const yy = sc(v); if (!right) { c.strokeStyle = "#2c3039"; c.beginPath(); c.moveTo(L, yy); c.lineTo(W - Rm, yy); c.stroke(); }
         c.fillText(+v.toFixed(2) + unit, right ? W - Rm + 4 : L - 4, yy); } c.textAlign = "left"; };
-    const line = (a, sc, color, lw, dash) => { c.strokeStyle = color; c.lineWidth = lw; c.setLineDash(dash || []); c.beginPath(); let on = false;
+    const line = (a, sc, color, lw, dash) => { const pass = (col, w) => { c.strokeStyle = col; c.lineWidth = w; c.setLineDash(dash || []); c.beginPath(); let on = false;
       a.forEach((v, k) => { if (v == null) { on = false; return; } const xx = X(T.t[k]), yy = sc(v); on ? c.lineTo(xx, yy) : c.moveTo(xx, yy); on = true; }); c.stroke(); c.setLineDash([]); };
+      if (dash) { pass("#000000", lw + 1); pass("#ffffff", lw); } else pass(color, lw); };   // 11-04: every dashed line = white dashes, thin black outline
     const label = (s, color, dx, dy) => { c.font = `700 ${small ? 10 : 12}px WXTheme`; c.fillStyle = color; c.textBaseline = "top"; c.fillText(s, L + 6 + (dx || 0), y0 + 4 + (dy || 0)); return c.measureText(s).width + 14; };
     const bars = (a, sc, color, wfrac) => { c.fillStyle = color; const bw = Math.max(1.5, (W - L - Rm) / n * (wfrac || 0.7)); a.forEach((v, k) => { if (v == null || v <= 0) return; const xx = X(T.t[k]); c.fillRect(xx - bw / 2, sc(v), bw, y1 - sc(v)); }); };
     if (kind === "temp") {
@@ -2012,13 +2015,13 @@ function mgChart(cv, T, box) {
       const fzT = "= freezing (32\u00b0F)", fzW = 22 + c.measureText(fzT).width + 14, fzOn1 = L + 6 + dx + fzW < W - Rm - 4, fzX = fzOn1 ? dx : 0, fzY = fzOn1 ? 0 : rowH;
       const fzNote = () => {   // drawn after the data lines so nothing crosses it
         { const yy = y0 + 4 + fzY + (small ? 5 : 6); c.fillStyle = "rgba(24,26,31,0.85)"; c.fillRect(L + 3 + fzX, y0 + 2 + fzY, fzW - 8, rowH);   // backing so lines under it don't hide the note
-        c.strokeStyle = "#5aa9ff"; c.lineWidth = 1.5; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(L + 6 + fzX, yy); c.lineTo(L + 6 + fzX + 18, yy); c.stroke(); c.setLineDash([]); }
-        label(fzT, "#5aa9ff", fzX + 22, fzY);
+        for (const [col, w] of [["#000000", 2.5], ["#ffffff", 1.5]]) { c.strokeStyle = col; c.lineWidth = w; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(L + 6 + fzX, yy); c.lineTo(L + 6 + fzX + 18, yy); c.stroke(); } c.setLineDash([]); }
+        label(fzT, "#ffffff", fzX + 22, fzY);
       };
       // Benjamin 10-31 8:55 AM: no "chance <= 32F" line / right % axis on PASS meteograms (towns keep it); the freezing note stays
       const p32 = T.P && T.P.k === "pass" ? null : T.p32;
       if (!p32) fzNote();
-      if (p32) { const s2 = scale(0, 100); line(p32, s2, "#7fd1ff", 1.5, [2, 3]); axis(0, 100, s2, "%", true, "#7fd1ff"); fzNote(); { c.font = `700 ${small ? 10 : 12}px WXTheme`; const lab = "chance \u2264 32\u00b0F (right axis)", px0 = fzX + fzW + 10, fits = L + 6 + px0 + c.measureText(lab).width < W - Rm - 4; label(lab, "#7fd1ff", fits ? px0 : 0, fits ? fzY : fzY + rowH); } }
+      if (p32) { const s2 = scale(0, 100); line(p32, s2, "#ffffff", 1.5, [2, 3]); axis(0, 100, s2, "%", true, "#ffffff"); fzNote(); { c.font = `700 ${small ? 10 : 12}px WXTheme`; const lab = "chance \u2264 32\u00b0F (right axis)", px0 = fzX + fzW + 10, fits = L + 6 + px0 + c.measureText(lab).width < W - Rm - 4; label(lab, "#ffffff", fits ? px0 : 0, fits ? fzY : fzY + rowH); } }
       const mx = [], mn = []; // daily hi/lo labels
       for (const dd of days) { const ks = T.t.map((t, k) => k).filter(k => fmtPT(T.t[k], { weekday: "short", month: "numeric", day: "numeric" }) === dd.d && T.t2m[k] != null);
         if (ks.length < 3) continue; const kH = ks.reduce((a, b) => T.t2m[b] > T.t2m[a] ? b : a), kL = ks.reduce((a, b) => T.t2m[b] < T.t2m[a] ? b : a);
