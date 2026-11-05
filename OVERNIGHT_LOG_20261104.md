@@ -88,3 +88,10 @@
 | 02:22 | **EPS mean complete F3–F360** (84/84) and **AENS complete F6–F360** (60/60) on preview (with epsm F6–F360). All three ensembles at full cadence. | (data) | eps_ext_f360_AFTER_*, aens_ext_f360_AFTER_*, eps_elows_ext_f360_AFTER_* |
 
 | 02:26 | Soft-wait for `run.grid` in viewStatic (no console Error). Preview **9b9598ed**. Commit **ace1f05**. EPS/AENS/epsm all F360 on preview. | ace1f05 | eps_f360_clean_AFTER_desktop.png, eps_ext_f360_AFTER_*, aens_ext_f360_AFTER_* |
+
+## Stretch 5 (11-05 02:17 PT onward, builder #5; hidden preview only, no production deploy)
+| 02:17 | Box check: no extend jobs running. Local run.json: **EPS 00Z 84/84 steps F3–F360 complete**, **AENS 12Z 60/60 F6–F360 complete**, **epsm 40/40 F6–F360 complete**; every step has its files on disk, 0 zero-byte files. No restart needed. | - | - |
+| 02:20 | Preview R2 was behind (preview/ run.json EPS F3–F240 64/84, AENS F6–F240 40/60, `complete: false`). Synced `local/data` to the `preview/` prefix only (PNW account): 213 files; now preview run.json EPS 84/84, AENS 60/60, epsm 40/40, all `complete: true`; object counts match local (EPS 925, AENS 541, epsm 2001). | (data) | - |
+| 02:27 | Request queue read (read-only): "no requests", nothing from Michael Snyder. | - | - |
+| 02:28 | Verified on the live preview with the QA Access token: EPS and AENS F+360 render. Guard eps+aens+epsm: **277 OK / 0 FAIL** (`FAILS 0`, console errors 0). | (log) | local/shots/20261105/{eps_f360_AFTER_t2m,eps_f360_AFTER_elows,aens_f360_AFTER_t2m,aens_f360_AFTER_asnow}_{desktop,phone}.png ; qa/guard_preview_ens360_20261105.log (copy in backups/ens360_verify_20261105/) |
+| 02:30 | Rules re-checked in code: no "WA Maps" string in site/viewer code; Hawaii wave towns use ECMWF/model offshore (PacIOOS never, NWPS unloaded); wave-town value point 1/4 mi off shore (OFF_KM); INDEX #01–#19 and DETAILS_CHECKLIST (ticked copy: 0 open) all done. Nothing left in the queue; no new data sources used. | - | - |
