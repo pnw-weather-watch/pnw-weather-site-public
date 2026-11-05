@@ -205,7 +205,7 @@
    ],
    "proj": [
     "lcc",
-    -118.0,
+    -118.06,
     34.3,
     [
      32,
@@ -213,29 +213,29 @@
     ]
    ],
    "ll": [
-    -121.6,
-    -114.4,
+    -122.61,
+    -113.5,
     31.4,
     37.1
    ],
    "box": [
-    -124.5,
+    -125.11,
     -111.5,
-    29.0,
-    39.5
+    29.4,
+    39.1
    ],
    "models": "hires+global",
-   "from": "11-04 Benjamin: Fresno/Bakersfield top, LA, San Diego, Mexicali/Ensenada, Las Vegas right edge"
+   "from": "11-04 8:47 PM Benjamin: a bit wider east (~12.5%), 50 mi further west"
   },
   "cenca": {
    "label": "Central California",
    "size": [
-    14,
-    16
+    16,
+    10.5
    ],
    "proj": [
     "lcc",
-    -121.3,
+    -121.45,
     37.0,
     [
      35,
@@ -243,29 +243,29 @@
     ]
    ],
    "ll": [
-    -124.3,
-    -118.6,
+    -127.15,
+    -115.75,
     34.2,
     39.9
    ],
    "box": [
-    -127.0,
-    -116.0,
-    32.0,
-    42.0
+    -129.65,
+    -113.75,
+    32.2,
+    41.9
    ],
    "models": "hires+global",
-   "from": "11-04 Benjamin: Reno/Sacramento top, San Jose, Bakersfield, Santa Barbara bottom"
+   "from": "11-04 8:47 PM Benjamin: twice as wide E-W (Sacramento/San Jose to Bakersfield kept)"
   },
   "norca": {
    "label": "Northern California",
    "size": [
-    15,
-    16
+    16,
+    11
    ],
    "proj": [
     "lcc",
-    -122.6,
+    -122.75,
     39.6,
     [
      38,
@@ -273,19 +273,19 @@
     ]
    ],
    "ll": [
-    -126.0,
-    -119.5,
+    -129.25,
+    -116.25,
     36.9,
     42.5
    ],
    "box": [
-    -129.0,
-    -117.0,
-    34.5,
-    45.0
+    -131.75,
+    -114.25,
+    34.9,
+    44.5
    ],
    "models": "hires+global",
-   "from": "11-04 Benjamin: Crescent City top-left to Sacramento/San Jose bottom, Reno right edge"
+   "from": "11-04 8:48 PM Benjamin: twice as wide E-W (Crescent City to Sacramento framing kept)"
   },
   "capasses": {
    "label": "Sierra Passes",
