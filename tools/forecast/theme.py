@@ -41,7 +41,7 @@ def apply_house_style(g):
     # temperature: Michael temp850 v1 (-40..80 F, 2 F); 80..120 F extended to wine/orchid (KIT ADDITION, confirm with Michael)
     TS = J("temp_scale.json"); te = TS["edges_F"]; tc = TS["colors"]
     tmids = [(a + b) / 2 for a, b in zip(te[:-1], te[1:])]
-    hot = [80, 86, 95, 105, 120]; hotc = ["#5c0f3a", "#7a1f66", "#9c3f94", "#c06fc0", "#e8b8e6"]   # [MICHAEL 11-3 fix] old start repeated the 78-80 F wine (no step at 80 F)
+    hot = [80, 86, 95, 105, 120]; hotc = ["#5c0f3a", "#7a1f66", "#9c3f94", "#c06fc0", "#f6d6f3"]   # [MICHAEL 11-3 fix] old start repeated the 78-80 F wine (no step at 80 F)
     def temp_color(f):
         if f < te[0]: return tc[0]
         if f <= te[-1]: return tc[1:-1][min(len(tc) - 3, int((f - te[0]) // 2))]
