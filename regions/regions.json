@@ -201,7 +201,7 @@
    "label": "Southern California",
    "size": [
     16,
-    15
+    11
    ],
    "proj": [
     "lcc",
@@ -225,7 +225,7 @@
     39.1
    ],
    "models": "hires+global",
-   "from": "11-05 8:33 AM Benjamin: same E-W width as Northern CA; center kept"
+   "from": "11-05 9:43 AM: same E-W as NorCal; size [16,11] to match wide aspect (fixes stair-step)"
   },
   "cenca": {
    "label": "Central California",
