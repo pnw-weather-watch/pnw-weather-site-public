@@ -1545,6 +1545,8 @@ def static(m, out, views_only=None, x2_only=False):
         try: clim[var] = clim_static(m, out, crop_la, crop_lo, var, None if oro is None else oro[i0:i1, j0:j1] / 3.28084)
         except StopIteration:   # source normals not in this kit's clim/: keep the already-built slot files
             if var in old_clim: clim[var] = old_clim[var]
+            elif MD.get("grid_from") and var in (((man.get("models") or {}).get(MD["grid_from"]) or {}).get("clim") or {}):
+                clim[var] = man["models"][MD["grid_from"]]["clim"][var]   # 11-04: ensembles on the IFS grid/crop reuse its normals slots
             else: print(f"clim {var}: no source in clim/ (skipped)", flush=True)
     man.update(dpi=DPI, style=dict(BG=HS.BG, INK=HS.INK, MUTED=HS.MUTED, ACCENT=HS.ACCENT))
     MI = minfo(m)
