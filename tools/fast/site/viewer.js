@@ -457,8 +457,10 @@ async function viewStatic(vid) {
                   baseU: DATA + `static/base_${vid}.png` + SV(), townsU: tU };
     obj.townsP = img(tU).then(im => { obj.towns = im; if (VSRC(S.view) === vid && window.__drawn) draw(); return im; }, () => null);
     // per-pixel source index + weights, made once per view from the coarse LUT (bilinear in panel px)
-    const run = S.runs[S.run];
-    if (!run || !run.grid) { delete S.statics[sk]; throw new Error(`viewStatic: no grid yet for ${S.run}`); }
+    // 11-05: run.json may still be loading when the first viewStatic fires — wait briefly instead of throwing
+    let run = S.runs[S.run];
+    for (let i = 0; i < 80 && !(run && run.grid); i++) { await new Promise(r => setTimeout(r, 25)); run = S.runs[S.run]; }
+    if (!run || !run.grid) { delete S.statics[sk]; return null; }
     const [px, py, pw, ph] = V.panel, x0 = Math.round(px), y0 = Math.round(py), W = Math.round(px + pw) - x0, H = Math.round(py + ph) - y0;
     const { nx, ny, stride } = V, G = run.grid, gnx = G.nx, gny = G.ny;
     const idx = new Int32Array(W * H), wx = new Float32Array(W * H), wy = new Float32Array(W * H);
