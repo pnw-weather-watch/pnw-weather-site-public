@@ -70,3 +70,6 @@
 | 01:07+ | Weather Bot B (preview): snow scale floors; ECMWF gust3+gust6; sat 4h loop + scrubber row; F+/elows verify; WW3 → open decision only. | (pending) | gust6_BEFORE_*, elows_key_check_*, badge_F_check_* |
 
 | 01:09-01:18 | Weather Bot B shipped on preview: snow scale floors (pass/meteogram ≥12 in/6h); **gust3** + gust6 on ECMWF/IFS (+GFS/HRRR/RRFS/AIFS); obs sat **4 h loop** + scrubber own row (~480 px). F+ badge placement OK; elows member color key + density key OK; buoys/towns/H/L on wave/temp maps. No Studio/Social. WW3 → SUMMARY open decision. Commit **c6077eb**, preview deploy 9c9042d6. | c6077eb | gust3_AFTER_*, gust6_AFTER_*, buoys_hl_waves_pnw_*, obs_sat_loop4_AFTER_*, pass_snow_floor_*, elows_key_check_*, badge_F_check_* |
+
+| 01:21 | Obs sat 4h scrubber verified (slideW=480 px, Clean IR on). Stretch4 full preview guard earlier: **FINAL_OK 848 / 0 FAIL**. | - | obs_sat_loop4_AFTER4_desktop.png |
+| 01:22 | Fix run.json `expected` = full cadence (not --steps window); repaired eps/epsm/aens expected on disk + syncing preview. Commit **298eac2**. Restarted extends toward F360: EPS F246–360, AENS F246–360, epsm F252–360 (background). | 298eac2 | - |
