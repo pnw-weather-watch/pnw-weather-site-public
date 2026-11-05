@@ -3,11 +3,12 @@
 pass forecasters). usage: python3 qa/interaction_check.py BASE   (Access: QA_ACCESS_CLIENT_ID / _SECRET env)"""
 import os, sys, json
 from playwright.sync_api import sync_playwright
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from _access import scope_sync
 B = sys.argv[1].rstrip("/"); HDR = {"CF-Access-Client-Id": os.environ["QA_ACCESS_CLIENT_ID"], "CF-Access-Client-Secret": os.environ.get("QA_ACCESS_CLIENT_SECRET", "")} if os.environ.get("QA_ACCESS_CLIENT_ID") else {}
 R = {}
 def ok(k, v, note=""): R[k] = (bool(v), note); print("OK  " if v else "FAIL", k, note, flush=True)
 with sync_playwright() as p:
-    b = p.chromium.launch(); c = b.new_context(viewport={"width": 1440, "height": 900}, extra_http_headers=HDR, accept_downloads=True); pg = c.new_page()
+    b = p.chromium.launch(); c = b.new_context(viewport={"width": 1440, "height": 900}, accept_downloads=True); scope_sync(c); pg = c.new_page()
     reqs = []; pg.on("request", lambda r: reqs.append(r.url))
     pg.goto(B + "/index.html", wait_until="networkidle"); pg.wait_for_timeout(3000)
     st = pg.evaluate("()=>({run:S.run,prod:S.prod,view:S.view})"); ok("view default (regions.json default_view)", st["view"], json.dumps(st))

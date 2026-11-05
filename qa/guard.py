@@ -10,6 +10,7 @@ Access: behind Cloudflare Access the guard needs a service token: env QA_ACCESS_
 (names only; values never written). Locally (http://127.0.0.1:8817) no headers are sent."""
 import os, sys, json, asyncio, io
 from playwright.async_api import async_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from _access import scope_async
 B = sys.argv[1].rstrip("/"); VW = [tuple(map(int, a.split("x"))) for a in sys.argv[2:]] or [(1440, 900), (390, 844)]
 HDR = {}
 if os.environ.get("QA_ACCESS_CLIENT_ID"): HDR = {"CF-Access-Client-Id": os.environ["QA_ACCESS_CLIENT_ID"], "CF-Access-Client-Secret": os.environ.get("QA_ACCESS_CLIENT_SECRET", "")}
@@ -52,7 +53,7 @@ async def main():
             res(ok and bool(man.get("runs") or man.get("models")), "data proxy answers", f"{r.status} {DATA}manifest.json")
         for W, H in VW:
             ph = W < 600
-            ctx = await br.new_context(viewport=dict(width=W, height=H), extra_http_headers=HDR, is_mobile=ph, has_touch=ph)
+            ctx = await scope_async(await br.new_context(viewport=dict(width=W, height=H), is_mobile=ph, has_touch=ph))
             p = await ctx.new_page(); errs = []
             p.on("console", lambda m: m.type == "error" and errs.append(m.text)); p.on("pageerror", lambda e: errs.append("PAGEERROR " + str(e)))
             p.on("response", lambda rr: rr.status >= 400 and errs.append(f"{rr.status} {rr.url}"))
@@ -88,7 +89,7 @@ async def main():
                     if W >= 600:
                         k = await p.evaluate("()=>{try{return new URL(keyURL(S.prod,S.view),location.href).href}catch(e){return null}}")
                         if k:
-                            rr = await p.request.get(k); w = cvd_check(await rr.body())
+                            rr = await p.request.get(k, headers=HDR if k.startswith(B) else None); w = cvd_check(await rr.body())
                             res(min(w.values()) >= 3, f"colorblind {m} {pr}", json.dumps(w))
             res(not errs, f"{W}x{H} console errors = 0", "; ".join(errs[:5]))
             await ctx.close()

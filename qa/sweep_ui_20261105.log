@@ -1,0 +1,7 @@
+desktop index.html buttons clicked 12 errors 2 ['403 https://preview.pnw-weather-site.pages.dev/req', 'console: Failed to load resource: the server responded with a status of 403 ()']
+desktop compare.html buttons clicked 0 errors 0 []
+desktop meteograms.html buttons clicked 0 errors 0 []
+phone index.html buttons clicked 12 errors 2 ['403 https://preview.pnw-weather-site.pages.dev/req', 'console: Failed to load resource: the server responded with a status of 403 ()']
+phone compare.html buttons clicked 0 errors 0 []
+phone meteograms.html buttons clicked 0 errors 0 []
+SWEEP_ERRORS 4
