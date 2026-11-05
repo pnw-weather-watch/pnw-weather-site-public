@@ -86,3 +86,5 @@
 | 02:00 | Fix viewer `viewStatic` TDZ (`obj` before init) + missing `run.grid` (console errors on HI waves). Preview deploy **de9bb4fc**. Commit **e21f691**. | e21f691 | waves_{hiw,bigi,bay,orco}_ifs_AFTER_fix_desktop.png, waves_hiw_ifs_AFTER_fix_phone.png |
 
 | 02:22 | **EPS mean complete F3–F360** (84/84) and **AENS complete F6–F360** (60/60) on preview (with epsm F6–F360). All three ensembles at full cadence. | (data) | eps_ext_f360_AFTER_*, aens_ext_f360_AFTER_*, eps_elows_ext_f360_AFTER_* |
+
+| 02:26 | Soft-wait for `run.grid` in viewStatic (no console Error). Preview **9b9598ed**. Commit **ace1f05**. EPS/AENS/epsm all F360 on preview. | ace1f05 | eps_f360_clean_AFTER_desktop.png, eps_ext_f360_AFTER_*, aens_ext_f360_AFTER_* |
