@@ -18,6 +18,11 @@
 | Buoys / towns / H/L carried over | Verified | `buoys_hl_waves_pnw_*`, HI wave VERIFY |
 | viewStatic console errors on HI/EPS | Fixed | `e21f691`, `ace1f05` |
 
+## QA
+
+- Ensemble F360 guard: **FINAL_OK 277 / 0 FAIL** (`qa/guard_preview_ens_f360_20261105.log`)
+- Earlier Stretch4 / B guards: 848 OK, 414 OK (see overnight log)
+
 ## Open for Benjamin
 
 See `SUMMARY_overnight_20261104.md` — especially WW3/`gfsw` disposition, Push+Deploy when ready, PacIOOS never, WA Maps never.
