@@ -8,4 +8,4 @@
   - The 850/925/700 mb temperature maps use their own °C palettes and are unchanged.
 - The 32°F step (pale blue to pale yellow) is a bit more pronounced; the white freezing dashes stay visible.
 - Shots in local/shots/20261104/: blues_BEFORE.png, blues_AFTER.png, blues_AFTER_phone.png, key_blues_before_after.png.
-- Backup: backups/blues_darker_20261104/. Script: local/blues.py.
+- Backup: backups/blues_darker_20261104/. Scripts: local/blues.py, then local/blues_fix.py (follow-up: the first preview guard failed protan 2.3 at 0-4°F on the rendered key; tiny 3-5°F tweak, rendered keys now deutan 3.2 / protan 3.4).
