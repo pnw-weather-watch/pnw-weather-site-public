@@ -1760,7 +1760,8 @@ function drawEns(ctx, st, D, P, V, gk) {
   }
 }
 const DOT_BOUNDS = [850, 920, 950, 970, 980, 988, 996, 1004, 1100];   // ens_maps.DOT_BOUNDS / DOT_COLS / DOT_LABELS
-const DOT_COLS = ["#0b0010", "#2a2a9e", "#6a1b7a", "#b0186a", "#d7191c", "#ef6c2f", "#f2b134", "#9aa0a6"];
+// 11-04: site theme (violet-blue-teal-green-yellow-grey, no red/orange so the coral mean L stands out); CVD dE >= 7 between neighbours
+const DOT_COLS = ["#1a0b3d", "#4b2a9e", "#1f6fd1", "#12a3b4", "#3fb37f", "#b7c93a", "#f0c53a", "#9aa7b3"];
 const DOT_LABELS = ["under 920", "920-949", "950-969", "970-979", "980-987", "988-995", "996-1003", "1004+"];
 const dotCol = mb => { let k = 0; while (k < DOT_COLS.length - 1 && mb >= DOT_BOUNDS[k + 1]) k++; return DOT_COLS[k]; };
 const LOWV = { na: [800, 4.0, 1.2], pac: [1000, 4.0, 1.4], pnw: [400, 1.5, 0.8], pnwt: [300, 1.2, 0.6], ca: [400, 1.5, 0.6], hiw: [400, 1.5, 0.6] };   // [KIT]   // ens_maps.LOW: radius km, prominence mb, smoothing
@@ -1838,9 +1839,9 @@ function paintLowPanel(ctx, st, V, g) {   // ens_maps.low_panel, drawn inside th
   t(xl, y, "Lows (mb)", 800, 13.6); y += lh * 1.2;
   t(xl, y, `in view \u00b7 ${g.n} mem.`, 500, 10.0, "#5b5e66"); y += lh * 1.4;
   if (!g.hasNum) { t(xl, y - lh * 0.35, "member # n/a (older run)", 500, 7.6, "#8a8d94"); y += lh * 0.6; }
-  t(xl, y, "Mean (red L)", 800, 12.0); y += lh * 1.05;
+  t(xl, y, "Mean (coral L)", 800, 12.0); y += lh * 1.05;
   if (!ms.length) { t(xl, y, "none", 500, 11, "#5b5e66"); y += lh; }
-  ms.forEach((v, k) => { t(xl + (k % 2) * cw, y, String(Math.round(v)), 900, 15.0, "#d7191c"); if (k % 2 === 1 || k === ms.length - 1) y += lh * 1.2; });
+  ms.forEach((v, k) => { t(xl + (k % 2) * cw, y, String(Math.round(v)), 900, 15.0, HL_LOW_COLOR); if (k % 2 === 1 || k === ms.length - 1) y += lh * 1.2; });
   y += lh * 0.4;
   for (const [head, rows] of [["10 strongest", g.strong], ["10 weakest", g.weak]]) {
     t(xl, y, head, 800, 12.0); y += lh * 1.05;

@@ -138,7 +138,7 @@ STRIKE_ANCH = [(5, "#eef4fa"), (15, "#c9def0"), (30, "#8fbfe2"), (50, "#4f97cf")
 # top class (the scale's max color): a low within 25 km in at least CORE_MIN members = the core of the ensemble's lows
 CORE_KM, CORE_MIN, CORE_COL = 25, 5, "#0a1442"
 DOT_BOUNDS = [850, 920, 950, 970, 980, 988, 996, 1004, 1100]
-DOT_COLS = ["#0b0010", "#2a2a9e", "#6a1b7a", "#b0186a", "#d7191c", "#ef6c2f", "#f2b134", "#9aa0a6"]
+DOT_COLS = ["#1a0b3d", "#4b2a9e", "#1f6fd1", "#12a3b4", "#3fb37f", "#b7c93a", "#f0c53a", "#9aa7b3"]
 DOT_LABELS = ["under 920", "920-949", "950-969", "970-979", "980-987", "988-995", "996-1003", "1004+"]
 # reference places for the low-center list ("near X" when a low is within NEAR_KM); ocean points use their usual names
 PLACES = [(n, la, lo) for n, la, lo, _ in TM.WA_TOWNS] + [
@@ -189,7 +189,7 @@ def low_panel(fig, ax, strong, weak, means, n):
     y = b.y1 - 0.3 * lh; xl = x0 + 0.007; cw = (PANEL_W - 0.014) / 2
     t(xl, y, "Lows (mb)", 800, 13.6); y -= lh * 1.2
     t(xl, y, f"in view · {n} mem.", 500, 10.0, "#5b5e66"); y -= lh * 1.4
-    t(xl, y, "Mean (red L)", 800, 12.0); y -= lh * 1.05
+    t(xl, y, "Mean (coral L)", 800, 12.0); y -= lh * 1.05
     if not ms: t(xl, y, "none", 500, 11, "#5b5e66"); y -= lh
     for k_, v_ in enumerate(ms):
         t(xl + (k_ % 2) * cw, y, f"{v_:.0f}", 900, 15.0, HS.L_COLOR)
