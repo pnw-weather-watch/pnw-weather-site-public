@@ -1082,9 +1082,9 @@ function erasedTowns(im, key, rects, LW) {   // town layer copy with the re-plac
   return c;
 }
 // 11-01 9:54 AM (Benjamin t2004u "Make the coastal town name wave heights pull a marker 1/2 mile off shore"): each saltwater town's number
-// is read at a point ~0.5 mi (0.8 km) off its shore on the open-water side, not at the town. OFFSHORE = explicit points (towns whose pin
+// is read at a point ~0.5 mi (0.8 km; now 1/4 mi, see OFF_KM) off its shore on the open-water side, not at the town. OFFSHORE = explicit points (towns whose pin
 // sits back from the water or inside a bay / harbor: the point is 0.5 mi off the open shore); OFF_BRG = bearing (deg, 0 = N, 90 = E)
-// toward the water, point = town + 0.8 km along it; other towns: due west. Sampled like before (bilinear when the 4 grid points around
+// toward the water, point = town + OFF_KM along it; other towns: due west. Sampled like before (bilinear when the 4 grid points around
 // the marker are sea, else the nearest sea point within 1.5 cells of the MARKER), so at 0.25 deg most numbers only change where the
 // nearest sea cell differs; no sea point near the marker -> the town point as before (logged).
 const OFFSHORE = { "Tatoosh Island": [48.392, -124.75], "La Push": [47.908, -124.648], "Ocean Shores": [46.974, -124.19], "Westport": [46.89, -124.142],
@@ -1100,9 +1100,18 @@ const OFF_BRG = { "Anacortes": 0, "Coupeville": 0, "Friday Harbor": 90, "Bremert
   "Delta (Ladner)": 270, "Tsawwassen": 270, "White Rock": 180, "Point Roberts": 270, "Nanaimo": 90, "Squamish": 180, "Port Alberni": 180,
   "Courtenay": 90, "Campbell River": 90, "Powell River": 270, "Sechelt": 180, "Parksville": 0, "Sooke": 180, "Bodega Bay": 200, "Santa Cruz": 180,
   "Malibu": 180 };
+// 11-04 (Benjamin, second site): the marker is ~1/4 mile (0.4 km) off shore, not 1/2 mile. Explicit OFFSHORE points were
+// set 0.5 mi off the open shore, so each one is pulled 0.4 km back toward its town pin (the shore lies on that line): 0.25 mi off.
+const OFF_KM = 0.4;
 function offshorePt(name, la, lo) {
-  if (OFFSHORE[name]) return OFFSHORE[name];
-  const b = (OFF_BRG[name] ?? 270) * Math.PI / 180, km = 0.8;
+  if (OFFSHORE[name]) {
+    const [a, b] = OFFSHORE[name], k = Math.cos(a * Math.PI / 180) * 111.2;
+    const dy = (la - a) * 111.2, dx = (lo - b) * k, d = Math.hypot(dx, dy);
+    if (d < 0.05) return [a, b];
+    const m = Math.min(OFF_KM, d * 0.9) / d;   // never past the pin
+    return [a + dy * m / 111.2, b + dx * m / k];
+  }
+  const b = (OFF_BRG[name] ?? 270) * Math.PI / 180, km = OFF_KM;
   return [la + km * Math.cos(b) / 111.2, lo + km * Math.sin(b) / (111.2 * Math.cos(la * Math.PI / 180))];
 }
 // 11-04 (Benjamin 3:09 PM): Hawaii coast towns read NOAA NWPS nearshore wave heights (~500 m grids on Kauai / Oahu / Maui, 2.7 km
@@ -1115,7 +1124,7 @@ function nearshoreVal(name) {
   let best = null; for (const s of J.steps) { const d = Math.abs(Date.parse(s.valid) - t); if (d <= 90 * 60e3 && (!best || d < best[0])) best = [d, s]; }
   const v = best && best[1].v[name]; return v == null ? NaN : (S.prod === "wavemax" ? v * 1.86 : v);
 }
-function offVal(D, name, T, WT) {   // t2004u: the town's number from its 0.5 mi offshore marker (see OFFSHORE)
+function offVal(D, name, T, WT) {   // t2004u: the town's number from its 1/4 mi offshore marker (see OFFSHORE)
   if (WT.vid === "hiw") { const n = nearshoreVal(name); if (isFinite(n)) { (WT.vals = WT.vals || {})[name] = [NaN, Math.round(n), "NOAA NWPS nearshore"]; return n; } }
   const [a, b] = offshorePt(name, T[0], T[1]); let v = seaVal(D, a, b), how = "offshore";
   if (!isFinite(v)) { v = seaVal(D, T[0], T[1]); how = "town (no sea near the marker)"; }
