@@ -1627,7 +1627,7 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None):
     MM = minfo(m)
     run = dict(model=m, cycle=cycle, init=c.isoformat(), base=f"runs/{m}/{cycle}", fields=fields, grid=dict(ny=i1 - i0, nx=j1 - j0),
                runline=f"{MM['name']} {MM['res']} {c:%HZ} run {c.astimezone(PT):%-m-%-d-%y (%-I %p PT)}", steps=ordered,
-               complete=len(ordered) == len(want), expected=len(want), file="single/{name}_f{f:03d}.png",
+               complete=len(ordered) == len(full_want), expected=len(full_want), file="single/{name}_f{f:03d}.png",
                points=[{k: v for k, v in p_.items() if k in ("n", "k", "c")} for p_ in town_points(man, m)], pts_file="single/pts_f{f:03d}.json")
     if m == "gfsw": run.pop("points"); run.pop("pts_file")   # wave-only model: no town meteogram points
     json.dump(run, open(rj, "w"), indent=1)
