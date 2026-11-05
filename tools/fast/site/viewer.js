@@ -1096,7 +1096,18 @@ function offshorePt(name, la, lo) {
   const b = (OFF_BRG[name] ?? 270) * Math.PI / 180, km = 0.8;
   return [la + km * Math.cos(b) / 111.2, lo + km * Math.sin(b) / (111.2 * Math.cos(la * Math.PI / 180))];
 }
+// 11-04 (Benjamin 3:09 PM): Hawaii coast towns read NOAA NWPS nearshore wave heights (~500 m grids on Kauai / Oahu / Maui, 2.7 km
+// on the Big Island) at one offshore point >= 400 m seaward (table: DATA nearshore/hfo.json "towns"). Waves products only; max
+// wave keeps the site's 1.86 x Hs rule. Falls back to the ECMWF/model grid when no NWPS hour is within 90 min of the map's time.
+const NS = { hfo: null }; fetch(`${DATA}nearshore/hfo.json`).then(r => r.ok ? r.json() : null).then(j => { NS.hfo = j; }).catch(() => {});
+function nearshoreVal(name) {
+  const J = NS.hfo; if (!J || !J.towns[name] || !/^(waves|wavemax)$/.test(S.prod)) return NaN;
+  const st = S.runs[S.run] && S.runs[S.run].steps[S.i]; if (!st) return NaN; const t = Date.parse(st.valid);
+  let best = null; for (const s of J.steps) { const d = Math.abs(Date.parse(s.valid) - t); if (d <= 90 * 60e3 && (!best || d < best[0])) best = [d, s]; }
+  const v = best && best[1].v[name]; return v == null ? NaN : (S.prod === "wavemax" ? v * 1.86 : v);
+}
 function offVal(D, name, T, WT) {   // t2004u: the town's number from its 0.5 mi offshore marker (see OFFSHORE)
+  if (WT.vid === "hiw") { const n = nearshoreVal(name); if (isFinite(n)) { (WT.vals = WT.vals || {})[name] = [NaN, Math.round(n), "NOAA NWPS nearshore"]; return n; } }
   const [a, b] = offshorePt(name, T[0], T[1]); let v = seaVal(D, a, b), how = "offshore";
   if (!isFinite(v)) { v = seaVal(D, T[0], T[1]); how = "town (no sea near the marker)"; }
   (WT.vals = WT.vals || {})[name] = [Math.round(seaVal(D, T[0], T[1])), Math.round(v), how]; return v;

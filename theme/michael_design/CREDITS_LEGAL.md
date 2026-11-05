@@ -87,3 +87,15 @@ Not used: ERA5 climatology (Copernicus CDS). Licence is CC BY 4.0 since 2 July 2
   - The modifications are: unit conversion m → ft, the derived max wave (1.86 × swh), smoothing and display binning.
 - **No max-wave field:** the open set has no maximum individual wave height field (hmax). The "Estimated maximum wave height" is derived as 1.86 × swh, and the image says so.
 - **Buoys:** NDBC buoy values are NOT used. They would be a new source (NOAA, public domain) and need approval first.
+
+## Sources added Wed Nov 4, 2026 (second site)
+- **NOAA NWS NWPS, Nearshore Wave Prediction System (Honolulu office), via NOMADS `prnwps`:** US Government work, public domain. No credit is legally required. Optional courtesy line: "Nearshore waves: NOAA/NWS NWPS".
+  - Used for the Hawaii coast-town wave numbers on the Waves tab, Hawaii (wide) view.
+  - Grids: CG2 Kauai, CG3 Oahu and CG4 Maui at about 500 m; CG1 for all islands at about 2.7 km (the only one covering the Big Island).
+  - Towns-offshore table: `nearshore/hfo.json` → `towns` (grid, lat/lon, distance from the town pin, at least 400 m). Built by `tools/fast/nearshore_hfo.py`.
+  - Finest legal resolution found: about 500 m. No free source gives a true 1/4 mile (400 m) grid. Town numbers are the model cell about 0.25–0.45 mi offshore (Kauai, Oahu, Maui) or a 2.7 km cell about 0.5–0.7 mi offshore (Big Island).
+- **PacIOOS SWAN (Univ. of Hawaii), 500 m:** NOT used. Its terms say the data "may be used and redistributed for free but is not intended for legal use" and ask for acknowledgment. Commercial or monetized use isn't explicitly addressed, so Benjamin has to approve it first.
+- **NOAA PSL NCEP/NCAR Reanalysis 1, SLP monthly long-term mean 1991–2020 (`slp.mon.ltm.1991-2020.nc`):** US Government, public domain. Used for the MSLP anomaly normals (`tools/fast/clim/ncep_slp_mon_ltm_1991_2020.npz`).
+  - Courtesy line, already in the run line: "vs 1991–2020 NCEP/NCAR monthly normal". No image credit is legally required.
+- **Natural Earth 10m roads (`ne_10m_roads`):** public domain. Used for the major interstate and US highway lines on the Sierra Passes view. Covered by the existing "Basemap: Natural Earth" credit.
+- **Pass elevations, California:** regions.json `CA_PASSES` `elev_ft` (facts, no license needed).
