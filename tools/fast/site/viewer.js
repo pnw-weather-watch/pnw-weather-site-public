@@ -452,10 +452,15 @@ async function viewStatic(vid) {
                                            img(DATA + `static/base_${vid}.png` + SV())]);
     // towns layer is not needed for the first paint: draw without it, redraw when it lands (10-29 first-map speedup)
     const tP = V.towns_png || `static/towns_${vid}.png`, tU = (tP[0] === "@" ? tP.slice(1) : DATA + tP) + SV();
-    const townsP = img(tU).then(im => { obj.towns = im; if (VSRC(S.view) === vid && window.__drawn) draw(); return im; }, () => null);
+    // 11-05: declare obj before townsP callback (was TDZ: "Cannot access 'obj' before initialization")
+    const obj = { lut, base, towns: null, townsP: null, x0: 0, y0: 0, W: 0, H: 0, idx: null, wx: null, wy: null, gnx: 0,
+                  baseU: DATA + `static/base_${vid}.png` + SV(), townsU: tU };
+    obj.townsP = img(tU).then(im => { obj.towns = im; if (VSRC(S.view) === vid && window.__drawn) draw(); return im; }, () => null);
     // per-pixel source index + weights, made once per view from the coarse LUT (bilinear in panel px)
+    const run = S.runs[S.run];
+    if (!run || !run.grid) { delete S.statics[sk]; throw new Error(`viewStatic: no grid yet for ${S.run}`); }
     const [px, py, pw, ph] = V.panel, x0 = Math.round(px), y0 = Math.round(py), W = Math.round(px + pw) - x0, H = Math.round(py + ph) - y0;
-    const { nx, ny, stride } = V, G = S.runs[S.run].grid, gnx = G.nx, gny = G.ny;
+    const { nx, ny, stride } = V, G = run.grid, gnx = G.nx, gny = G.ny;
     const idx = new Int32Array(W * H), wx = new Float32Array(W * H), wy = new Float32Array(W * H);
     for (let y = 0; y < H; y++) {
       const gy = (y + 0.5) / stride, j0 = Math.min(ny - 2, gy | 0), ty = gy - j0;
@@ -471,9 +476,12 @@ async function viewStatic(vid) {
         idx[k] = r0 * gnx + c0; wy[k] = fi - r0; wx[k] = fj - c0;
       }
     }
-    const obj = { lut, base, towns: null, townsP, x0, y0, W, H, idx, wx, wy, gnx, baseU: DATA + `static/base_${vid}.png` + SV(), townsU: tU }; return obj;
+    Object.assign(obj, { x0, y0, W, H, idx, wx, wy, gnx }); return obj;
   })();
-  S.statics[sk] = p; return p;
+  S.statics[sk] = p;
+  // 11-05: do not keep a rejected statics promise (e.g. run.grid not ready yet)
+  p.catch(() => { if (S.statics[sk] === p) delete S.statics[sk]; });
+  return p;
 }
 const keyImg = {}; const keyURL = (pid, vid) => { const K = PRODS()[pid].keys, V = VIEWS()[vid] || {}; const k = (V.keys && V.keys[pid]) || K[VSRC(vid)] || K[V.keysFrom] || K.wa; return (k[0] === "@" ? k.slice(1) : DATA + k) + SV(); };
 const getKey = (pid, vid) => { const u = keyURL(pid, vid); return keyImg[u] || (keyImg[u] = img(u)); };
