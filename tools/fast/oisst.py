@@ -61,4 +61,5 @@ def main():
                runline=f"NOAA OISST v2.1 0.25\u00b0 daily analyses {got[0][0]:%-m-%-d} to {got[-1][0]:%-m-%-d}", steps=steps, complete=True, expected=len(steps),
                file="single/{name}_f{f:03d}.png")
     json.dump(run, open(f"{rd}/run.json", "w"), indent=1); print("run", run["base"], len(steps), "days")
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main(); sys.stdout.flush(); os._exit(0)   # 11-04: skip interpreter teardown (netCDF4/HDF5 + eccodes double free on exit, output already written)
