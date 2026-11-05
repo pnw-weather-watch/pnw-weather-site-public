@@ -76,3 +76,5 @@
 
 | 01:25 | Wire unused `SCALE_FLOOR_SNOWRATE` (3 in/h) on pass winter meteogram; 6 h floor on winter bars; multi-run 12 in floor snow-only. Preview deploy **d5ddd687**. Commit **a9aae70**. | a9aae70 | meteogram_*_AFTER*.png, pass_snoq_snowfloor_AFTER3_desktop.png |
 | 01:28 | Ensembles F246+ encoding in background (AENS/epsm writing; EPS downloading). Obs sat scrubber verified earlier (slideW=480). WW3 remains open-decision only. | - | obs_sat_loop4_AFTER4_desktop.png |
+
+| 01:30 | Guard B **FINAL_OK 414 / 0 FAIL** (ifs,gfs + eps,epsm). Winter meteogram floors visually confirmed (6 h axis to 12, snow-rate axis to 3.0) on Snoqualmie ECMWF. Weather Bot status draft staged for parent DraftExternalMessage. | ac7530c | meteogram_ifs_winter_snoq_AFTER_desktop.png |
