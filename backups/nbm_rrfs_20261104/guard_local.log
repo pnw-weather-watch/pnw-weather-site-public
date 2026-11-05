@@ -1,0 +1,124 @@
+OK   data proxy answers 200 /data/manifest.json
+OK   1440x900 newest run listed first per model {"hrrr": "hrrr/2026110500", "rrfs": "rrfs/2026110500", "nbm": "nbm/2026110500", "gfs": "gfs/2026110418", "ifs": "ifs/2026110412", "aifs": "aifs/2026110412", "eps": "eps/2026110400", "aens": "aens/2026110412", "epsm": "epsm/2026110400"}
+OK   1440x900 newest run loaded by default 
+OK   1440x900 refresh keeps rrfs/2026110500|t2m|pnwhr 
+OK   1440x900 layout rrfs/2026110500|t2m|pnwhr {"map": [159.78125, 92, 1120.4375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|t2m|passes 
+OK   1440x900 layout rrfs/2026110500|t2m|passes {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|t2m|ca 
+OK   1440x900 layout rrfs/2026110500|t2m|ca {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|t2m|socal 
+OK   1440x900 layout rrfs/2026110500|t2m|socal {"map": [327.84375, 92, 784.3125, 784.3125], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|t2m|cenca 
+OK   1440x900 layout rrfs/2026110500|t2m|cenca {"map": [122.421875, 92, 1195.140625, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|t2m|norca 
+OK   1440x900 layout rrfs/2026110500|t2m|norca {"map": [149.59375, 92, 1140.8125, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|t2m|capasses 
+OK   1440x900 layout rrfs/2026110500|t2m|capasses {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   colorblind rrfs t2m {"deutan": 3.2, "protan": 3.4}
+OK   1440x900 refresh keeps rrfs/2026110500|feels|pnwhr 
+OK   1440x900 layout rrfs/2026110500|feels|pnwhr {"map": [159.78125, 92, 1120.4375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|feels|passes 
+OK   1440x900 layout rrfs/2026110500|feels|passes {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|feels|ca 
+OK   1440x900 layout rrfs/2026110500|feels|ca {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|feels|socal 
+OK   1440x900 layout rrfs/2026110500|feels|socal {"map": [327.84375, 92, 784.3125, 784.3125], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|feels|cenca 
+OK   1440x900 layout rrfs/2026110500|feels|cenca {"map": [122.421875, 92, 1195.140625, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|feels|norca 
+OK   1440x900 layout rrfs/2026110500|feels|norca {"map": [149.59375, 92, 1140.8125, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps rrfs/2026110500|feels|capasses 
+OK   1440x900 layout rrfs/2026110500|feels|capasses {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   colorblind rrfs feels {"deutan": 3.2, "protan": 3.4}
+OK   1440x900 refresh keeps nbm/2026110500|t2m|pnwhr 
+OK   1440x900 layout nbm/2026110500|t2m|pnwhr {"map": [159.78125, 92, 1120.4375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|t2m|passes 
+OK   1440x900 layout nbm/2026110500|t2m|passes {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|t2m|ca 
+OK   1440x900 layout nbm/2026110500|t2m|ca {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|t2m|socal 
+OK   1440x900 layout nbm/2026110500|t2m|socal {"map": [327.84375, 92, 784.3125, 784.3125], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|t2m|cenca 
+OK   1440x900 layout nbm/2026110500|t2m|cenca {"map": [122.421875, 92, 1195.140625, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|t2m|norca 
+OK   1440x900 layout nbm/2026110500|t2m|norca {"map": [149.59375, 92, 1140.8125, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|t2m|capasses 
+OK   1440x900 layout nbm/2026110500|t2m|capasses {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   colorblind nbm t2m {"deutan": 3.2, "protan": 3.4}
+OK   1440x900 refresh keeps nbm/2026110500|nmaxt|pnwhr 
+OK   1440x900 layout nbm/2026110500|nmaxt|pnwhr {"map": [159.78125, 92, 1120.4375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|nmaxt|passes 
+OK   1440x900 layout nbm/2026110500|nmaxt|passes {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|nmaxt|ca 
+OK   1440x900 layout nbm/2026110500|nmaxt|ca {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|nmaxt|socal 
+OK   1440x900 layout nbm/2026110500|nmaxt|socal {"map": [327.84375, 92, 784.3125, 784.3125], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|nmaxt|cenca 
+OK   1440x900 layout nbm/2026110500|nmaxt|cenca {"map": [122.421875, 92, 1195.140625, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|nmaxt|norca 
+OK   1440x900 layout nbm/2026110500|nmaxt|norca {"map": [149.59375, 92, 1140.8125, 784.296875], "vw": 1440, "doc": 1440}
+OK   1440x900 refresh keeps nbm/2026110500|nmaxt|capasses 
+OK   1440x900 layout nbm/2026110500|nmaxt|capasses {"map": [301.703125, 92, 836.59375, 784.296875], "vw": 1440, "doc": 1440}
+OK   colorblind nbm nmaxt {"deutan": 3.2, "protan": 3.4}
+OK   1440x900 console errors = 0 
+OK   390x844 newest run listed first per model {"hrrr": "hrrr/2026110500", "rrfs": "rrfs/2026110500", "nbm": "nbm/2026110500", "gfs": "gfs/2026110418", "ifs": "ifs/2026110412", "aifs": "aifs/2026110412", "eps": "eps/2026110400", "aens": "aens/2026110412", "epsm": "epsm/2026110400"}
+OK   390x844 newest run loaded by default 
+OK   390x844 refresh keeps rrfs/2026110500|t2m|pnwhr 
+OK   390x844 layout rrfs/2026110500|t2m|pnwhr {"map": [2, 177, 386, 270], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|t2m|passes 
+OK   390x844 layout rrfs/2026110500|t2m|passes {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|t2m|ca 
+OK   390x844 layout rrfs/2026110500|t2m|ca {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|t2m|socal 
+OK   390x844 layout rrfs/2026110500|t2m|socal {"map": [2, 177, 386, 386], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|t2m|cenca 
+OK   390x844 layout rrfs/2026110500|t2m|cenca {"map": [2, 177, 386, 253], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|t2m|norca 
+OK   390x844 layout rrfs/2026110500|t2m|norca {"map": [2, 177, 386, 265], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|t2m|capasses 
+OK   390x844 layout rrfs/2026110500|t2m|capasses {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|feels|pnwhr 
+OK   390x844 layout rrfs/2026110500|feels|pnwhr {"map": [2, 177, 386, 270], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|feels|passes 
+OK   390x844 layout rrfs/2026110500|feels|passes {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|feels|ca 
+OK   390x844 layout rrfs/2026110500|feels|ca {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|feels|socal 
+OK   390x844 layout rrfs/2026110500|feels|socal {"map": [2, 177, 386, 386], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|feels|cenca 
+OK   390x844 layout rrfs/2026110500|feels|cenca {"map": [2, 177, 386, 253], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|feels|norca 
+OK   390x844 layout rrfs/2026110500|feels|norca {"map": [2, 177, 386, 265], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps rrfs/2026110500|feels|capasses 
+OK   390x844 layout rrfs/2026110500|feels|capasses {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|t2m|pnwhr 
+OK   390x844 layout nbm/2026110500|t2m|pnwhr {"map": [2, 177, 386, 270], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|t2m|passes 
+OK   390x844 layout nbm/2026110500|t2m|passes {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|t2m|ca 
+OK   390x844 layout nbm/2026110500|t2m|ca {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|t2m|socal 
+OK   390x844 layout nbm/2026110500|t2m|socal {"map": [2, 177, 386, 386], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|t2m|cenca 
+OK   390x844 layout nbm/2026110500|t2m|cenca {"map": [2, 177, 386, 253], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|t2m|norca 
+OK   390x844 layout nbm/2026110500|t2m|norca {"map": [2, 177, 386, 265], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|t2m|capasses 
+OK   390x844 layout nbm/2026110500|t2m|capasses {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|nmaxt|pnwhr 
+OK   390x844 layout nbm/2026110500|nmaxt|pnwhr {"map": [2, 177, 386, 270], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|nmaxt|passes 
+OK   390x844 layout nbm/2026110500|nmaxt|passes {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|nmaxt|ca 
+OK   390x844 layout nbm/2026110500|nmaxt|ca {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|nmaxt|socal 
+OK   390x844 layout nbm/2026110500|nmaxt|socal {"map": [2, 177, 386, 386], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|nmaxt|cenca 
+OK   390x844 layout nbm/2026110500|nmaxt|cenca {"map": [2, 177, 386, 253], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|nmaxt|norca 
+OK   390x844 layout nbm/2026110500|nmaxt|norca {"map": [2, 177, 386, 265], "vw": 390, "doc": 390}
+OK   390x844 refresh keeps nbm/2026110500|nmaxt|capasses 
+OK   390x844 layout nbm/2026110500|nmaxt|capasses {"map": [2, 177, 386, 361], "vw": 390, "doc": 390}
+OK   390x844 console errors = 0 
+FAILS 0

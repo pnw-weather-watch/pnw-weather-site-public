@@ -1,0 +1,122 @@
+{
+ "runs": {
+  "gfs": [
+   "2026110400",
+   "2026110418"
+  ],
+  "ifs": [
+   "2026110312",
+   "2026110400",
+   "2026110412"
+  ],
+  "oisst": [
+   "2026102100"
+  ],
+  "eps": [
+   "2026110400"
+  ],
+  "aifs": [
+   "2026110412"
+  ],
+  "aens": [
+   "2026110412"
+  ],
+  "epsm": [
+   "2026110400"
+  ],
+  "gfsw": [
+   "2026110412"
+  ],
+  "hrrr": [
+   "2026110500"
+  ],
+  "rrfs": [
+   "2026110500"
+  ],
+  "nbm": [
+   "2026110500"
+  ]
+ },
+ "nbm_products": [
+  "t2m",
+  "gust10",
+  "tcc",
+  "nqpf1",
+  "nqpf6",
+  "nsnow6",
+  "nqpf12",
+  "nsnow12",
+  "nqpf24",
+  "nsnow24",
+  "nqpf48",
+  "nsnow48",
+  "nqpftot",
+  "nsnowtot",
+  "ntstm",
+  "nmaxt",
+  "nmint"
+ ],
+ "rrfs_products": [
+  "t2m",
+  "gust10",
+  "aifswind",
+  "t850",
+  "t700",
+  "refc",
+  "qpf",
+  "snow",
+  "frz",
+  "snowlvl",
+  "tcc",
+  "vis",
+  "ir",
+  "mucape",
+  "sbcape",
+  "ltng",
+  "w500",
+  "w250",
+  "qpf1",
+  "qpf6",
+  "qpf24",
+  "qpf3",
+  "qpf12",
+  "qpf48",
+  "mslpqpf",
+  "snow1",
+  "snow6",
+  "gust6",
+  "ltng6",
+  "dsnod",
+  "t2ma",
+  "t850a",
+  "kuchera",
+  "kuch24",
+  "fzra",
+  "fog",
+  "d2m",
+  "feels",
+  "gustmax",
+  "t925w",
+  "t850w",
+  "t700w",
+  "t500w",
+  "t300w",
+  "w850",
+  "thick",
+  "slp",
+  "pw",
+  "ptype",
+  "snow12",
+  "snow24",
+  "snow48",
+  "kuch6",
+  "kuch12",
+  "kuch48",
+  "fzra6",
+  "fzra12",
+  "fzra24",
+  "fzra48",
+  "gust12",
+  "gust24"
+ ]
+}

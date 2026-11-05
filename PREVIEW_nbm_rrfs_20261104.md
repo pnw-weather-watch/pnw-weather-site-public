@@ -1,0 +1,7 @@
+# Preview note: NOAA NBM 2.5 km and NOAA RRFS 3 km runs on the hidden preview (11-04 ~11:55 PM PT)
+- Both models were already defined (views, products, static layers, towns) but had no run on the preview. Built from NOAA open data (public domain, NOAA AWS buckets), no new sources.
+- `nbm`: run 00Z 11-05 UTC (4 PM PT 11-4), F1-F168 (80 steps: hourly to F36, 3-hourly after). Views: Pacific NW (high-res), Cascade Passes, WA views, California (Northern/Central/Southern), Sierra Passes. Products: 2 m temp, gust, cloud, QPF 1/6/12/24/48 h + total, snow 6/12/24/48 h + total, thunderstorm chance, max/min temp. Uses the site temp scale (not WA Maps posters; no logo, no big title, no summary text).
+- `rrfs`: run 00Z 11-05 UTC, F1-F84 (60 steps). Views: Pacific NW (high-res), Cascade Passes, California, Southern/Central/Northern CA, Sierra Passes. Products: temp, gust, 850/700 mb, composite reflectivity, QPF, snow, freezing level, snow level, CAPE, lightning, etc.
+- Data stays in local/data and R2 `preview/` only (production reads live keys only). No production deploy; the WA Maps hold is respected.
+- Local QA guard (nbm + rrfs, desktop + phone): qa/guard_local_nbm_rrfs_20261104.log (0 FAIL).
+- Screenshots (full size, local/shots/20261104/): nbm_t2m_pnwhr, nbm_snow24_passes, nbm_gust_ca, nbm_qpf24_wa, rrfs_refc_pnwhr, rrfs_t2m_socal, rrfs_qpf24_passes, each `_desktop.png` (1440x900) and `_phone.png` (1170x2532).
