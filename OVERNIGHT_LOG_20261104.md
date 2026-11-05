@@ -116,3 +116,5 @@
 |---|---|---|---|
 | 05:21 | Request queue re-read (read-only, tools/fast/read_requests.py): "no requests", nothing from Michael Snyder. Box check: no jobs running, tree clean. All queued items already done per log; no new sources used, WA Maps OFF. | - | - |
 | 05:25-05:29 | Regression sweep on preview (GFS, all views incl. socal/cenca/norca/bay/orco/bigi/pnw towns, desktop+phone): **121 OK / 0 FAIL**, console errors 0. | (log commit) | qa/guard_preview_gfs_regress_20261105.log |
+
+| 05:54-06:36 | **Temp scale green (preview only):** teal-leaning greens before oranges; dark oranges ~70°F+; blues kept; CVD dE≥3.23. Commit **031b544**. Preview deploy **02b726e2**. Guard 233 OK / 2 FAIL (refresh race). | 031b544 | tempscale_pnw_t2m_BEFORE/AFTER_*, tempscale_{ca,hi,bay}_t2m_AFTER_*, tempscale_legend_AFTER.png, tempscale_meteogram_seattle_AFTER_desktop.png |
