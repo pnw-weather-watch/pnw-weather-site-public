@@ -97,3 +97,5 @@
 | 02:30 | Rules re-checked in code: no "WA Maps" string in site/viewer code; Hawaii wave towns use ECMWF/model offshore (PacIOOS never, NWPS unloaded); wave-town value point 1/4 mi off shore (OFF_KM); INDEX #01–#19 and DETAILS_CHECKLIST (ticked copy: 0 open) all done. Nothing left in the queue; no new data sources used. | - | - |
 
 | 02:32 | Ensemble F360 preview guard (eps,epsm,aens): **FINAL_OK 277 / 0 FAIL** — `qa/guard_preview_ens_f360_20261105.log`. Morning report draft `MORNING_REPORT_20261105.md`. | 0affee9 | - |
+
+| 02:33 | Guard null `viewStatic` in render paths. Preview **8e94eb28**. Commit **3db6fde**. Feature queue A/B complete; ensembles at F360; continuing QA until morning report. | 3db6fde | - |
