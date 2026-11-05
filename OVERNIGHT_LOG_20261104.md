@@ -20,5 +20,5 @@
 |---|---|---|---|
 | 20:50 | Wave maps: coast town numbers read from a point ~1/4 mile offshore (was 1/2 mile; explicit points pulled 0.4 km toward the town pin). Preview deploy dfdec6c2, preview guard OK | 287c112 | offshore_quarter_waves_pnw/wc/ca_desktop.png and _phone.png |
 
-| 20:47-20:48 | CA views widen (preview only): Central 2x E-W, Southern +12.5% east + 50 mi west, Northern 2x E-W | (pending) | view_{cenca,socal,norca}_BEFORE_widen.png, view_*_AFTER_widen_{desktop,phone}.png |
+| 20:47-20:48 | CA views widen (preview only): Central 2x E-W, Southern +12.5% east + 50 mi west, Northern 2x E-W | 92987b2 | view_{cenca,socal,norca}_BEFORE_widen.png, view_*_AFTER_widen_{desktop,phone}.png |
 | 20:00-20:45 | Production Push+Deploy: promoted preview/ data, t2ma CVD fix bb01bc8, deploy 2fac240f (rollback target b51db3eb) | bb01bc8 / 2fac240f | production screenshots pending if guard OK |
