@@ -1548,6 +1548,8 @@ def static(m, out, views_only=None, x2_only=False):
             elif MD.get("grid_from") and var in (((man.get("models") or {}).get(MD["grid_from"]) or {}).get("clim") or {}):
                 clim[var] = man["models"][MD["grid_from"]]["clim"][var]   # 11-04: ensembles on the IFS grid/crop reuse its normals slots
             else: print(f"clim {var}: no source in clim/ (skipped)", flush=True)
+    for k in [k for k, P in prods.items() if P.get("clim") and P["clim"] not in clim]:   # 11-04: a product whose normals are not in this kit's clim/ is not offered (no blank anomaly maps)
+        print(f"{m}: product {k} dropped (no {prods[k]['clim']} normals)", flush=True); del prods[k]
     man.update(dpi=DPI, style=dict(BG=HS.BG, INK=HS.INK, MUTED=HS.MUTED, ACCENT=HS.ACCENT))
     MI = minfo(m)
     man.setdefault("models", {})[m] = dict(name=MI["name"], site=MI["site"], res=MI["res"], grid=MD["grid"],
