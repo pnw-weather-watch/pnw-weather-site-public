@@ -34,4 +34,4 @@
 | 21:31 | NOTE (overnight builder #2, 21:31 PT): two builders are active in this folder. Claimed by this builder: AIFS (aifs), AIFS ENS (aens), then GFS-Wave, HRRR/RRFS/NBM high-res views, remaining DETAILS_CHECKLIST ticks. Member grids / EPS members / mslpa keys (backups/batch_mgrid_20261104) are left to the other builder. No WA Maps graphics (HOLD above). Commits stay local, nothing pushed to origin/main, no production deploy. | - | - |
 
 | 21:30 | HOLD reinforced: no "WA Maps" tab / WA Maps-style graphics. Build everything else. |
-| 21:35 | #12 member grids + #13 member meteograms (EPS mem data F3-F48 + epsm F6-F72); MSLP a80 keys for socal/cenca/norca into site mkeys; epsm model wired on preview | (pending) | mgrid_tmax_*, mlines_t2m_*, mgrid_qpf_*, meteograms_honolulu_*, mslpa_a80_*_desktop.png, epsm_mslp_m01_pnw_desktop.png |
+| 21:35 | #12 member grids + #13 member meteograms (EPS mem data F3-F48 + epsm F6-F72); MSLP a80 keys for socal/cenca/norca into site mkeys; epsm model wired on preview | 12d5698 | mgrid_tmax_*, mlines_t2m_*, mgrid_qpf_*, meteograms_honolulu_*, mslpa_a80_*_desktop.png, epsm_mslp_m01_pnw_desktop.png |
