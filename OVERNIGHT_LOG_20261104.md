@@ -21,7 +21,7 @@
 | 20:50 | Wave maps: coast town numbers read from a point ~1/4 mile offshore (was 1/2 mile; explicit points pulled 0.4 km toward the town pin). Preview deploy dfdec6c2, preview guard OK | 287c112 | offshore_quarter_waves_pnw/wc/ca_desktop.png and _phone.png |
 
 | 20:47-20:48 | CA views widen (preview only): Central 2x E-W, Southern +12.5% east + 50 mi west, Northern 2x E-W | 92987b2 | view_{cenca,socal,norca}_BEFORE_widen.png, view_*_AFTER_widen_{desktop,phone}.png |
-| 20:00-20:45 | Production Push+Deploy: promoted preview/ data, t2ma CVD fix bb01bc8, deploy 2fac240f (rollback target b51db3eb) | bb01bc8 / 2fac240f | production screenshots pending if guard OK |
+| 20:00-20:45 | Production Push+Deploy: promoted preview/ data, t2ma CVD fix bb01bc8, deploy 2fac240f (rollback target b51db3eb) | bb01bc8 / 2fac240f | prod_socal/cenca_t2m_*, prod_sst_pac_*, prod_eps_lows_* (guard 261 OK) |
 | 21:05 | Ensemble lows: member dot colors + mean-L list recolored into the site theme (violet-blue-teal-green-yellow-grey, deutan/protan dE >= 7); LAUNCH known gap #7. Preview deploy of cb2e161, preview guard OK (261 checks, 0 FAIL) | cb2e161 | ens_dots_theme_elows_pnw/na_desktop.png and _phone.png |
 | 21:20 | QA: interaction check (readout, zoom, save, share, peak gust, missing hour, preload, view default, WA + CA Pass Forecasters) on the preview: 10/10 OK; the preload test now picks a run with steps (newest GFS 18Z is a single-step run). Ticked checklist: local/DETAILS_CHECKLIST_ticked_20261104.md (13 more lines) | 5a6658e | qa/interaction_preview_20261104.log |
 | 21:30 | Safety: upload_r2.py / read_requests.py pinned to the PNW account and PNW R2 keys (they used the shared CF_PAGES_KEY); request queue read: empty, nothing from Michael Snyder yet | b4c7b3c | - |
