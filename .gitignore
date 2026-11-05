@@ -6,3 +6,4 @@ deploy/public/
 deploy/node_modules/
 qa/guard_*.log
 tools/fast/site/obs
+tools/fast/site/old
