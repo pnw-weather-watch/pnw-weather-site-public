@@ -40,3 +40,8 @@
 
 | 22:25 | epsm CVD-safe keys for SLP / gust / 500 mb height anomaly (palette fixed, deutan/protan dE>=3.2); snow kept; MODELS+filter in fast_encode; theme/epsm_cvd_scales.json; preview R2 synced. #18 radar/sat CA+HI confirmed (radsat_*). WA Maps still HOLD. |
 | | Commits: pending | epsm_{gust10,slp,snow,z500anom}_pnw_{desktop,phone}.png |
+
+| 22:46 | epsm CVD-safe SLP/gust/z500anom keys (palette fix); MODELS+filter; theme/epsm_cvd_scales.json. Screenshots epsm_{gust10,slp,snow,z500anom}_pnw_*.png | 566e288 | local/shots/20261104/epsm_*_pnw_desktop/phone.png |
+| 22:46 | QA guard hardened (commit vs networkidle); full preview guard by GUARD_MODELS batches: **577 OK / 0 FAIL** (all models) | ded9016 | qa/guard_preview_full_20261104.log |
+| 22:46 | Ensemble extend: epsm F6-F120 (20 steps) on preview. EPS mean / AENS extend in progress beyond F48 (partial hours encoded; run.json merged as unbroken prefix grows). | (data) | - |
+| 22:46 | #18 radar/sat CA+HI confirmed (obsimg region detail boxes + radsat_* shots). DETAILS_CHECKLIST gaps closed where verified (dsnod, coast CA/HI, wave scales, mslpa a80, member lookup, obs CA/HI). WA Maps HOLD. | - | radsat_ca_*, radsat_hi_* |
