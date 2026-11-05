@@ -56,7 +56,8 @@ async def main():
             p = await ctx.new_page(); errs = []
             p.on("console", lambda m: m.type == "error" and errs.append(m.text)); p.on("pageerror", lambda e: errs.append("PAGEERROR " + str(e)))
             p.on("response", lambda rr: rr.status >= 400 and errs.append(f"{rr.status} {rr.url}"))
-            await p.goto(B + "/index.html", wait_until="networkidle"); await p.wait_for_timeout(3000)
+            # 11-04: Access + many models: networkidle often times out on the phone pass; commit is enough, then settle
+            await p.goto(B + "/index.html", wait_until="commit", timeout=60000); await p.wait_for_timeout(4000)
             ok_run = await p.evaluate("()=>!!document.getElementById('run')")
             if not ok_run:
                 res(False, f"{W}x{H} run menu present", "missing #run"); await ctx.close(); continue
@@ -79,7 +80,7 @@ async def main():
                         await p.wait_for_timeout(900); before = await p.evaluate(STATE)
                         try: await p.wait_for_function("(v)=>new URL(location).searchParams.get('view')===v", arg=v, timeout=8000)   # URL is written ~400 ms after a draw settles
                         except Exception: pass
-                        await p.reload(wait_until="networkidle"); await p.wait_for_timeout(1800); after = await p.evaluate(STATE)
+                        await p.reload(wait_until="commit", timeout=60000); await p.wait_for_timeout(2200); after = await p.evaluate(STATE)
                         res(before == after, f"{W}x{H} refresh keeps {before}", "" if before == after else "-> " + after)
                         L = await p.evaluate(LAYOUT)
                         ok = L["map"] and L["map"][0] >= -0.5 and L["map"][0] + L["map"][2] <= L["vw"] + 0.5 and L["doc"] <= L["vw"] + 1
