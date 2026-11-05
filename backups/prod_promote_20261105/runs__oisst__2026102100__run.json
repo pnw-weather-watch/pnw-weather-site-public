@@ -1,0 +1,229 @@
+{
+ "model": "oisst",
+ "cycle": "2026102100",
+ "init": "2026-10-21T00:00:00+00:00",
+ "base": "runs/oisst/2026102100",
+ "fields": [
+  "ssta"
+ ],
+ "grid": {
+  "ny": 353,
+  "nx": 861
+ },
+ "runline": "NOAA OISST v2.1 0.25\u00b0 daily analyses 10-21 to 11-3",
+ "steps": [
+  {
+   "f": 0,
+   "valid": "2026-10-21T00:00:00+00:00",
+   "valid_line": "Analysis Wed 10-21 (preliminary)",
+   "badge": [
+    "OCT 21",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 24,
+   "valid": "2026-10-22T00:00:00+00:00",
+   "valid_line": "Analysis Thu 10-22 (preliminary)",
+   "badge": [
+    "OCT 22",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 48,
+   "valid": "2026-10-23T00:00:00+00:00",
+   "valid_line": "Analysis Fri 10-23 (preliminary)",
+   "badge": [
+    "OCT 23",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 72,
+   "valid": "2026-10-24T00:00:00+00:00",
+   "valid_line": "Analysis Sat 10-24 (preliminary)",
+   "badge": [
+    "OCT 24",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 96,
+   "valid": "2026-10-25T00:00:00+00:00",
+   "valid_line": "Analysis Sun 10-25 (preliminary)",
+   "badge": [
+    "OCT 25",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 120,
+   "valid": "2026-10-26T00:00:00+00:00",
+   "valid_line": "Analysis Mon 10-26 (preliminary)",
+   "badge": [
+    "OCT 26",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 144,
+   "valid": "2026-10-27T00:00:00+00:00",
+   "valid_line": "Analysis Tue 10-27 (preliminary)",
+   "badge": [
+    "OCT 27",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 168,
+   "valid": "2026-10-28T00:00:00+00:00",
+   "valid_line": "Analysis Wed 10-28 (preliminary)",
+   "badge": [
+    "OCT 28",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 192,
+   "valid": "2026-10-29T00:00:00+00:00",
+   "valid_line": "Analysis Thu 10-29 (preliminary)",
+   "badge": [
+    "OCT 29",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 216,
+   "valid": "2026-10-30T00:00:00+00:00",
+   "valid_line": "Analysis Fri 10-30 (preliminary)",
+   "badge": [
+    "OCT 30",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 240,
+   "valid": "2026-10-31T00:00:00+00:00",
+   "valid_line": "Analysis Sat 10-31 (preliminary)",
+   "badge": [
+    "OCT 31",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 264,
+   "valid": "2026-11-01T00:00:00+00:00",
+   "valid_line": "Analysis Sun 11-1 (preliminary)",
+   "badge": [
+    "NOV 1",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 288,
+   "valid": "2026-11-02T00:00:00+00:00",
+   "valid_line": "Analysis Mon 11-2 (preliminary)",
+   "badge": [
+    "NOV 2",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  },
+  {
+   "f": 312,
+   "valid": "2026-11-03T00:00:00+00:00",
+   "valid_line": "Analysis Tue 11-3 (preliminary)",
+   "badge": [
+    "NOV 3",
+    "DAILY"
+   ],
+   "ranges": {
+    "ssta": [
+     -8.1,
+     8.0
+    ]
+   }
+  }
+ ],
+ "complete": true,
+ "expected": 14,
+ "file": "single/{name}_f{f:03d}.png"
+}

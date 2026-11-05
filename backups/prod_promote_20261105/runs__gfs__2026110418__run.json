@@ -1,0 +1,894 @@
+{
+ "model": "gfs",
+ "cycle": "2026110418",
+ "init": "2026-11-04T18:00:00+00:00",
+ "base": "runs/gfs/2026110418",
+ "fields": [
+  "apcp",
+  "d2m",
+  "frz",
+  "fzinc",
+  "gust",
+  "ivtu",
+  "ivtv",
+  "kinc",
+  "mslp",
+  "mucape",
+  "prt",
+  "pw",
+  "sbcape",
+  "t2m",
+  "t300",
+  "t500",
+  "t700",
+  "t850",
+  "t925",
+  "tcc",
+  "u10",
+  "u250",
+  "u300",
+  "u500",
+  "u700",
+  "u850",
+  "u925",
+  "v10",
+  "v250",
+  "v300",
+  "v500",
+  "v700",
+  "v850",
+  "v925",
+  "vis",
+  "z1000",
+  "z250",
+  "z300",
+  "z500"
+ ],
+ "grid": {
+  "ny": 353,
+  "nx": 861
+ },
+ "runline": "NOAA GFS 0.25\u00b0 18Z run 11-4-26 (10 AM PT)",
+ "steps": [
+  {
+   "f": 93,
+   "valid": "2026-11-08T15:00:00+00:00",
+   "valid_line": "Valid Sun 11-8 \u00b7 7 AM PT",
+   "badge": [
+    "F+93",
+    "15Z SUN"
+   ],
+   "ranges": {
+    "t2m": [
+     -49.0,
+     108.0
+    ],
+    "gust": [
+     0.0,
+     76.0
+    ],
+    "mslp": [
+     966.0,
+     1048.0
+    ],
+    "u10": [
+     -37.0,
+     49.0
+    ],
+    "v10": [
+     -38.0,
+     46.0
+    ],
+    "t850": [
+     -33.0,
+     27.0
+    ],
+    "t700": [
+     -42.0,
+     14.0
+    ],
+    "tcc": [
+     0.0,
+     100.0
+    ],
+    "vis": [
+     0.0,
+     10.0
+    ],
+    "frz": [
+     0.0,
+     18360.0
+    ],
+    "apcp": [
+     0.0,
+     21.0,
+     2
+    ],
+    "mucape": [
+     0.0,
+     3796.0
+    ],
+    "sbcape": [
+     0.0,
+     3796.0
+    ],
+    "u500": [
+     -48.0,
+     150.0
+    ],
+    "v500": [
+     -69.0,
+     69.0
+    ],
+    "z500": [
+     5027.0,
+     5925.0
+    ],
+    "u250": [
+     -51.0,
+     165.0
+    ],
+    "v250": [
+     -112.0,
+     95.0
+    ],
+    "z250": [
+     9600.0,
+     11005.0
+    ],
+    "u850": [
+     -45.0,
+     79.0
+    ],
+    "v850": [
+     -50.0,
+     78.0
+    ],
+    "u925": [
+     -53.0,
+     72.0
+    ],
+    "v925": [
+     -50.0,
+     69.0
+    ],
+    "t925": [
+     -33.0,
+     34.0
+    ],
+    "u700": [
+     -42.0,
+     93.0
+    ],
+    "v700": [
+     -47.0,
+     74.0
+    ],
+    "t500": [
+     -44.0,
+     -1.0
+    ],
+    "u300": [
+     -66.0,
+     167.0
+    ],
+    "v300": [
+     -114.0,
+     92.0
+    ],
+    "t300": [
+     -61.0,
+     -25.0
+    ],
+    "z300": [
+     8407.0,
+     9736.0
+    ],
+    "z1000": [
+     -291.0,
+     339.0
+    ],
+    "d2m": [
+     -57.0,
+     79.0
+    ],
+    "pw": [
+     0.0,
+     3.0
+    ],
+    "prt": [
+     0.0,
+     255.0
+    ],
+    "kinc": [
+     0.0,
+     9.0,
+     2
+    ],
+    "fzinc": [
+     0.0,
+     1.0,
+     2
+    ],
+    "ivtu": [
+     -1025.0,
+     1414.0
+    ],
+    "ivtv": [
+     -984.0,
+     910.0
+    ]
+   },
+   "packs": {
+    "mslp": [
+     "wind",
+     0
+    ],
+    "u10": [
+     "wind",
+     1
+    ],
+    "v10": [
+     "wind",
+     2
+    ],
+    "t850": [
+     "aloft",
+     0
+    ],
+    "t700": [
+     "aloft",
+     1
+    ],
+    "frz": [
+     "aloft",
+     2
+    ],
+    "mucape": [
+     "conv",
+     0
+    ],
+    "sbcape": [
+     "conv",
+     1
+    ],
+    "tcc": [
+     "sky",
+     0
+    ],
+    "vis": [
+     "sky",
+     1
+    ],
+    "u500": [
+     "w500",
+     0
+    ],
+    "v500": [
+     "w500",
+     1
+    ],
+    "z500": [
+     "w500",
+     2
+    ],
+    "u250": [
+     "w250",
+     0
+    ],
+    "v250": [
+     "w250",
+     1
+    ],
+    "z250": [
+     "w250",
+     2
+    ],
+    "u850": [
+     "w850",
+     0
+    ],
+    "v850": [
+     "w850",
+     1
+    ],
+    "t925": [
+     "w850",
+     2
+    ],
+    "u925": [
+     "w925",
+     0
+    ],
+    "v925": [
+     "w925",
+     1
+    ],
+    "z1000": [
+     "w925",
+     2
+    ],
+    "u700": [
+     "w700",
+     0
+    ],
+    "v700": [
+     "w700",
+     1
+    ],
+    "t500": [
+     "w700",
+     2
+    ],
+    "u300": [
+     "w300",
+     0
+    ],
+    "v300": [
+     "w300",
+     1
+    ],
+    "t300": [
+     "w300",
+     2
+    ],
+    "d2m": [
+     "moist",
+     0
+    ],
+    "pw": [
+     "moist",
+     1
+    ],
+    "prt": [
+     "moist",
+     2
+    ],
+    "kinc": [
+     "kfz",
+     0
+    ],
+    "fzinc": [
+     "kfz",
+     1
+    ],
+    "ivtu": [
+     "ivt",
+     0
+    ],
+    "ivtv": [
+     "ivt",
+     1
+    ],
+    "t2m": [
+     "nbm1",
+     0
+    ],
+    "gust": [
+     "nbm1",
+     1
+    ]
+   }
+  }
+ ],
+ "complete": true,
+ "expected": 1,
+ "file": "single/{name}_f{f:03d}.png",
+ "points": [
+  {
+   "n": "Aberdeen",
+   "k": "town"
+  },
+  {
+   "n": "Alturas",
+   "k": "town"
+  },
+  {
+   "n": "Arlington",
+   "k": "town"
+  },
+  {
+   "n": "Astoria",
+   "k": "town"
+  },
+  {
+   "n": "Auburn",
+   "k": "town"
+  },
+  {
+   "n": "Bakersfield",
+   "k": "town"
+  },
+  {
+   "n": "Barstow",
+   "k": "town"
+  },
+  {
+   "n": "Bellingham",
+   "k": "town"
+  },
+  {
+   "n": "Bishop",
+   "k": "town"
+  },
+  {
+   "n": "Blewett",
+   "k": "pass",
+   "c": 0.82
+  },
+  {
+   "n": "Boise",
+   "k": "town"
+  },
+  {
+   "n": "Burbank",
+   "k": "town"
+  },
+  {
+   "n": "Burns",
+   "k": "town"
+  },
+  {
+   "n": "Calgary",
+   "k": "town"
+  },
+  {
+   "n": "Cannon Beach",
+   "k": "town"
+  },
+  {
+   "n": "Carson",
+   "k": "pass",
+   "c": -2.74
+  },
+  {
+   "n": "Carson City",
+   "k": "town"
+  },
+  {
+   "n": "Chehalis",
+   "k": "town"
+  },
+  {
+   "n": "Chico",
+   "k": "town"
+  },
+  {
+   "n": "Chinook",
+   "k": "pass",
+   "c": -3.32
+  },
+  {
+   "n": "Crescent City",
+   "k": "town"
+  },
+  {
+   "n": "Delano",
+   "k": "town"
+  },
+  {
+   "n": "Disautel",
+   "k": "pass",
+   "c": -2.58
+  },
+  {
+   "n": "Donner",
+   "k": "pass",
+   "c": -1.48
+  },
+  {
+   "n": "Ebbetts",
+   "k": "pass",
+   "c": -2.13
+  },
+  {
+   "n": "Echo",
+   "k": "pass",
+   "c": 1.43
+  },
+  {
+   "n": "El Centro",
+   "k": "town"
+  },
+  {
+   "n": "Ellensburg",
+   "k": "town"
+  },
+  {
+   "n": "Eugene",
+   "k": "town"
+  },
+  {
+   "n": "Eureka",
+   "k": "town"
+  },
+  {
+   "n": "Everett",
+   "k": "town"
+  },
+  {
+   "n": "Fresno",
+   "k": "town"
+  },
+  {
+   "n": "Grass Valley",
+   "k": "town"
+  },
+  {
+   "n": "Hilo",
+   "k": "town"
+  },
+  {
+   "n": "Honolulu",
+   "k": "town"
+  },
+  {
+   "n": "Irvine",
+   "k": "town"
+  },
+  {
+   "n": "Kahului",
+   "k": "town"
+  },
+  {
+   "n": "Kailua-Kona",
+   "k": "town"
+  },
+  {
+   "n": "Kalispell",
+   "k": "town"
+  },
+  {
+   "n": "Kapolei",
+   "k": "town"
+  },
+  {
+   "n": "Kaunakakai",
+   "k": "town"
+  },
+  {
+   "n": "Kelowna",
+   "k": "town"
+  },
+  {
+   "n": "Kingman",
+   "k": "town"
+  },
+  {
+   "n": "Klamath Falls",
+   "k": "town"
+  },
+  {
+   "n": "Lake Havasu City",
+   "k": "town"
+  },
+  {
+   "n": "Lanai City",
+   "k": "town"
+  },
+  {
+   "n": "Lancaster",
+   "k": "town"
+  },
+  {
+   "n": "Las Vegas",
+   "k": "town"
+  },
+  {
+   "n": "Lewiston",
+   "k": "town"
+  },
+  {
+   "n": "Lihue",
+   "k": "town"
+  },
+  {
+   "n": "Long Beach",
+   "k": "town"
+  },
+  {
+   "n": "Los Angeles",
+   "k": "town"
+  },
+  {
+   "n": "Luther",
+   "k": "pass",
+   "c": 0.18
+  },
+  {
+   "n": "Mammoth Lakes",
+   "k": "town"
+  },
+  {
+   "n": "Medford",
+   "k": "town"
+  },
+  {
+   "n": "Merced",
+   "k": "town"
+  },
+  {
+   "n": "Mexicali",
+   "k": "town"
+  },
+  {
+   "n": "Missoula",
+   "k": "town"
+  },
+  {
+   "n": "Modesto",
+   "k": "town"
+  },
+  {
+   "n": "Monterey",
+   "k": "town"
+  },
+  {
+   "n": "Moses Lake",
+   "k": "town"
+  },
+  {
+   "n": "Mount Vernon",
+   "k": "town"
+  },
+  {
+   "n": "Nanaimo",
+   "k": "town"
+  },
+  {
+   "n": "Newport",
+   "k": "town"
+  },
+  {
+   "n": "North Bend",
+   "k": "town"
+  },
+  {
+   "n": "Oak Harbor",
+   "k": "town"
+  },
+  {
+   "n": "Oceanside",
+   "k": "town"
+  },
+  {
+   "n": "Olympia",
+   "k": "town"
+  },
+  {
+   "n": "Omak",
+   "k": "town"
+  },
+  {
+   "n": "Oroville",
+   "k": "town"
+  },
+  {
+   "n": "Palm Springs",
+   "k": "town"
+  },
+  {
+   "n": "Palmdale",
+   "k": "town"
+  },
+  {
+   "n": "Pasadena",
+   "k": "town"
+  },
+  {
+   "n": "Pendleton",
+   "k": "town"
+  },
+  {
+   "n": "Placerville",
+   "k": "town"
+  },
+  {
+   "n": "Port Angeles",
+   "k": "town"
+  },
+  {
+   "n": "Port Townsend",
+   "k": "town"
+  },
+  {
+   "n": "Portland",
+   "k": "town"
+  },
+  {
+   "n": "Red Deer",
+   "k": "town"
+  },
+  {
+   "n": "Redding",
+   "k": "town"
+  },
+  {
+   "n": "Redmond",
+   "k": "town"
+  },
+  {
+   "n": "Reno",
+   "k": "town"
+  },
+  {
+   "n": "Sacramento",
+   "k": "town"
+  },
+  {
+   "n": "Salem",
+   "k": "town"
+  },
+  {
+   "n": "San Diego",
+   "k": "town"
+  },
+  {
+   "n": "San Francisco",
+   "k": "town"
+  },
+  {
+   "n": "San Jose",
+   "k": "town"
+  },
+  {
+   "n": "San Luis Obispo",
+   "k": "town"
+  },
+  {
+   "n": "San Mateo",
+   "k": "town"
+  },
+  {
+   "n": "Santa Barbara",
+   "k": "town"
+  },
+  {
+   "n": "Santa Cruz",
+   "k": "town"
+  },
+  {
+   "n": "Santa Maria",
+   "k": "town"
+  },
+  {
+   "n": "Santa Rosa",
+   "k": "town"
+  },
+  {
+   "n": "Seattle",
+   "k": "town"
+  },
+  {
+   "n": "Shelton",
+   "k": "town"
+  },
+  {
+   "n": "Snoqualmie",
+   "k": "pass",
+   "c": 1.16
+  },
+  {
+   "n": "Sonora",
+   "k": "town"
+  },
+  {
+   "n": "Sonora Pass",
+   "k": "pass",
+   "c": -3.26
+  },
+  {
+   "n": "South Lake Tahoe",
+   "k": "town"
+  },
+  {
+   "n": "Spokane",
+   "k": "town"
+  },
+  {
+   "n": "Stevens",
+   "k": "pass",
+   "c": 1.23
+  },
+  {
+   "n": "Stockton",
+   "k": "town"
+  },
+  {
+   "n": "Sumas",
+   "k": "town"
+  },
+  {
+   "n": "Tacoma",
+   "k": "town"
+  },
+  {
+   "n": "Tehachapi",
+   "k": "pass",
+   "c": -1.87
+  },
+  {
+   "n": "Tejon",
+   "k": "pass",
+   "c": 3.66
+  },
+  {
+   "n": "Tijuana",
+   "k": "town"
+  },
+  {
+   "n": "Tioga",
+   "k": "pass",
+   "c": -2.3
+  },
+  {
+   "n": "Tri-Cities",
+   "k": "town"
+  },
+  {
+   "n": "Truckee",
+   "k": "town"
+  },
+  {
+   "n": "Tulare",
+   "k": "town"
+  },
+  {
+   "n": "Ukiah",
+   "k": "town"
+  },
+  {
+   "n": "Vallejo",
+   "k": "town"
+  },
+  {
+   "n": "Vancouver",
+   "k": "town"
+  },
+  {
+   "n": "Victoria",
+   "k": "town"
+  },
+  {
+   "n": "Visalia",
+   "k": "town"
+  },
+  {
+   "n": "Walker",
+   "k": "pass",
+   "c": -1.82
+  },
+  {
+   "n": "Wauconda",
+   "k": "pass",
+   "c": -0.78
+  },
+  {
+   "n": "Wenatchee",
+   "k": "town"
+  },
+  {
+   "n": "White",
+   "k": "pass",
+   "c": -0.07
+  },
+  {
+   "n": "Winthrop",
+   "k": "town"
+  },
+  {
+   "n": "Yakima",
+   "k": "town"
+  },
+  {
+   "n": "Yuba",
+   "k": "pass",
+   "c": -0.36
+  },
+  {
+   "n": "Yuba City",
+   "k": "town"
+  }
+ ],
+ "pts_file": "single/pts_f{f:03d}.json"
+}
