@@ -561,7 +561,11 @@ async function build(sec, prod, town) {
         if (town.pt.k === "pass" && sn) {
           const s6x = [], s6 = []; f.forEach((F_, i) => { if (F_ % 6 !== 0 || F_ === 0) return; let v = 0; f.forEach((g, j) => { if (g > F_ - 6 && g <= F_) v += sn[j] || 0; }); s6x.push(x[i] - 3 * 36e5); s6.push(v); });
           const mx = Math.max(0, ...s6), tot = s6.reduce((a_, v) => a_ + v, 0);
-          if (s6.length) panels.push({ ylab: "in per 6 h", legend: "upper left", ylim: () => [0, Math.max(1, mx * 1.2)], items: [{ t: "bars", x: s6x, y: s6, w: 6 * 36e5 * 0.85, color: K.SNOW, label: `Snow per 6 h${T.snowEst ? " (est. 10:1 where \u2264 33\u00b0F)" : ""}  \u00b7  max ${mx.toFixed(1)} in, ${tot.toFixed(1)} in in all` }] });
+          if (s6.length) panels.push({ ylab: "in per 6 h", legend: "upper left", ylim: () => [0, Math.max(SCALE_FLOOR_SNOW6, mx * 1.2)], items: [{ t: "bars", x: s6x, y: s6, w: 6 * 36e5 * 0.85, color: K.SNOW, label: `Snow per 6 h${T.snowEst ? " (est. 10:1 where \u2264 33\u00b0F)" : ""}  \u00b7  max ${mx.toFixed(1)} in, ${tot.toFixed(1)} in in all` }] });
+          // 11-05 Weather Bot: snow-rate axis floor ≥ 3 in/h so light rates stay visually small
+          const rate = sn.map((v, i) => v == null ? null : v / (stepH[i] || every));
+          const mxR = Math.max(0, ...rate.filter((v) => v != null));
+          panels.push({ ylab: "in/h", legend: "upper left", ylim: () => [0, Math.max(SCALE_FLOOR_SNOWRATE, mxR * 1.2)], items: [{ t: "bars", x, y: rate, w: w[1] || w[0], color: K.SNOW, label: `Snow rate  \u00b7  max ${mxR.toFixed(2)} in/h` }] });
         }
         panels.push({ ylab: "snow (in)", legend: "upper left", ylim: bottom0, items: [...(SN ? [{ t: "line", x, y: SN, color: K.SNOW, lw: 2.5, label: `Model snowfall ${SN[SN.length - 1].toFixed(1)} in` }] : []), { t: "line", x, y: A.map((v) => v * 10), color: K.MUTED, lw: 1.4, dash: "--", label: "10:1 of all precip" }] });
       }
@@ -672,11 +676,11 @@ async function multiRun(sec, prod, town, runs, base) {
   if (ensM) {
     const wn = m === "eps" ? "3 h window to F+144, then 6 h" : "6 h window", what = { mr_t2m: "2 m Temperature", mr_tmax: `Max Temperature (${wn} ending each step)`, mr_tmin: `Min Temperature (${wn} ending each step)`, mr_qpf6: "6-Hour Precipitation", mr_snow6: "6-Hour Snow (10:1)", mr_qpf24: "24-Hour Precipitation", mr_snow24: "24-Hour Snow (10:1)", mr_qpf: "Total Precipitation", mr_snow: "Total Snow (10:1)" }[k];
     return Object.assign(base, { fig: "frame", title: `${town.label} Multi-run: ${what}`, sub: `Ensemble mean of the last ${n} ${sec.id === "eps" ? "ENS" : sec.label} runs, newest bold`,
-      panels: [{ ylab: temp ? "\u00b0F" : "inches", legend: "upper left", ylim: temp ? null : floor0(SCALE_FLOOR_SNOW6), items: [...items, ...(temp ? [{ t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: "#ffffff", lw: 1.2, dash: "--" }] : [])] }] });
+      panels: [{ ylab: temp ? "\u00b0F" : "inches", legend: "upper left", ylim: temp ? null : floor0(/snow/.test(k) ? SCALE_FLOOR_SNOW6 : 0.25), items: [...items, ...(temp ? [{ t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: "#ffffff", lw: 1.2, dash: "--" }] : [])] }] });
   }
   const what = { mr_t2m: "2 m Temperature", mr_qpf6: "6-Hour Precipitation", mr_snow6: "6-Hour Snow", mr_qpf24: "24-Hour Precipitation", mr_qpf: "Total Precipitation", mr_snow: "Total Snow" }[k];
   return Object.assign(base, { fig: "frame", hourly: !!sec.hrs, title: `${town.label} ${sec.tag} Multi-run: ${what}`, sub: `Last ${n} ${sec.hrs ? "long " : ""}${sec.tag} runs, newest bold`,
-    panels: [{ ylab: temp ? "\u00b0F" : "in", legend: "upper left", ylim: temp ? null : bottom0, items: [...items, ...(temp ? [{ t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: "#ffffff", lw: 1.3, dash: "--" }] : [])] }] });
+    panels: [{ ylab: temp ? "\u00b0F" : "in", legend: "upper left", ylim: temp ? null : (/snow/.test(k) ? floor0(SCALE_FLOOR_SNOW6) : bottom0), items: [...items, ...(temp ? [{ t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: "#ffffff", lw: 1.3, dash: "--" }] : [])] }] });
 }
 
 /* ---------------- page (old forecast.js renderMeteo) ---------------- */
