@@ -1,0 +1,11 @@
+OK   view default (regions.json default_view) {"run": "gfs/2026110418", "prod": "t2m", "view": "pnw"}
+OK   preload order (other steps fetched after first draw) 9 run files
+OK   hover readout with units 53°F
+OK   zoom (wheel) transform matrix(1.82212, 0, 0, 1.82212, -490.458,
+OK   save image (download) GFS_00Z_t2m_pnw_valid-2026-11-03_1900PT_F003_zoom1.8x.png
+OK   share button present 
+OK   peak gust marker drawn null
+OK   missing hour jumps to nearest run=gfs%2F2026110418&prod=t2m&view=pnw&f=93
+OK   Washington Pass Forecaster opens + table 8 rows
+OK   California Pass Forecaster opens + table 12 rows
+FAILS 0

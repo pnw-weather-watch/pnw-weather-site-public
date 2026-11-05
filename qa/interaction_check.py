@@ -12,6 +12,14 @@ with sync_playwright() as p:
     pg.goto(B + "/index.html", wait_until="networkidle"); pg.wait_for_timeout(3000)
     st = pg.evaluate("()=>({run:S.run,prod:S.prod,view:S.view})"); ok("view default (regions.json default_view)", st["view"], json.dumps(st))
     # preload: after load, more step files than the current one were requested
+    # the newest run can be a partial single-step test run: then preload is checked on the next older run of that model that has steps
+    n0 = len([u for u in reqs if "/runs/" in u])
+    if n0 <= 3:
+        runs = pg.evaluate("async()=>{const m=await (await fetch(WX_DATA+'manifest.json')).json();const md=S.run.split('/')[0];return (m.runs[md]||[]).map(c=>md+'/'+c)}")
+        for r_ in runs:
+            if r_ == st["run"]: continue
+            reqs.clear(); pg.goto(B + f"/index.html?run={r_}&prod={st['prod']}&view={st['view']}", wait_until="networkidle"); pg.wait_for_timeout(3000)
+            if len([u for u in reqs if "/runs/" in u]) > 3: break
     n0 = len([u for u in reqs if "/runs/" in u]); ok("preload order (other steps fetched after first draw)", n0 > 3, f"{n0} run files")
     bx = pg.eval_on_selector("#map", "e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.width,r.height]}")
     pg.mouse.move(bx[0] + bx[2] * 0.5, bx[1] + bx[3] * 0.55); pg.wait_for_timeout(600)
