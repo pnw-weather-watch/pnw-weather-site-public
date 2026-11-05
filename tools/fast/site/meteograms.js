@@ -268,9 +268,18 @@ function axes(F, box, o) {
   c.textAlign = "left";
   return { px, py, x0, x1, y0, y1 };
 }
+// 11-04 (Benjamin 7:05 PM): meteogram temperature lines/shading use the site temperature palette (theme/temp_scale.json via the manifest t2m table)
+function tempPal() { const m = S.man && S.man.models && (S.man.models.gfs || S.man.models.ifs || Object.values(S.man.models)[0]); const P = m && (m.products.t2m || (m.products_x || {}).t2m); return P ? { lv: P.levels, cols: P.colors } : null; }
+function tempGrad(c, yOf, alpha) {   // vertical gradient: y of each 2 F band -> its palette color (hard stops, same bands as the maps)
+  const P = tempPal(); if (!P) return "#ff6a3d"; const ya = yOf(P.lv[0]), yb = yOf(P.lv[P.lv.length - 1]); if (!(isFinite(ya) && isFinite(yb)) || ya === yb) return P.cols[0];
+  const g = c.createLinearGradient(0, ya, 0, yb), a = alpha == null ? "" : Math.round(alpha * 255).toString(16).padStart(2, "0");
+  for (let i = 0; i < P.cols.length; i++) { const f0 = (yOf(P.lv[i]) - ya) / (yb - ya), f1 = (yOf(P.lv[i + 1]) - ya) / (yb - ya);
+    g.addColorStop(Math.min(1, Math.max(0, f0)), P.cols[i] + a); g.addColorStop(Math.min(1, Math.max(0, f1)), P.cols[i] + a); }
+  return g; }
 function drawItem(F, it, px, py) {
   const c = F.c, k = F.k;
-  if (it.t === "line") { c.strokeStyle = it.color; c.globalAlpha = it.alpha == null ? 1 : it.alpha; c.lineWidth = (it.lw || 1.5) * k; c.setLineDash(dashPx(F, it)); c.lineJoin = "round"; c.lineCap = it.dash ? "butt" : "square";
+  if (it.t === "line" && it.pal && !it._edge) { drawItem(F, Object.assign({}, it, { _edge: 1, pal: 0, color: "#000000", lw: (it.lw || 1.5) + 1.6 }), px, py); }
+  if (it.t === "line") { c.strokeStyle = it.pal ? tempGrad(c, py) : it.color; c.globalAlpha = it.alpha == null ? 1 : it.alpha; c.lineWidth = (it.lw || 1.5) * k; c.setLineDash(dashPx(F, it)); c.lineJoin = "round"; c.lineCap = it.dash ? "butt" : "square";
     c.beginPath(); let on = false; it.x.forEach((x, i) => { const v = it.y[i]; if (!fin(v)) { on = false; return; } if (on) c.lineTo(px(x), py(v)); else c.moveTo(px(x), py(v)); on = true; }); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; }
   else if (it.t === "hline") { c.strokeStyle = it.color; c.lineWidth = (it.lw || 1.5) * k; c.setLineDash(dashPx(F, it)); c.lineCap = "butt"; const yy = py(it.y); c.beginPath(); c.moveTo(0, yy); c.lineTo(F.W, yy); c.stroke(); c.setLineDash([]); }
   else if (it.t === "vline") { c.strokeStyle = it.color; c.lineWidth = (it.lw || 1) * k; const xx = px(it.x); c.beginPath(); c.moveTo(xx, 0); c.lineTo(xx, F.H); c.stroke(); }
@@ -294,7 +303,8 @@ function legend(F, box, items, loc, pt, ncol, face) {
   let xx = x0 + bp;
   cols.forEach((cl, j) => { cl.forEach((it, i) => { const yy = y0 + bp + i * (rh + ls) + rh / 2;
       if (it.t === "fill" || it.t === "bars") { c.fillStyle = rgba(it.color, it.alpha); c.fillRect(xx, yy - 0.35 * fs, hl, 0.7 * fs); }
-      else { c.strokeStyle = it.color; c.globalAlpha = it.alpha == null ? 1 : it.alpha; c.lineWidth = (it.lw || 1.5) * k; c.setLineDash(dashPx(F, it)); c.lineCap = it.dash ? "butt" : "square"; c.beginPath(); c.moveTo(xx, yy); c.lineTo(xx + hl, yy); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; }
+      else { let st = it.color; if (it.pal) { const P = tempPal(); if (P) { st = c.createLinearGradient(xx, 0, xx + hl, 0); [20, 32, 50, 70].forEach((t, q) => { const i = Math.max(0, P.lv.findIndex((l) => l > t) - 1); st.addColorStop(q / 3, P.cols[i]); }); } }
+        c.strokeStyle = st; c.globalAlpha = it.alpha == null ? 1 : it.alpha; c.lineWidth = Math.max(2, it.lw || 1.5) * k; c.setLineDash(dashPx(F, it)); c.lineCap = it.dash ? "butt" : "square"; c.beginPath(); c.moveTo(xx, yy); c.lineTo(xx + hl, yy); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; }
       c.fillStyle = K.INK; c.textAlign = "left"; c.textBaseline = "middle"; c.fillText(it.label, xx + hl + hp, yy); });
     xx += cw[j] + cs; });
 }
@@ -524,7 +534,7 @@ async function build(sec, prod, town) {
     const runL = runLine(sec, c, every);
     if (k === "summary") {
       const panels = [];
-      if (T.t2m) panels.push({ ylab: "\u00b0F", legend: "upper right", items: [{ t: "line", x, y: cut(T.t2m), color: K.WARM, lw: 2.5, label: "Temp" }, ...(T.d2m ? [{ t: "line", x, y: cut(T.d2m), color: K.RAIN, lw: 2, label: "Dew point" }] : []), { t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: K.COLD, dash: "--", lw: 1.3 }] });
+      if (T.t2m) panels.push({ ylab: "\u00b0F", legend: "upper right", items: [{ t: "line", x, y: cut(T.t2m), color: K.WARM, pal: 1, lw: 2.5, label: "Temp" }, ...(T.d2m ? [{ t: "line", x, y: cut(T.d2m), color: K.RAIN, pal: 1, lw: 1.3, label: "Dew point" }] : []), { t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: K.COLD, dash: "--", lw: 1.3 }] });
       if (T.gust || T.wind) panels.push({ ylab: "mph", legend: "upper right", items: [...(T.gust ? [{ t: "line", x, y: cut(T.gust), color: K.WARM, lw: 2, label: "Gust" }] : []), ...(T.wind ? [{ t: "line", x, y: cut(T.wind), color: K.INK, lw: 1.6, label: "Sustained" }] : [])] });
       if (A) panels.push({ ylab: "in", legend: "upper right", ylim: () => [0, Math.max(0.05, A[A.length - 1] * 1.15)], items: [{ t: "bars", x, y: Pinc, w: w[1] || w[0], color: K.RAIN, label: `${every}-hour precip` }, { t: "line", x, y: A, color: K.MEAN, lw: 2, label: `Total ${A[A.length - 1].toFixed(2)} in` }] });
       if (T.tcc) panels.push({ ylab: "%", legend: "upper right", ylim: () => [0, 100], items: [{ t: "fill", x, lo: x.map(() => 0), hi: cut(T.tcc), color: K.MUTED, alpha: 0.6, label: "Cloud cover" }] });
@@ -534,7 +544,7 @@ async function build(sec, prod, town) {
     if (k === "winter") {
       if (!T.t2m && !A) return { empty: ["Not enough data", "This model has no temperature or precipitation at this place."] };
       const panels = [];
-      if (T.t2m) panels.push({ ylab: "\u00b0F", legend: "upper left", items: [{ t: "line", x, y: cut(T.t2m), color: K.WARM, lw: 2.5, label: "Temp" }, ...(T.d2m ? [{ t: "line", x, y: cut(T.d2m), color: K.RAIN, lw: 1.8, label: "Dew point" }] : []), { t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: K.COLD, dash: "--", lw: 1.3 }] });
+      if (T.t2m) panels.push({ ylab: "\u00b0F", legend: "upper left", items: [{ t: "line", x, y: cut(T.t2m), color: K.WARM, pal: 1, lw: 2.5, label: "Temp" }, ...(T.d2m ? [{ t: "line", x, y: cut(T.d2m), color: K.RAIN, pal: 1, lw: 1.3, label: "Dew point" }] : []), { t: "hline", y: 32, label: "Freezing (32\u00b0F)", color: K.COLD, dash: "--", lw: 1.3 }] });
       if (A) {   // precip by type: the fast data has snow (water = snow / 10) and freezing rain amounts, the rest is rain
         const sn = T.snow ? cut(T.snow) : null, fz = T.fzinc ? cut(T.fzinc) : null;
         const sw = Pinc.map((p, i) => Math.min(p, sn ? (sn[i] || 0) / 10 : 0)), fr = Pinc.map((p, i) => Math.min(p - sw[i], fz ? fz[i] || 0 : 0)), rn = Pinc.map((p, i) => Math.max(0, p - sw[i] - fr[i]));

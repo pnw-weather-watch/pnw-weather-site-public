@@ -2006,10 +2006,10 @@ function mgChart(cv, T, box) {
       const a = T.t2m.filter(v => v != null), sd = T.t2sd;
       let lo = Math.min(...a, 32), hi = Math.max(...a, 32); if (sd) { lo = Math.min(lo, ...T.t2m.map((v, k) => v - (sd[k] || 0))); hi = Math.max(hi, ...T.t2m.map((v, k) => v + (sd[k] || 0))); }
       lo = Math.floor(lo / 5) * 5 - 2; hi = Math.ceil(hi / 5) * 5 + 2; const sc = scale(lo, hi); axis(lo, hi, sc, "\u00b0");
-      if (sd) { c.fillStyle = "#e0484d33"; c.beginPath(); T.t2m.forEach((v, k) => { const xx = X(T.t[k]); k ? c.lineTo(xx, sc(v + sd[k])) : c.moveTo(xx, sc(v + sd[k])); });
+      if (sd) { c.fillStyle = tempGrad(c, sc, 0.3); c.beginPath(); T.t2m.forEach((v, k) => { const xx = X(T.t[k]); k ? c.lineTo(xx, sc(v + sd[k])) : c.moveTo(xx, sc(v + sd[k])); });
         for (let k = n - 1; k >= 0; k--) c.lineTo(X(T.t[k]), sc(T.t2m[k] - sd[k])); c.fill(); }
-      line(T.t2m.map(() => 32), sc, "#5aa9ff", 1.5, [6, 4]); line(T.t2m, sc, "#ff5a5f", 2.5);
-      let dx = label(sd ? "Temperature \u00b0F (ens. mean, shading = \u00b11 spread)" : "Temperature \u00b0F", "#ff8a8e");
+      line(T.t2m.map(() => 32), sc, "#5aa9ff", 1.5, [6, 4]); line(T.t2m, sc, "#000000", 4.5); line(T.t2m, sc, tempGrad(c, sc), 2.5);   // palette-colored temp line with a dark edge
+      let dx = label(sd ? "Temperature \u00b0F (ens. mean, shading = \u00b11 spread)" : "Temperature \u00b0F", "#f4f2ee");
       // Benjamin 10-31 1:20 AM: say what the dashed blue line is (dash sample + "= freezing (32°F)"), next to the title or on the next row
       const rowH = small ? 14 : 16; c.font = `700 ${small ? 10 : 12}px WXTheme`;
       const fzT = "= freezing (32\u00b0F)", fzW = 22 + c.measureText(fzT).width + 14, fzOn1 = L + 6 + dx + fzW < W - Rm - 4, fzX = fzOn1 ? dx : 0, fzY = fzOn1 ? 0 : rowH;
@@ -2124,6 +2124,14 @@ function showErr(e) { const p = document.createElement("pre"); p.id = "err"; p.s
 addEventListener("error", e => showErr(e.error || e.message)); addEventListener("unhandledrejection", e => showErr(e.reason));
 boot();
 
+// 11-04 (Benjamin 7:05 PM): meteogram temperature lines/shading use the site temperature palette (theme/temp_scale.json via the manifest t2m table)
+function tempPal() { const m = S.man && S.man.models && (S.man.models.gfs || S.man.models.ifs || Object.values(S.man.models)[0]); const P = m && (m.products.t2m || (m.products_x || {}).t2m); return P ? { lv: P.levels, cols: P.colors } : null; }
+function tempGrad(c, yOf, alpha) {   // vertical gradient: y of each 2 F band -> its palette color (hard stops, same bands as the maps)
+  const P = tempPal(); if (!P) return "#ff6a3d"; const ya = yOf(P.lv[0]), yb = yOf(P.lv[P.lv.length - 1]); if (!(isFinite(ya) && isFinite(yb)) || ya === yb) return P.cols[0];
+  const g = c.createLinearGradient(0, ya, 0, yb), a = alpha == null ? "" : Math.round(alpha * 255).toString(16).padStart(2, "0");
+  for (let i = 0; i < P.cols.length; i++) { const f0 = (yOf(P.lv[i]) - ya) / (yb - ya), f1 = (yOf(P.lv[i + 1]) - ya) / (yb - ya);
+    g.addColorStop(Math.min(1, Math.max(0, f0)), P.cols[i] + a); g.addColorStop(Math.min(1, Math.max(0, f1)), P.cols[i] + a); }
+  return g; }
 // ---- Observations (old site's live obs module, unchanged: browser-drawn from NWS/IEM + Environment Canada, loaded on first open)
 let obsLoad = null;
 function obsOpen() {
