@@ -7,7 +7,7 @@
 | 19:10 | Meteogram temperature colors from the site palette | 70cf9da | meteogram_colors_BEFORE/AFTER(.png/_phone.png) |
 | 19:25 | Southern / Central / Northern California views | ebe1766 | view_socal/cenca/norca_t2m_*.png, preview_socal/cenca/norca_t2m_*.png |
 | 19:35 | Preview-only data area (R2 `preview/` prefix; production reads live keys only) | dc362ad | - |
-| 19:50 | ECMWF ensemble (INDEX #10 mean, #11 lows, #19 CAPE chance): EPS 00Z 11-04, F3-F48; ensembles reuse IFS normals | see below | preview_eps_mean_mslp_pnw_*, preview_eps_lows_pnw_*, preview_eps_z500anom_na_*, preview_eps_capechance_na_* |
+| 19:50 | ECMWF ensemble (INDEX #10 mean, #11 lows, #19 CAPE chance): EPS 00Z 11-04, F3-F48; ensembles reuse IFS normals | 811210d | preview_eps_mean_mslp_pnw_*, preview_eps_lows_pnw_*, preview_eps_z500anom_na_*, preview_eps_capechance_na_* |
 
 ## Checks
 - Production guard (read-only, no deploy) 19:40: 139 OK, 0 FAIL. Its manifest is unchanged (no new views, runs gfs + ifs only).
