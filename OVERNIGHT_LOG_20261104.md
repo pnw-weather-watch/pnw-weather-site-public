@@ -101,3 +101,12 @@
 | 02:33 | Guard null `viewStatic` in render paths. Preview **8e94eb28**. Commit **3db6fde**. Feature queue A/B complete; ensembles at F360; continuing QA until morning report. | 3db6fde | - |
 
 | 03:16 | Final check (builder #6): request queue empty (nothing from Michael Snyder); working tree clean except per-feature backup folders, now committed. All queued items verified done earlier (see rows above). No production deploy, WA Maps OFF. | see git log | - |
+
+## Stretch 7 (11-05 04:18 PT onward, builder #7; hidden preview only, no production deploy)
+| Time PT | Item | Commit | Evidence |
+|---|---|---|---|
+| 04:20 | Request queue re-read (read-only): "no requests", nothing from Michael Snyder. | - | - |
+| 04:25 | Repro of the one 03:55 morning-guard FAIL (phone "refresh keeps aifs/...|feels|norca -> cenca"): re-ran aifs @390x844 = **0 FAIL**; transient refresh race, not reproducible. | - | qa/guard_preview_aifs_phone_20261105.log |
+| 04:35 | Full-size polish shots (CA views Southern/Central/Northern + PNW town labels, desktop 1440x900 and phone 1170x2532): framing, towns, 0 HTTP errors. | - | local/shots/20261105/polish_{socal,cenca,norca}_t2m_gfs_{desktop,phone}.png, polish_pnw_towns_t2m_ifs_{desktop,phone}.png |
+| 04:50 | **Console sweep** (every tab/toolbar button on index + compare + meteograms, desktop+phone): found third-party CORS errors on Observations (IEM ASOS currents). Root cause = QA scripts used Playwright `extra_http_headers`, which attaches the Access service-token headers to EVERY request incl. third-party origins (token leak + CORS preflight failures). Not a site bug. | - | qa/sweep_ui_20261105.log |
+| 05:05 | **Fix**: qa/_access.py scopes the token headers to *.pnw-weather-site.pages.dev only (guard.py, interaction_check.py, preview shots, tabs_check). Sweep after fix: only expected `/req` 403 (service token is not the Access user JWT; by design). Guard rrfs after patch: **81 OK / 0 FAIL**. Secret-value scan of repo: 0 hits. | 0349e13 | qa/guard_preview_rrfs_scoped_20261105.log, backups/qa_token_scope_20261105/, local/shots/20261105/sweep_*_{desktop,phone}.png, sweep_obs_{desktop,phone}.png |

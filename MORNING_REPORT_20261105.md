@@ -34,3 +34,10 @@ Yes — `70cf9da` / `8287d31` earlier overnight (site temp palette on lines/boxe
 ## Weather Bot ask (parent: DraftExternalMessage)
 
 Draft staged at bot store `drafts/weather_bot_status_20261105.md`.
+
+## Late QA (04:18-05:10 PT, builder #7)
+- Request queue: empty (nothing from Michael Snyder). No new work items.
+- UI console sweep (all tabs/buttons, desktop + phone): clean. Only `/req` 403 with the QA service token (expected: `/req` requires the real Access user).
+- **Security note:** until 0349e13 the QA scripts sent the Access service-token (`pnw-qa`) headers to every origin the page called (e.g. mesonet.agron.iastate.edu on the Observations tab). Fixed (headers now scoped to the Pages host). Recommend rotating the `pnw-qa` token in the new Cloudflare Access when convenient (values never logged in the repo; 0 hits).
+- The one 03:55 morning-guard failure (phone refresh norca->cenca) did not reproduce (aifs re-run 0 FAIL).
+- Data freshness: preview model runs are the Nov 4 cycles (GFS 18Z, ECMWF/AIFS 12Z, EPS 00Z, HRRR/RRFS/NBM 00Z Nov 5); no cycle refresh was run overnight (publishing a fresh cycle is a live-data step to decide).
