@@ -82,3 +82,5 @@
 | 01:46 | **epsm complete F6–F360** (40/40). Reindexed run.json after windowed encode overwrote it; synced preview. Shots epsm_ext_f360_AFTER_*. | - | epsm_ext_f360_AFTER_{desktop,phone}.png |
 
 | 01:57 | Fix `eps_members.py` so windowed extends merge full STEPS into run.json (prevents wiping F6–F240). Commit **454b90e**. EPS/AENS still encoding (~F324 files on disk). | 454b90e | - |
+
+| 02:00 | Fix viewer `viewStatic` TDZ (`obj` before init) + missing `run.grid` (console errors on HI waves). Preview deploy **de9bb4fc**. Commit **e21f691**. | e21f691 | waves_{hiw,bigi,bay,orco}_ifs_AFTER_fix_desktop.png, waves_hiw_ifs_AFTER_fix_phone.png |
