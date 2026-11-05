@@ -1,0 +1,11 @@
+# Blues darken sooner (Benjamin 5:52 PM PT, 11-04)
+- theme/temp_scale.json: the bands from -14°F to 32°F are deeper and darker earlier.
+  - Each band was dimmed by up to ~22%, most around 10°F, tapering to zero at -12°F and at 32°F; blue was kept stronger than red and green so the colors stay blue rather than going gray.
+  - A minimal numeric touch-up then restored red-green colorblind separation (deutan/protan ΔE ≥ 3.2 between neighbouring 2°F bands in the palette math; the guard threshold of 3 is not lowered).
+  - Examples (source palette): 0°F #5380de→#466dd6, 10°F #65b2e3→#4f8bd7, 18°F #7eccde→#66a6d4, 26°F #a2deda→#93cad5, 30°F #c3e9e2→#bce1e0.
+  - Below -14°F and at 32°F and up: unchanged (warm side identical; pixel-checked on the map).
+- Applies to every product on this palette: 2 m Temperature, 2 m Dewpoint, Feels-Like, NBM 12 h high/low temps, and the ensemble high/low temps.
+  - The 850/925/700 mb temperature maps use their own °C palettes and are unchanged.
+- The 32°F step (pale blue to pale yellow) is a bit more pronounced; the white freezing dashes stay visible.
+- Shots in local/shots/20261104/: blues_BEFORE.png, blues_AFTER.png, blues_AFTER_phone.png, key_blues_before_after.png.
+- Backup: backups/blues_darker_20261104/. Script: local/blues.py.
