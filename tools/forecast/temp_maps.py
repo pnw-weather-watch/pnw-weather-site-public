@@ -76,9 +76,10 @@ LAPSE = 0.0065   # C per m, standard atmosphere
 T2A_LEVELS = np.arange(-30, 31, 1)
 T2A_TICKS = list(range(-30, 31, 5))
 
-
 def t2a_cmap():
-    return HS.cmap([HS._anom_color(15.0 * x) for x in (T2A_LEVELS[:-1] + T2A_LEVELS[1:]) / 2.0], HS.ANOM_UNDER, HS.ANOM_OVER)
+    cols = ["#bcb3c9", "#b3a9c4", "#ab9ebe", "#a294b8", "#998ab3", "#9180b0", "#8875af", "#806aaf", "#775faf", "#6e54ae", "#664daf", "#5d4ab1", "#5547b3", "#4c44b5", "#4441b6", "#3d42b8", "#4051c1", "#3a58c6", "#3761ce", "#346ad7", "#3d77d8", "#4e86dd", "#5e94e2", "#6ea3e7", "#7fb2ec", "#94c0ef", "#aecef1", "#c8ddf3", "#e0eaf4", "#f7f7f5", "#f7f7f5", "#f8f2d2", "#f5e8ac", "#f0dc85", "#ebce5e", "#e5c247", "#e1b43b", "#d8a836", "#d29732", "#de8c2d", "#e88025", "#e26f26", "#d86024", "#cd4f25", "#c54724", "#d74c1e", "#e25325", "#d34729", "#c03428", "#ab2128", "#a81b31", "#b82044", "#c82557", "#d3346d", "#d84c88", "#dd64a3", "#d874b6", "#c87cc2", "#c48ece", "#ccaada"]
+    return HS.cmap(cols, "#ececee", "#ddd0ea")
+
 
 
 def clim_t2m(valid, LA, LO, zmodel):
