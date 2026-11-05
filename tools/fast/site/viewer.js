@@ -242,14 +242,15 @@ async function boot() {
     if (!a2.includes(S.run)) a2.push(S.run);
     runMenu(o2, a2); loadNote();
   }, 120e3);
-  setLists();
   const f0 = Q.get("f"), steps = S.runs[S.run].steps; S.i = f0 ? Math.max(0, steps.findIndex(s => s.f == +f0)) : S.run.startsWith("oisst/") ? steps.length - 1 : 0;   // 11-03: daily analyses open on the newest day
   const vq = Date.parse(Q.get("valid") || ""); if (!f0 && vq) { let b = 0; steps.forEach((x, k) => { if (Math.abs(Date.parse(x.valid) - vq) < Math.abs(Date.parse(steps[b].valid) - vq)) b = k; }); S.i = b; }   // old-site links
+  if (S.i < 0) S.i = 0;
+  setLists();
   $("step").value = S.i;
   $("run").onchange = async e => {   // keep the same valid time when switching runs/models (nearest step)
     const vt = Date.parse(S.runs[S.run].steps[S.i].valid); S.run = e.target.value; await loadRun(S.run); setLists();
     const st = S.runs[S.run].steps; let b = 0; st.forEach((x, k) => { if (Math.abs(Date.parse(x.valid) - vt) < Math.abs(Date.parse(st[b].valid) - vt)) b = k; });
-    S.i = b; $("step").value = b; memUI(); draw(); loadNote(); };
+    S.i = b; $("step").value = b; memUI(); syncUrl(); draw(); loadNote(); };
   memUI();
   // phones: hour slider under the map (Benjamin 10-29 9:01 PM)
   const mq = matchMedia("(max-width: 700px), (max-height: 500px)"), placeSteps = () => {
@@ -261,8 +262,8 @@ async function boot() {
   setupPointer(); $("share") && ($("share").onclick = share); $("save") && ($("save").onclick = saveImage);
   $("obsbtn") && ($("obsbtn").onclick = obsOpen);
   $("mgbtn") && ($("mgbtn").onclick = () => mgOpen("town")); $("pfbtn") && ($("pfbtn").onclick = () => mgOpen("pass")); $("pfcabtn") && ($("pfcabtn").onclick = () => mgOpen("capass"));
-  $("prod").onchange = e => { S.prod = e.target.value; S.lastTab[S.tab || tabOf(S.prod)] = S.prod; draw(); };
-  $("view").onchange = e => { S.view = e.target.value; resetZoom(); draw(); };
+  $("prod").onchange = e => { S.prod = e.target.value; S.lastTab[S.tab || tabOf(S.prod)] = S.prod; syncUrl(); draw(); };
+  $("view").onchange = e => { S.view = e.target.value; resetZoom(); syncUrl(); draw(); };
   const sl = $("step"), endDrag = () => { if (S.dragging) { S.dragging = false; draw(); } };
   sl.addEventListener("pointerdown", () => { S.dragging = true; });
   sl.addEventListener("touchstart", () => { S.dragging = true; }, { passive: true });
@@ -407,8 +408,17 @@ function setLists() {   // products this run carries (all their fields present),
   const prods = Object.entries(P).filter(([k, p]) => p.fields.every(f => has.has(f)));
   const tabs = [...TABS, ["other", "Other", []]].map(([id, label, ids]) => [id, label,
     prods.filter(([k]) => id === "other" ? tabOf(k) === "other" : ids.includes(k)).sort((a, b) => ids.indexOf(a[0]) - ids.indexOf(b[0]))]).filter(t => t[2].length);
-  if (!prods.some(([k]) => k === S.prod)) {   // not in this run: stay in the same tab when it can
-    const t = tabs.find(t => t[0] === (S.tab || tabOf(S.prod))) || tabs.find(t => t[0] === tabOf(S.prod)); S.prod = (t ? t[2][0] : prods[0])[0]; }
+  const bootPick = !S._listed;
+  const resolved = WXSelect.resolveSelection({
+    products: tabs.flatMap(([id, , items]) => items.map(([k, p]) => ({ id: k, title: p.title, tab: id }))),
+    views: Object.entries(V).map(([id, v]) => ({ id, label: v.label || id, waveOnly: !!v.waveOnly })),
+    prod: S.prod, view: S.view, currentTab: S.tab, tabOf, isWave: id => WAVE_PIDS.test(id),
+    prodTitle: (P[S.prod] && P[S.prod].title) || S.prod,
+  });
+  S.prod = resolved.prod; S.view = resolved.view;
+  const asked = bootPick ? ((Q.get("prod") && resolved.prod !== Q.get("prod")) || (Q.get("view") && resolved.view !== Q.get("view"))) : resolved.changed;
+  if (resolved.note && asked) jumpNote(resolved.note, 6000);
+  S._listed = true;
   const inTab = id => tabs.some(t => t[0] === id && t[2].some(([k]) => k === S.prod));
   const cur = S.tab && inTab(S.tab) ? S.tab : tabOf(S.prod); S.tab = cur; S.lastTab[cur] = S.prod;
   $("tabs").innerHTML =
@@ -432,12 +442,24 @@ function setLists() {   // products this run carries (all their fields present),
     if (!b || b.dataset.t === S.tab) return;
     const t = tabs.find(x => x[0] === b.dataset.t), keep = S.lastTab[t[0]];
     S.tab = t[0]; S.prod = t[2].some(([k]) => k === keep) ? keep : t[2][0][0]; setLists(); draw(); };
-  if (!V[S.view]) S.view = V.pnw ? "pnw" : V.pnwhr ? "pnwhr" : Object.keys(V)[0];
-  const wavy = WAVE_PIDS.test(S.prod); if (V[S.view].waveOnly && !wavy) S.view = V.pnw ? "pnw" : Object.keys(V)[0];
+  const wavy = WAVE_PIDS.test(S.prod);
   fill($("prod"), tabs.find(t => t[0] === cur)[2].map(([k, p]) => [k, p.title]), S.prod);
   fill($("view"), Object.entries(V).filter(([k, v]) => !v.waveOnly || wavy).map(([k, v]) => [k, v.label]), S.view);
   $("step").max = R_.steps.length - 1; S.i = Math.min(S.i, R_.steps.length - 1);
   S.runMenu && S.runMenu();   // 11-03 (t2228u): Runs picker follows the open tab
+  syncUrl();
+}
+// Address bar follows the choice immediately. A map that fails to paint (missing color key, missing
+// normals) must not leave the previous product and view in the URL, or a refresh reopens that stale pair.
+function syncUrl() {
+  if (Q.get("clean") || !S.run || !S.prod || !S.view) return;
+  const u = new URL(location);
+  u.searchParams.set("prod", S.prod); u.searchParams.set("view", S.view); u.searchParams.set("run", S.run);
+  u.searchParams.delete("model");
+  const step = S.runs[S.run] && S.runs[S.run].steps && S.runs[S.run].steps[S.i];
+  if (step) u.searchParams.set("f", step.f);
+  if (isMemRun(S.run)) u.searchParams.set("mem", S.mem); else u.searchParams.delete("mem");
+  try { history.replaceState(null, "", u); } catch (e) {}
 }
 function fill(sel, opts, cur) { sel.innerHTML = opts.map(([v, t]) => `<option value="${v}"${v === cur ? " selected" : ""}>${t}</option>`).join(""); }
 function go(d, wrap) { const n = S.runs[S.run].steps.length; S.i = wrap ? (S.i + d + n) % n : Math.min(n - 1, Math.max(0, S.i + d)); $("step").value = S.i; draw(); }
@@ -485,8 +507,15 @@ async function viewStatic(vid) {
   p.catch(() => { if (S.statics[sk] === p) delete S.statics[sk]; });
   return p;
 }
-const keyImg = {}; const keyURL = (pid, vid) => { const K = PRODS()[pid].keys, V = VIEWS()[vid] || {}; const k = (V.keys && V.keys[pid]) || K[VSRC(vid)] || K[V.keysFrom] || K.wa; return (k[0] === "@" ? k.slice(1) : DATA + k) + SV(); };
-const getKey = (pid, vid) => { const u = keyURL(pid, vid); return keyImg[u] || (keyImg[u] = img(u)); };
+const keyImg = {};
+// Missing key path used to throw (reading [0] of undefined) before any request. The paint aborted, the URL
+// stayed on the previous product/view, and a refresh reopened that (ensemble anomaly + North America -> 2 m temp + Big Island).
+const keyURL = (pid, vid) => {
+  const P = PRODS()[pid]; if (!P) return null;
+  const k = WXSelect.lookupKey(P, VIEWS()[vid], vid, pid); if (!k) return null;
+  return (k[0] === "@" ? k.slice(1) : DATA + k) + SV();
+};
+const getKey = (pid, vid) => { const u = keyURL(pid, vid); if (!u) return Promise.resolve(null); return keyImg[u] || (keyImg[u] = img(u).catch(() => null)); };
 
 // ---------------------------------------------------------------- data images
 function fieldURL(run, name, f) {   // packed runs: several fields share one RGB PNG, one channel each (run.json steps[].packs)
@@ -534,7 +563,7 @@ function memUI() {   // AIFS ENS / EPS members: type or pick 1-50 (or < > / arro
   inp.value = S.mem;
   const site = (S.man.models[S.run.split("/")[0]] || {}).site || "Ensemble member"; lab.title = `${site} (${inp.min}-${inp.max}): only this member's maps load. Arrow up / down = next / previous member`;
   if (!inp.dataset.wired) { inp.dataset.wired = 1;
-    const set = n => { const lo = +inp.min, hi = +inp.max; n = Math.min(hi, Math.max(lo, n)); inp.value = n; if (n === S.mem) return; S.mem = n; draw(); };
+    const set = n => { const lo = +inp.min, hi = +inp.max; n = Math.min(hi, Math.max(lo, n)); inp.value = n; if (n === S.mem) return; S.mem = n; syncUrl(); draw(); };
     const go = () => { const v = Math.round(+inp.value); set(isFinite(v) && v ? v : S.mem); };
     const step = d => { const lo = +inp.min, hi = +inp.max; set(S.mem + d > hi ? lo : S.mem + d < lo ? hi : S.mem + d); };   // wraps 50 -> 1
     inp.addEventListener("change", go); inp.addEventListener("keydown", e => { if (e.key === "Enter") go();
@@ -642,21 +671,18 @@ const climCache = new Map();
 async function climMonth(m, varn, k) {   // static 16-bit (R*256+G) monthly mean on the model's cropped grid
   const key = `${m}/${varn}/${k}`; if (climCache.has(key)) return climCache.get(key);
   const p = (async () => {
-    const C = S.man.models[m].clim[varn], I = await getPixels(DATA + C.files[k] + SV()), [lo, hi] = C.ranges[k], n = I.w * I.h, o = new Float32Array(n);
+    const C = S.man.models[m] && S.man.models[m].clim && S.man.models[m].clim[varn];
+    if (!C || !C.files || C.files[k] == null || !C.ranges || C.ranges[k] == null) throw new Error("nodata:clim");
+    const I = await getPixels(DATA + C.files[k] + SV()), [lo, hi] = C.ranges[k], n = I.w * I.h, o = new Float32Array(n);
     for (let i = 0; i < n; i++) o[i] = lo + (I.px[i * 4] * 256 + I.px[i * 4 + 1]) / 65535 * (hi - lo);
     return o;
   })();
   climCache.set(key, p); return p;
 }
 async function climAt(run, varn, validIso) {   // months blended like aifs_maps.clim_at; t2m also between 00/06/12/18Z
-  const m = run.split("/")[0], C = S.man.models[m].clim[varn], v = new Date(validIso), mo = v.getUTCMonth(), mid = Date.UTC(v.getUTCFullYear(), mo, 15);
-  const m2 = (mo + (v.getTime() >= mid ? 1 : -1) + 12) % 12, w = Math.min(1, Math.abs(v.getTime() - mid) / (30.4 * 86400e3));
-  let parts = [[mo, 1 - w], [m2, w]];
-  if (C.hours) {
-    const hx = (v.getUTCHours() + v.getUTCMinutes() / 60) / 6, h0 = Math.floor(hx) % 4, h1 = (h0 + 1) % 4, wh = hx - Math.floor(hx);
-    parts = parts.flatMap(([k, wk]) => [[k * 4 + h0, wk * (1 - wh)], [k * 4 + h1, wk * wh]]);
-  }
-  parts = parts.filter(p => p[1] > 1e-6);
+  const m = run.split("/")[0], C = S.man.models[m] && S.man.models[m].clim && S.man.models[m].clim[varn];
+  const parts = WXSelect.climParts(C, validIso);
+  if (!parts || !parts.length) throw new Error("nodata:clim");
   const arrs = await Promise.all(parts.map(p => climMonth(m, varn, p[0]))), o = new Float32Array(arrs[0].length);
   arrs.forEach((a, j) => { const wj = parts[j][1]; for (let i = 0; i < a.length; i++) o[i] += wj * a[i]; });
   return o;
@@ -772,13 +798,17 @@ async function render(lite) {
         return render(lite);
       }
       otherRunWith(run, pid).then((r2) => { if (S.run !== run || S.prod !== pid) return;
-        const n = jumpNote(`This run has no ${PRODS()[pid].title} maps.` + (r2 ? ` <button type="button" id="jumprun">Open ${r2.split("/")[1].slice(8)}Z ${r2.split("/")[1].slice(4, 6)}-${r2.split("/")[1].slice(6, 8)} run</button>` : " Try another run in the Runs menu."), 0);
+        const title = PRODS()[pid].title, climMiss = String(e && e.message) === "nodata:clim";
+        const msg = climMiss ? `${title} can't be drawn: climatology normals aren't available for this model. Still showing ${title}.`
+          : `This run has no ${title} maps.` + (r2 ? ` <button type="button" id="jumprun">Open ${r2.split("/")[1].slice(8)}Z ${r2.split("/")[1].slice(4, 6)}-${r2.split("/")[1].slice(6, 8)} run</button>` : " Try another run in the Runs menu.");
+        const n = jumpNote(msg, 0);
         const b = n.querySelector("#jumprun"); if (b) b.onclick = async () => { await loadRun(r2); S.run = r2; $("run").value = r2; n.hidden = true; setLists(); draw(); }; });
     }
     const V = VIEWS()[vid], cv = $("map"), st2 = await viewStatic(vid);
     if (!st2) return;
     const ctx = sizeMap(cv, V, lite), [LW, LH] = V.fig; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH); ctx.drawImage(layer(st2.base, st2.baseU, cv._rs), 0, 0, LW, LH);
-    header(ctx, V, PRODS()[pid].title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${window.__vjNoJump || S.dragging ? "no map at this hour" : "not in this model run"}`, step.badge);
+    const why = String(e && e.message) === "nodata:clim" ? "climatology normals aren't available" : (window.__vjNoJump || S.dragging ? "no map at this hour" : "not in this model run");
+    header(ctx, V, PRODS()[pid].title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${why}`, step.badge);
     S.cur = null; window.__drawn = `${pid}/${vid}/${f}`;
     postCompare(run, pid, vid, step);   // 10-31: still report to the side-by-side page (else sync never starts when a frame opens on such an hour)
     return;
@@ -814,7 +844,7 @@ async function render(lite) {
   const t2 = performance.now();
   // 2. borders/coast/frame + header box (static layer)
   const kU = keyURL(pid, vid), L2 = { base: fitLayer(layer(st.base, st.baseU, rs), st.baseU, rs, LW, LH),
-    towns: fitLayer(layer(st.towns, st.townsU, rs), st.townsU, rs, LW, LH), key: fitLayer(layer(key, kU, rs), kU, rs, LW, LH) };
+    towns: fitLayer(layer(st.towns, st.townsU, rs), st.townsU, rs, LW, LH), key: kU ? fitLayer(layer(key, kU, rs), kU, rs, LW, LH) : null };
   window.__layers = Object.fromEntries(Object.entries(L2).map(([k, v]) => [k, v ? (v.naturalWidth || v.width) : 0]));
   ctx.drawImage(L2.base, 0, 0, LW, LH);
   // 3. product lines
@@ -859,7 +889,7 @@ async function render(lite) {
   if (WT) drawCoast(ctx, st, D, P, V, LW, LH, WT);
   if (P.lows && S.lowPanel) paintLowPanel(ctx, st, V, S.lowPanel);
   // 5. key + header text
-  ctx.drawImage(L2.key, 0, 0, LW, LH);
+  if (L2.key) ctx.drawImage(L2.key, 0, 0, LW, LH);
   drawCredit(ctx, st, pid, P, LW, LH, st.towns && tmode !== "none");   // 11-01-26 legal audit: credit line redrawn over the key's baked one
   const [r0, r1, c0, c1] = V.cut;                                            // same rows/cols temp_maps.cut() keeps
   if (!D.pct) D.pct = {};
@@ -895,7 +925,9 @@ async function render(lite) {
   postCompare(run, pid, vid, step);
   if (lite) return;
   // iOS Safari throws after 100 history.replaceState calls in 10 s: update the URL once things settle
-  if (!Q.get("clean")) clearTimeout(urlTimer), urlTimer = setTimeout(() => { const u = new URL(location); u.searchParams.set("prod", pid); u.searchParams.set("view", vid);
+  if (!Q.get("clean")) clearTimeout(urlTimer), urlTimer = setTimeout(() => {
+    if (S.run !== run || S.prod !== pid || S.view !== vid) return;   // a newer choice already wrote the address
+    const u = new URL(location); u.searchParams.set("prod", pid); u.searchParams.set("view", vid);
     u.searchParams.set("f", f); u.searchParams.set("run", run); u.searchParams.delete("model");
     if (isMemRun(run)) u.searchParams.set("mem", S.mem); else u.searchParams.delete("mem");
     u.searchParams.delete("mg"); u.searchParams.delete("obs"); try { history.replaceState(null, "", u); } catch (e) {} }, 400);

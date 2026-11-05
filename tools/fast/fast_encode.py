@@ -1525,11 +1525,26 @@ def static(m, out, views_only=None, x2_only=False):
     for k in prods:   # overnight 10-30 period variants: blank below the first level like their base products
         if k[:4] in ("snow", "kuch", "fzra", "nqpf", "nsno", "esno") and k[-1].isdigit() or k in ("nqpftot", "nsnowtot"): prods[k]["min_show"] = prods[k]["levels"][0]
     KEY_PIDS = set(filter(None, os.environ.get("WX_KEY_PIDS", "").split(",")))   # 11-01: optional, render keys only for these products (targeted republish)
+    # A partial key rebuild used to set keys to {} and then skip the product, so the manifest offered the
+    # product (ensemble 2 m anomaly) with no key path. The viewer then threw before saving the URL.
+    old_keys = {}
+    mp0 = f"{out}/manifest.json"
+    if os.path.exists(mp0):
+        try:
+            _oldm = json.load(open(mp0))
+            _oldp = (_oldm.get("models") or {}).get(m) or {}
+            for _bucket in ("products", "products_x", "products_p", "products_n", "products_t", "products_v"):
+                for _pid, _P in ((_oldp.get(_bucket) or {}).items()):
+                    if isinstance(_P, dict) and _P.get("keys"): old_keys[_pid] = _P["keys"]
+        except Exception:
+            old_keys = {}
     for pid, P in prods.items():
         P.setdefault("fill", P["fields"][0]); tk0 = list(P["ticks"])
         P.update(freeze_color=HS.FREEZE_COLOR, freeze_lw=HS.FREEZE_LW) if "freeze" in P else None
         P["keys"] = {}; kv = P.pop("keyver", "")   # 11-01: a changed scale gets new key file names (production keeps reading the old keys until it switches)
-        if KEY_PIDS and pid not in KEY_PIDS: continue
+        if KEY_PIDS and pid not in KEY_PIDS:
+            if old_keys.get(pid): P["keys"] = dict(old_keys[pid])
+            continue
         for vid in vids:
             fn = f"static/key_{m}_{pid}{kv}_{vid}.png"; P["keys"][vid] = fn
             fig, ax, ky = layer_fig(vid); x0, x1, y0, y1 = ax.get_extent(TM.VIEWS[vid]["proj"])

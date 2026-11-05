@@ -87,7 +87,7 @@ async def main():
                         ok = L["map"] and L["map"][0] >= -0.5 and L["map"][0] + L["map"][2] <= L["vw"] + 0.5 and L["doc"] <= L["vw"] + 1
                         res(bool(ok), f"{W}x{H} layout {before}", json.dumps(L))
                     if W >= 600:
-                        k = await p.evaluate("()=>{try{return new URL(keyURL(S.prod,S.view),location.href).href}catch(e){return null}}")
+                        k = await p.evaluate("()=>{try{const u=keyURL(S.prod,S.view); if(!u) return null; return new URL(u,location.href).href}catch(e){return null}}")
                         if k:
                             rr = await p.request.get(k, headers=HDR if k.startswith(B) else None); w = cvd_check(await rr.body())
                             res(min(w.values()) >= 3, f"colorblind {m} {pr}", json.dumps(w))
