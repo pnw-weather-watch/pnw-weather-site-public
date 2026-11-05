@@ -820,6 +820,110 @@
    "icao": null,
    "region": "pnw",
    "kind": "pass"
+  },
+  {
+   "id": "livermore",
+   "name": "Livermore",
+   "label": "Livermore (KLVK)",
+   "lat": 37.6934,
+   "lon": -121.8203,
+   "icao": "KLVK",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "concord",
+   "name": "Concord",
+   "label": "Concord (KCCR)",
+   "lat": 37.9897,
+   "lon": -122.0569,
+   "icao": "KCCR",
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "halfmoonbay",
+   "name": "Half Moon Bay",
+   "label": "Half Moon Bay",
+   "lat": 37.4636,
+   "lon": -122.4286,
+   "region": "ca",
+   "kind": "town"
+  },
+  {
+   "id": "coosbay",
+   "name": "Coos Bay",
+   "label": "Coos Bay (KOTH)",
+   "lat": 43.4171,
+   "lon": -124.246,
+   "icao": "KOTH",
+   "region": "or",
+   "kind": "town"
+  },
+  {
+   "id": "brookings",
+   "name": "Brookings",
+   "label": "Brookings (KBOK)",
+   "lat": 42.0744,
+   "lon": -124.2897,
+   "icao": "KBOK",
+   "region": "or",
+   "kind": "town"
+  },
+  {
+   "id": "tillamook",
+   "name": "Tillamook",
+   "label": "Tillamook",
+   "lat": 45.4562,
+   "lon": -123.844,
+   "region": "or",
+   "kind": "town"
+  },
+  {
+   "id": "florenceor",
+   "name": "Florence",
+   "label": "Florence OR",
+   "lat": 43.9826,
+   "lon": -124.0998,
+   "region": "or",
+   "kind": "town"
+  },
+  {
+   "id": "waimea",
+   "name": "Waimea",
+   "label": "Waimea (PHMU)",
+   "lat": 20.0013,
+   "lon": -155.6681,
+   "icao": "PHMU",
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "volcano",
+   "name": "Volcano",
+   "label": "Volcano HI",
+   "lat": 19.43,
+   "lon": -155.238,
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "naalehu",
+   "name": "Naalehu",
+   "label": "Naalehu",
+   "lat": 19.0658,
+   "lon": -155.5767,
+   "region": "hi",
+   "kind": "town"
+  },
+  {
+   "id": "pahoa",
+   "name": "Pahoa",
+   "label": "Pahoa",
+   "lat": 19.4947,
+   "lon": -154.9431,
+   "region": "hi",
+   "kind": "town"
   }
  ]
 }

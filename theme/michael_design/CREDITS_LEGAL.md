@@ -80,7 +80,7 @@ Not used: ERA5 climatology (Copernicus CDS). Licence is CC BY 4.0 since 2 July 2
 - **Canonical anomaly scale `anom_scale.py` / `anom_scale.json` (v4, Tue Nov 3, 2026):** an original palette.
   - It's our own v3 anchors smoothed in OKLab. It isn't copied from WeatherBell or any other site, and it needs no credit on images.
 
-## ECMWF wave fields (added Tue Nov 3, 2026 ~9:45 PM PST)
+## ECMWF wave fields (added Tue Nov 3, 2026 ~9:45 PM PST; Hawaii town numbers switched to this source Wed Nov 5 12:16 AM PT)
 - **Source:** ECMWF IFS HRES-WAM 0.25° open data, stream=wave (swh, mwd, pp1d, mwp) from data.ecmwf.int. Free, no login.
 - **Terms:** CC BY 4.0 plus the ECMWF Terms of Use, the same as the IFS row above. Benjamin approved ECMWF open data for this site.
 - **Credit on every wave image:** the full two-line credit above (the "Based on data and products of ECMWF, modified …" line plus the disclaimer).
@@ -90,11 +90,11 @@ Not used: ERA5 climatology (Copernicus CDS). Licence is CC BY 4.0 since 2 July 2
 
 ## Sources added Wed Nov 4, 2026 (second site)
 - **NOAA NWS NWPS, Nearshore Wave Prediction System (Honolulu office), via NOMADS `prnwps`:** US Government work, public domain. No credit is legally required. Optional courtesy line: "Nearshore waves: NOAA/NWS NWPS".
-  - Used for the Hawaii coast-town wave numbers on the Waves tab, Hawaii (wide) view.
+  - WAS used briefly for Hawaii coast-town wave numbers; **superseded 11-05** — Hawaii wave maps and Hawaii wave-town values now use **ECMWF IFS open wave (WAM 0.25°)** with the site's 1/4-mile offshore sampling (where the grid allows). NWPS may stay as an unused public-domain option; do not prefer it over ECMWF for HI.
   - Grids: CG2 Kauai, CG3 Oahu and CG4 Maui at about 500 m; CG1 for all islands at about 2.7 km (the only one covering the Big Island).
   - Towns-offshore table: `nearshore/hfo.json` → `towns` (grid, lat/lon, distance from the town pin, at least 400 m). Built by `tools/fast/nearshore_hfo.py`.
   - Finest legal resolution found: about 500 m. No free source gives a true 1/4 mile (400 m) grid. Town numbers are the model cell about 0.25–0.45 mi offshore (Kauai, Oahu, Maui) or a 2.7 km cell about 0.5–0.7 mi offshore (Big Island).
-- **PacIOOS SWAN (Univ. of Hawaii), 500 m:** NOT used. Its terms say the data "may be used and redistributed for free but is not intended for legal use" and ask for acknowledgment. Commercial or monetized use isn't explicitly addressed, so Benjamin has to approve it first.
+- **PacIOOS SWAN (Univ. of Hawaii), 500 m:** NEVER used (Benjamin 11-05: Hawaii waves = European/ECMWF only). Its terms say the data "may be used and redistributed for free but is not intended for legal use" and ask for acknowledgment. Commercial or monetized use isn't explicitly addressed, so Benjamin has to approve it first.
 - **NOAA PSL NCEP/NCAR Reanalysis 1, SLP monthly long-term mean 1991–2020 (`slp.mon.ltm.1991-2020.nc`):** US Government, public domain. Used for the MSLP anomaly normals (`tools/fast/clim/ncep_slp_mon_ltm_1991_2020.npz`).
   - Courtesy line, already in the run line: "vs 1991–2020 NCEP/NCAR monthly normal". No image credit is legally required.
 - **Natural Earth 10m roads (`ne_10m_roads`):** public domain. Used for the major interstate and US highway lines on the Sierra Passes view. Covered by the existing "Basemap: Natural Earth" credit.

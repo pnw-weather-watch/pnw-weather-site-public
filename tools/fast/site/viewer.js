@@ -1027,6 +1027,9 @@ const COAST_VIEWS = {   // order = priority; buoys: "first" = WA buoys placed be
   ca: { style: "region", re: [], add: ["San Francisco", "Los Angeles", "San Diego", "Monterey", "Eureka", "Crescent City", "Santa Barbara", "Half Moon Bay",
         "Santa Cruz", "Morro Bay", "Fort Bragg", "Bodega Bay", "Cape Mendocino", "Point Arena", "Point Conception", "Malibu", "Oceanside", "Brookings"], buoys: "after", side: "r" },
   hiw: { style: "region", re: [], add: ["Hanalei", "Haleiwa", "Honolulu", "Makapuu", "Kahului", "Lahaina", "Hilo", "Kailua-Kona"], buoys: "after", side: "r" },
+  bigi: { style: "region", re: [], add: ["Hilo", "Kailua-Kona"], buoys: "after", side: "r" },
+  bay: { style: "region", re: [], add: ["San Francisco", "Half Moon Bay", "Santa Cruz", "Monterey", "Bodega Bay", "Point Arena"], buoys: "after", side: "r" },
+  orco: { style: "region", re: [], add: ["Astoria", "Cannon Beach", "Garibaldi", "Newport", "Florence", "Shore Acres", "Coos Bay", "Brookings"], buoys: "after", side: "r" },
   pac: { style: "region", re: [], add: ["Westport", "Newport", "Eureka", "San Francisco", "Los Angeles", "Hanalei", "Honolulu", "Hilo"], buoys: "after", side: "r" } };   // no other city labels here: town names go on the (empty) land side, buoy labels keep the ocean
 const coastPx = (st, V) => (la, lo) => { const cr = MD().crop || [0, 0, 0, 0], k = `${la},${lo}`; if (!st.coastPx) st.coastPx = {};
   if (!(k in st.coastPx)) { const q = gridInv(V, st, (90 - la) / 0.25 - cr[0], ((lo + 360) % 360) / 0.25 - cr[2], null);
@@ -1114,19 +1117,13 @@ function offshorePt(name, la, lo) {
   const b = (OFF_BRG[name] ?? 270) * Math.PI / 180, km = OFF_KM;
   return [la + km * Math.cos(b) / 111.2, lo + km * Math.sin(b) / (111.2 * Math.cos(la * Math.PI / 180))];
 }
-// 11-04 (Benjamin 3:09 PM): Hawaii coast towns read NOAA NWPS nearshore wave heights (~500 m grids on Kauai / Oahu / Maui, 2.7 km
-// on the Big Island) at one offshore point >= 400 m seaward (table: DATA nearshore/hfo.json "towns"). Waves products only; max
-// wave keeps the site's 1.86 x Hs rule. Falls back to the ECMWF/model grid when no NWPS hour is within 90 min of the map's time.
-const NS = { hfo: null }; fetch(`${DATA}nearshore/hfo.json`).then(r => r.ok ? r.json() : null).then(j => { NS.hfo = j; }).catch(() => {});
-function nearshoreVal(name) {
-  const J = NS.hfo; if (!J || !J.towns[name] || !/^(waves|wavemax)$/.test(S.prod)) return NaN;
-  const st = S.runs[S.run] && S.runs[S.run].steps[S.i]; if (!st) return NaN; const t = Date.parse(st.valid);
-  let best = null; for (const s of J.steps) { const d = Math.abs(Date.parse(s.valid) - t); if (d <= 90 * 60e3 && (!best || d < best[0])) best = [d, s]; }
-  const v = best && best[1].v[name]; return v == null ? NaN : (S.prod === "wavemax" ? v * 1.86 : v);
-}
-function offVal(D, name, T, WT) {   // t2004u: the town's number from its 1/4 mi offshore marker (see OFFSHORE)
-  if (WT.vid === "hiw") { const n = nearshoreVal(name); if (isFinite(n)) { (WT.vals = WT.vals || {})[name] = [NaN, Math.round(n), "NOAA NWPS nearshore"]; return n; } }
-  const [a, b] = offshorePt(name, T[0], T[1]); let v = seaVal(D, a, b), how = "offshore";
+// 11-05 (Benjamin 12:16 AM PT): Hawaii wave maps + Hawaii wave-town values use the European model (ECMWF IFS open wave /
+// WAM 0.25°, already approved) — same 1/4 mi offshore sampling as the mainland (where the 0.25° grid allows). Do NOT use
+// PacIOOS. NOAA NWPS nearshore is no longer preferred for HI town numbers (kept fetch unused so old preview caches stay harmless).
+const NS = { hfo: null }; // NWPS table left unloaded on purpose (PacIOOS never; HI towns = ECMWF/model seaVal)
+function nearshoreVal(name) { return NaN; }   // disabled 11-05: HI towns read ECMWF/model via offVal
+function offVal(D, name, T, WT) {   // t2004u / 11-05: 1/4 mi offshore marker for every wave view incl. Hawaii (hiw / bigi)
+  const [a, b] = offshorePt(name, T[0], T[1]); let v = seaVal(D, a, b), how = "offshore (ECMWF/model)";
   if (!isFinite(v)) { v = seaVal(D, T[0], T[1]); how = "town (no sea near the marker)"; }
   (WT.vals = WT.vals || {})[name] = [Math.round(seaVal(D, T[0], T[1])), Math.round(v), how]; return v;
 }
@@ -1647,7 +1644,7 @@ function gridInv(V, st, fi, fj, guess) {   // [fi, fj] -> panel px, or null when
 // with H ... highest pressure number"; 1:27 AM: also on MSLP + wind maps). Old site's house_style.find_centers ported: smoothed
 // MSLP, neighbourhood extreme over a radius (km) per view, prominence vs the median of the ring at that radius, min spacing;
 // the number is the raw (unsmoothed) min / max near the centre. Drawn on every map with MSLP isobars except ensemble lows.
-const HL_VIEW = { na: [800, 3.0, 75], pac: [1000, 3.0, 90], pnw: [400, 2.0, 50], pnwt: [400, 2.0, 50], pnwhr: [400, 2.0, 45], ca: [400, 2.0, 45], hiw: [400, 2.0, 50] };   // [KIT] from regions.json   // radius km, prominence mb, smoothing km
+const HL_VIEW = { na: [800, 3.0, 75], pac: [1000, 3.0, 90], pnw: [400, 2.0, 50], pnwt: [400, 2.0, 50], pnwhr: [400, 2.0, 45], ca: [400, 2.0, 45], hiw: [400, 2.0, 50], bay: [200, 1.2, 35], orco: [220, 1.2, 40], bigi: [180, 1.5, 35] };   // [KIT] from regions.json   // radius km, prominence mb, smoothing km
 const HL_WA = [250, 1.5, 35];   // Washington-type frames (old HL_RADIUS_KM / HL_PROMINENCE_MB "wa")
 const HL_LOW_COLOR = (getComputedStyle(document.documentElement).getPropertyValue("--map-lo") || "").trim() || "#E4572E", HL_HIGH_COLOR = (getComputedStyle(document.documentElement).getPropertyValue("--map-hi") || "").trim() || "#0B2545";   // [THEME]   // L red, H blue (Benjamin 10-31 1:42 AM; old site H blue #1747c9)
 function drawHL(ctx, st, D, V, gk, P) {

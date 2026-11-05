@@ -342,6 +342,91 @@
    ],
    "models": "global",
    "from": "NEW (islands plus surrounding ocean; CONUS HRRR/RRFS/NBM grids do not cover Hawaii)"
+  },
+  "bay": {
+   "label": "Bay Area",
+   "size": [
+    16,
+    14
+   ],
+   "proj": [
+    "lcc",
+    -122.35,
+    37.7,
+    [
+     36.5,
+     38.5
+    ]
+   ],
+   "ll": [
+    -123.55,
+    -121.15,
+    36.75,
+    38.65
+   ],
+   "box": [
+    -124.6,
+    -120.3,
+    35.7,
+    39.5
+   ],
+   "models": "hires+global",
+   "from": "NEW 11-05 Benjamin: Bay Area frame (Monterey Bay to Santa Rosa, Farallones to Livermore)"
+  },
+  "orco": {
+   "label": "Oregon coast",
+   "size": [
+    16,
+    14
+   ],
+   "proj": [
+    "lcc",
+    -123.9,
+    44.2,
+    [
+     42.5,
+     45.5
+    ]
+   ],
+   "ll": [
+    -125.15,
+    -122.35,
+    41.95,
+    46.35
+   ],
+   "box": [
+    -126.4,
+    -121.3,
+    40.9,
+    47.2
+   ],
+   "models": "hires+global",
+   "from": "NEW 11-05 Benjamin: Oregon coast (Astoria to Brookings, coast upright)"
+  },
+  "bigi": {
+   "label": "Big Island",
+   "size": [
+    16,
+    14
+   ],
+   "proj": [
+    "merc",
+    -155.5
+   ],
+   "ll": [
+    -156.55,
+    -154.55,
+    18.75,
+    20.35
+   ],
+   "box": [
+    -157.3,
+    -153.9,
+    18.2,
+    20.9
+   ],
+   "models": "global",
+   "from": "NEW 11-05 Benjamin: Big Island-only Hawaii close-up"
   }
  },
  "smooth": {
@@ -356,7 +441,10 @@
   "hiw": 0.6,
   "socal": 0.3,
   "cenca": 0.3,
-  "norca": 0.3
+  "norca": 0.3,
+  "bay": 0.2,
+  "orco": 0.25,
+  "bigi": 0.3
  },
  "region_towns": {
   "pnwhr": [
@@ -414,6 +502,38 @@
     15000
    ],
    45
+  ],
+  "pnw": [
+   [
+    500000,
+    100000,
+    30000
+   ],
+   60
+  ],
+  "bay": [
+   [
+    200000,
+    50000,
+    10000
+   ],
+   50
+  ],
+  "orco": [
+   [
+    100000,
+    25000,
+    5000
+   ],
+   40
+  ],
+  "bigi": [
+   [
+    15000,
+    3000,
+    500
+   ],
+   30
   ]
  },
  "hl": {
@@ -426,7 +546,10 @@
    "hiw": 500,
    "socal": 250,
    "cenca": 250,
-   "norca": 250
+   "norca": 250,
+   "bay": 200,
+   "orco": 220,
+   "bigi": 180
   },
   "prominence_mb": {
    "na": 3.0,
@@ -437,7 +560,10 @@
    "hiw": 2.0,
    "socal": 1.5,
    "cenca": 1.5,
-   "norca": 1.5
+   "norca": 1.5,
+   "bay": 1.2,
+   "orco": 1.2,
+   "bigi": 1.5
   },
   "edge_km": {
    "na": 500,
@@ -448,7 +574,10 @@
    "hiw": 400,
    "socal": 250,
    "cenca": 250,
-   "norca": 250
+   "norca": 250,
+   "bay": 180,
+   "orco": 200,
+   "bigi": 150
   }
  },
  "barbs_across": {
@@ -461,7 +590,10 @@
   "hiw": 18,
   "socal": 18,
   "cenca": 18,
-  "norca": 18
+  "norca": 18,
+  "bay": 16,
+  "orco": 16,
+  "bigi": 14
  },
  "model_views": {
   "hrrr": [
@@ -471,6 +603,8 @@
    "socal",
    "cenca",
    "norca",
+   "bay",
+   "orco",
    "capasses"
   ],
   "rrfs": [
@@ -480,6 +614,8 @@
    "socal",
    "cenca",
    "norca",
+   "bay",
+   "orco",
    "capasses"
   ],
   "nbm": [
@@ -489,6 +625,8 @@
    "socal",
    "cenca",
    "norca",
+   "bay",
+   "orco",
    "capasses"
   ],
   "gfs": [
@@ -501,8 +639,11 @@
    "socal",
    "cenca",
    "norca",
+   "bay",
+   "orco",
    "capasses",
-   "hiw"
+   "hiw",
+   "bigi"
   ],
   "ifs": [
    "na",
@@ -514,8 +655,11 @@
    "socal",
    "cenca",
    "norca",
+   "bay",
+   "orco",
    "capasses",
-   "hiw"
+   "hiw",
+   "bigi"
   ],
   "ifs9": [
    "pnwt",
@@ -524,8 +668,11 @@
    "socal",
    "cenca",
    "norca",
+   "bay",
+   "orco",
    "capasses",
-   "hiw"
+   "hiw",
+   "bigi"
   ],
   "aifs": [
    "na",
@@ -536,7 +683,10 @@
    "socal",
    "cenca",
    "norca",
-   "hiw"
+   "bay",
+   "orco",
+   "hiw",
+   "bigi"
   ],
   "eps": [
    "na",
@@ -547,7 +697,10 @@
    "socal",
    "cenca",
    "norca",
-   "hiw"
+   "bay",
+   "orco",
+   "hiw",
+   "bigi"
   ],
   "aens": [
    "na",
@@ -558,7 +711,10 @@
    "socal",
    "cenca",
    "norca",
-   "hiw"
+   "bay",
+   "orco",
+   "hiw",
+   "bigi"
   ],
   "oisst": [
    "na",
@@ -568,7 +724,10 @@
    "socal",
    "cenca",
    "norca",
-   "hiw"
+   "bay",
+   "orco",
+   "hiw",
+   "bigi"
   ],
   "gfsw": [
    "na",
@@ -579,7 +738,24 @@
    "socal",
    "cenca",
    "norca",
-   "hiw"
+   "bay",
+   "orco",
+   "hiw",
+   "bigi"
+  ],
+  "epsm": [
+   "na",
+   "pac",
+   "pnw",
+   "pnwt",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "bay",
+   "orco",
+   "hiw",
+   "bigi"
   ]
  },
  "default_view": "pnw",
