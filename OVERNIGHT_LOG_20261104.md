@@ -73,3 +73,6 @@
 
 | 01:21 | Obs sat 4h scrubber verified (slideW=480 px, Clean IR on). Stretch4 full preview guard earlier: **FINAL_OK 848 / 0 FAIL**. | - | obs_sat_loop4_AFTER4_desktop.png |
 | 01:22 | Fix run.json `expected` = full cadence (not --steps window); repaired eps/epsm/aens expected on disk + syncing preview. Commit **298eac2**. Restarted extends toward F360: EPS F246–360, AENS F246–360, epsm F252–360 (background). | 298eac2 | - |
+
+| 01:25 | Wire unused `SCALE_FLOOR_SNOWRATE` (3 in/h) on pass winter meteogram; 6 h floor on winter bars; multi-run 12 in floor snow-only. Preview deploy **d5ddd687**. Commit **a9aae70**. | a9aae70 | meteogram_*_AFTER*.png, pass_snoq_snowfloor_AFTER3_desktop.png |
+| 01:28 | Ensembles F246+ encoding in background (AENS/epsm writing; EPS downloading). Obs sat scrubber verified earlier (slideW=480). WW3 remains open-decision only. | - | obs_sat_loop4_AFTER4_desktop.png |

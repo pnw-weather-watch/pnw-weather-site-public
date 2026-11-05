@@ -79,10 +79,11 @@ Rollback target for the last prod deploy remains **`b51db3eb`** (record `ROLLBAC
 Final polish-pass QA (Access token rotated for `pnw-qa`; Playwright chromium reinstalled): **FINAL_OK 576 / FINAL_FAIL 0** — `qa/guard_preview_final_20261104.log` (started 23:27 PT; all GUARD_MODELS batches OK on first attempt). Earlier full guard same night: **577 OK / 0 FAIL** (`qa/guard_preview_full_20261104.log`).
 
 
-## Stretch 4 status (preview, ~01:10 PT 11-05)
+## Stretch 4 status (preview, ~01:30 PT 11-05)
 
 - **Hawaii waves:** ECMWF IFS open wave; coast-only town numbers (1/4-mi offshore). Commits `f5ef608`, `80ef26c`.
-- **Views:** Bay Area (`bay`), Oregon coast (`orco`), Big Island (`bigi`) on preview.
+- **Views:** Bay Area (`bay`), Oregon coast (`orco`), Big Island (`bigi`) on preview with full product support.
 - **PNW towns:** 29 labels on t2m / names on mslpa (CA-like tiers).
-- **Ensembles:** EPS mean F3–F240 (64 steps); epsm F6–F240 (30); AENS F6–F240 (40).
-- **Weather Bot B (in progress):** pass/meteogram snow scale floors; ECMWF `gust3`/`gust6`; obs sat 4-hour loop + scrubber row; F+ badge / elows key verify; no Studio/Social.
+- **Ensembles:** EPS/epsm/AENS to **F240** on preview; background extends toward F360 in progress (EPS F246–360, AENS F246–360, epsm F252–360). `run.json` `expected` = full cadence (`298eac2`).
+- **Weather Bot B (preview):** snow scale floors (≥12 in/6 h pass+meteogram; ≥3 in/h snow-rate on pass winter meteogram) `c6077eb` + `a9aae70`; ECMWF `gust3`/`gust6`; obs sat **4-hour** loop + scrubber row (~480 px); F+ badge / elows key / buoys+H/L verified in shots. No Studio/Social. Preview deploy `d5ddd687` (HEAD `a9aae70`).
+- **WW3 / gfsw:** open decision #5 only — not newly wired.
