@@ -23,7 +23,20 @@
    11-03 (t2226u) "Hide menu" button: collapses the view / layer / satellite chips (choice kept in localStorage obsMenuMin). */
 "use strict";
 const ObsImg = (() => {
-  const RAD_WMS = "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows";
+  let RAD_WMS = "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows";
+  // 11-04 kit (#18): per-region "detail" boxes. California and Hawaii get their own sharp tiles; Hawaii radar = NOAA/NWS MRMS Hawaii mosaic (same server, public domain)
+  const REG = {
+    pnw: { radar: { detail: { box: [-130, 39, -104, 53], px: [2080, 1120] }, wide: { box: [-130, 30, -100, 55], px: [1200, 1250] } }, sat: { box: [-140, 37, -100, 57], px: [2000, 1000] }, wms: "conus/conus_bref_qcd", layer: "conus_bref_qcd" },
+    ca: { radar: { detail: { box: [-126, 31.5, -113, 43], px: [1300, 1150] }, wide: { box: [-130, 30, -100, 55], px: [1200, 1250] } }, sat: { box: [-130, 30, -112, 44], px: [1800, 1400] }, wms: "conus/conus_bref_qcd", layer: "conus_bref_qcd" },
+    hi: { radar: { detail: { box: [-161.5, 18.5, -154.5, 22.6], px: [1400, 820] }, wide: { box: [-163, 17, -153, 24], px: [1000, 700] } }, sat: { box: [-163, 17, -153, 24], px: [1500, 1050] }, wms: "hawaii/hawaii_bref_qcd", layer: "hawaii_bref_qcd" },
+  };
+  const regOf = (ll) => !ll ? "pnw" : ll[1] < 26 && ll[0] < -150 ? "hi" : ll[1] < 42.3 ? "ca" : "pnw";
+  function setReg(r) {
+    if (ST.reg === r) return; ST.reg = r; const R = REG[r];
+    SRC.radar.tiles = JSON.parse(JSON.stringify(R.radar)); SRC.radar.layer = R.layer; RAD_WMS = `https://opengeo.ncep.noaa.gov/geoserver/${R.wms}/ows`;
+    for (const id of ["ir", "gc"]) SRC[id].tiles.detail = { box: R.sat.box.slice(), px: R.sat.px.slice() };
+    ST.timesAt.radar = 0; for (const k of [...ST.img.keys()]) if (k.includes("|detail|") || k.startsWith("radar|")) { const x = ST.img.get(k); x.im.src = ""; if (x.u) URL.revokeObjectURL(x.u); ST.img.delete(k); }
+    bump(); }
   const GIBS_WMS = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
   const GIBS_ACK = "We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).";
   const GIBS_ACK2 = ["We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS),", "part of NASA's Earth Science Data and Information System (ESDIS)."];   // Studio: two lines
@@ -111,6 +124,7 @@ const ObsImg = (() => {
     for (const k of [...ST.img.keys()]) if (!keep.has(k) || !on().includes(k.split("|")[0])) { const r = ST.img.get(k); r.im.src = ""; if (r.u) URL.revokeObjectURL(r.u); ST.img.delete(k); }
   }
   const tileFor = (id) => { const S = ST.obs; if (!S) return "detail";
+    setReg(regOf(inv(S.cx, S.cy)));
     const T = SRC[id].tiles.detail.box, kmpx = 1 / (S.k * Math.min(S.dpr || 1, 2));   // device-pixel scale
     if (kmpx > 2.2) return "wide";
     // zoomed in: detail box, unless the view centre is outside it
