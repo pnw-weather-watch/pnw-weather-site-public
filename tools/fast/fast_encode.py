@@ -1603,11 +1603,23 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None):
         pk = ranges.pop("_packs", {})
         meta[s] = dict(f=s, valid=v.isoformat(), valid_line=f"Valid {vl:%a %-m-%-d} \u00b7 {vl:%-I %p} PT", badge=[f"F+{s}", f"{v:%HZ %a}".upper()], ranges=ranges)
         if pk: meta[s]["packs"] = pk
-    # progressive: publish only the unbroken run of steps from the first one (no holes in the slider)
-    ordered = []; 
+    # progressive: publish only the unbroken run of steps from the first one (no holes in the slider).
+    # 11-04: when --steps is a window (e.g. 51-96), keep already-published hours before that window so an
+    # extend does not wipe F3-F48 off the run.
+    prior = [meta[s_["f"]] for s_ in (run or {}).get("steps", []) if s_["f"] not in want and s_["f"] in meta]
+    ordered = list(prior)
     for s in want:
         if s in meta: ordered.append(meta[s])
         else: break
+    ordered = sorted({s_["f"]: s_ for s_ in ordered}.values(), key=lambda x: x["f"])  # unique, time order
+    # re-check unbroken from the model's full cadence (or prior+want)
+    full_want = steps_for(m, c.hour)
+    unbroken = []
+    for s in full_want:
+        hit = next((x for x in ordered if x["f"] == s), None)
+        if hit: unbroken.append(hit)
+        else: break
+    ordered = unbroken
     fields = sorted({k for s_ in ordered for k in s_["ranges"]})
     MM = minfo(m)
     run = dict(model=m, cycle=cycle, init=c.isoformat(), base=f"runs/{m}/{cycle}", fields=fields, grid=dict(ny=i1 - i0, nx=j1 - j0),
