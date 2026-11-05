@@ -15,7 +15,7 @@ import cartopy.io.shapereader as shp
 from shapely.geometry import box, mapping
 from shapely.ops import unary_union
 
-BBOX = box(-180, 24, -88, 76)
+BBOX = box(-180, 18, -88, 76)   # 11-04: lat 18 so Hawaii is in the obs basemap
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "web", "forecast", "obs", "basemap.json")
 TOL = {"lo": 0.03, "hi": 0.006}
 

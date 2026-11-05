@@ -5,3 +5,4 @@ deploy/functions/
 deploy/public/
 deploy/node_modules/
 qa/guard_*.log
+tools/fast/site/obs

@@ -22,7 +22,7 @@ const Obs = (() => {
   const HERE = new URL(".", (document.currentScript && document.currentScript.src) || location.href).href;   // basemap.json sits next to this file
   const ECCC = "https://api.weather.gc.ca/collections/swob-realtime/items";
   const IEM = "https://mesonet.agron.iastate.edu/api/1/currents.json";
-  const US_NETS = ["WA", "OR", "ID", "MT", "CA", "NV", "UT", "WY", "AZ", "CO", "NM", "AK"].map((s) => s + "_ASOS");
+  const US_NETS = ["WA", "OR", "ID", "MT", "CA", "NV", "UT", "WY", "AZ", "CO", "NM", "AK", "HI"].map((s) => s + "_ASOS");
   const CA_BBOX = "-141,41,-100,70";        // BC, Alberta, Yukon, NWT west, Saskatchewan west
   const ECCC_PROPS = ["stn_nam-value", "msc_id-value", "icao_stn_id-value", "date_tm-value", "data_pvdr-value",
     "air_temp", "air_temp-qa", "avg_wnd_spd_10m_pst10mts", "avg_wnd_dir_10m_pst10mts", "avg_wnd_spd_10m_pst2mts",
@@ -44,6 +44,8 @@ const Obs = (() => {
     { id: "pnw", label: "Pacific NW", lon: -120.9, lat: 47.3, span: 1150, proj: [-121, 44, 50, 47] },
     { id: "west", label: "West + Western Canada", lon: -122, lat: 52.5, span: 3300, proj: [-122, 45, 60, 52] },
     { id: "salish", label: "Vancouver Island + Puget Sound", lon: -123, lat: 48.6, span: 600, proj: [-123, 46, 50, 48.5] },
+    { id: "ca", label: "California", lon: -119.6, lat: 37.2, span: 1150, proj: [-120, 34, 40, 37] },   // 11-04 kit: CA + HI presets
+    { id: "hi", label: "Hawaii", lon: -157.4, lat: 20.5, span: 620, proj: [-157.5, 19, 22, 20.5] },
   ];
 
   /* ---- Lambert conformal conic (sphere, km), one per view so each view reads "north-up" ---- */
