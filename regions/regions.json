@@ -200,7 +200,7 @@
   "socal": {
    "label": "Southern California",
    "size": [
-    15,
+    16,
     15
    ],
    "proj": [
@@ -213,19 +213,19 @@
     ]
    ],
    "ll": [
-    -122.61,
-    -113.5,
+    -124.56,
+    -111.56,
     31.4,
     37.1
    ],
    "box": [
-    -125.11,
-    -111.5,
+    -126.81,
+    -109.31,
     29.4,
     39.1
    ],
    "models": "hires+global",
-   "from": "11-04 8:47 PM Benjamin: a bit wider east (~12.5%), 50 mi further west"
+   "from": "11-05 8:33 AM Benjamin: same E-W width as Northern CA; center kept"
   },
   "cenca": {
    "label": "Central California",
@@ -243,19 +243,19 @@
     ]
    ],
    "ll": [
-    -127.15,
-    -115.75,
+    -127.95,
+    -114.95,
     34.2,
     39.9
    ],
    "box": [
-    -129.65,
-    -113.75,
+    -130.2,
+    -112.7,
     32.2,
     41.9
    ],
    "models": "hires+global",
-   "from": "11-04 8:47 PM Benjamin: twice as wide E-W (Sacramento/San Jose to Bakersfield kept)"
+   "from": "11-05 8:33 AM Benjamin: same E-W width as Northern CA; center kept"
   },
   "norca": {
    "label": "Northern California",

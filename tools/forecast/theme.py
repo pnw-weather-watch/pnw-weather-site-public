@@ -48,6 +48,7 @@ def apply_house_style(g):
         return sm([f], hot, hotc)[0]
     L = g["TEMP_LEVELS"]; g["temp_color"] = temp_color
     g["TEMP_COLORS"] = [temp_color(v) for v in (L[:-1] + L[1:]) / 2.0]
+    g["TEMP_UNDER"], g["TEMP_OVER"] = tc[0], tc[-1]   # 11-05: under/over from theme/temp_scale.json (all models share)
     L8 = g["T850_LEVELS"]; g["T850_COLORS"] = [temp_color(c * 1.8 + 32) for c in (L8[:-1] + L8[1:]) / 2.0]
     # precip (6 h / totals): Michael QPF ramp (no green); RAIN_* keeps Benjamin's level spacing, colors re-mapped onto Michael's edges
     Q = J("qpf_wave_scales.json")["qpf"]; qe = Q["edges_in"]; qc = Q["colors"]
