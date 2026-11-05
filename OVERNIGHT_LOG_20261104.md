@@ -37,3 +37,6 @@
 | 21:35 | #12 member grids + #13 member meteograms (EPS mem data F3-F48 + epsm F6-F72); MSLP a80 keys for socal/cenca/norca into site mkeys; epsm model wired on preview | 12d5698 | mgrid_tmax_*, mlines_t2m_*, mgrid_qpf_*, meteograms_honolulu_*, mslpa_a80_*_desktop.png, epsm_mslp_m01_pnw_desktop.png |
 
 | 21:45 | #12/#13 member grids + meteograms screenshots; MSLP a80 keys for new CA views; epsm (snow member) on preview; WA Maps hold. Guard: 397 OK before timeout (more models), 0 FAIL so far. Commits 12d5698, abea624, c6fe3e6 |
+
+| 22:25 | epsm CVD-safe keys for SLP / gust / 500 mb height anomaly (palette fixed, deutan/protan dE>=3.2); snow kept; MODELS+filter in fast_encode; theme/epsm_cvd_scales.json; preview R2 synced. #18 radar/sat CA+HI confirmed (radsat_*). WA Maps still HOLD. |
+| | Commits: pending | epsm_{gust10,slp,snow,z500anom}_pnw_{desktop,phone}.png |

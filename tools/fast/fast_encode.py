@@ -56,10 +56,15 @@ MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lo
     # 11-03 (Benjamin t2169u, waves tab): NOAA OISST v2.1 daily sea surface temperature anomaly (NCEI, public domain), regridded from its
     # 0.125-offset 0.25 deg grid to the GFS 0.25 deg grid (same crop / layers); one "run" = the newest 14 daily analyses (tools/fast/oisst.py)
     "oisst": dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0,), steps=list(range(0, 14 * 24, 24)), keep=1, grid_from="gfs", note="daily analyses, newest 14 days"),
+    # 11-04: EPS single members (epsm). Static layers/clim reuse EPS (same crop); four member fields in mem_*.webp.
+    # Color keys from theme/epsm_cvd_scales.json (deutan/protan neighbour dE >= 3).
+    "epsm": dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 12), steps=list(range(6, 121, 6)) + list(range(132, 361, 12)), keep=2, grid_from="eps",
+                 note="0.5 deg single members; CVD-safe keys"),
 }
 MINFO = {"aens": dict(name="ECMWF AIFS Ensemble", site="AIFS ENS", res="0.25\u00b0 \u00b7 50 members", credit_as="aifs"),
          "nbm": dict(name="NOAA NBM", site="NBM", res="2.5 km", noaa=True),
          "eps": dict(name="ECMWF Ensemble", site="ECMWF EPS", res="0.25\u00b0 \u00b7 50 members", credit_as="ifs"),
+         "epsm": dict(name="ECMWF EPS Member", site="ECMWF EPS member", res="0.5\u00b0 \u00b7 single member", credit_as="ifs"),
          "ifs9": dict(name="ECMWF IFS", site="ECMWF 9 km", res="9 km (0.1\u00b0)", credit_as="ifs"),
          "gfsw": dict(name="NOAA WaveWatch III", site="NOAA WW3", res="0.25\u00b0", noaa=True),
          "oisst": dict(name="NOAA OISST v2.1", site="NOAA OISST", res="0.25\u00b0 daily", noaa=True)}
@@ -1371,6 +1376,21 @@ def static(m, out, views_only=None, x2_only=False):
         prods = {k: v for k, v in prods.items() if set(v["fields"]) <= set(GFSW_FIELDS)}
         if "waves" in prods: prods["waves"]["extra"] = "arrows = primary wave direction  \u00b7  up to {hi} ft in view"
     if m == "oisst": prods = {k: v for k, v in prods.items() if k == "ssta"}
+    if m == "epsm":   # 11-04: four member products; CVD-safe keys from theme/epsm_cvd_scales.json (deutan/protan dE>=3)
+        sc = json.load(open(os.path.join(os.path.dirname(HERE), "..", "..", "theme", "epsm_cvd_scales.json")))
+        base = {k: dict(ALLP[k]) for k in ("slp", "gust10", "z500anom", "snow") if k in ALLP}
+        base["slp"]["fields"] = ["mslp"]; base["slp"]["title"] = "Sea-Level Pressure (member)"; base["slp"]["extra"] = "EPS single member  \u00b7  isobars every 4 mb"
+        base["gust10"]["fields"] = ["gust"]; base["gust10"]["fill"] = "gust"; base["gust10"]["title"] = "10 m Wind Gusts (member)"
+        base["gust10"]["extra"] = "EPS single member  \u00b7  ECMWF gust window (1/3/6 h)  \u00b7  up to {hi} mph in view"
+        base["z500anom"]["title"] = "500 mb Height Anomaly (member)"; base["z500anom"]["extra"] = "EPS single member  \u00b7  vs 1991-2020 normal  \u00b7  {lo} to {hi} m in view"
+        base["snow"]["fields"] = ["asnow"]; base["snow"]["fill"] = "asnow"; base["snow"]["title"] = "Snowfall Total (member)"
+        base["snow"]["extra"] = "EPS single member  \u00b7  ECMWF snowfall water x 10 (10:1)  \u00b7  max {hi} in in view"
+        for pid, P in base.items():
+            if pid in sc:
+                P["levels"] = sc[pid]["levels"]; P["colors"] = sc[pid]["colors"]; P["ticks"] = sc[pid]["ticks"]
+                P.pop("cmap_of", None); P["_cm"] = HS.cmap(P["colors"], P["colors"][0], P["colors"][-1]); P["under"] = None; P["over"] = P["colors"][-1]
+                P["keyver"] = "_cvd"
+        prods = {k: base[k] for k in ("gust10", "slp", "snow", "z500anom") if k in base}
     if m == "ifs9":   # 9 km: no waves (0.25 deg only) and no anomalies (would need 0.1 deg climatology files: more R2 space)
         prods = {k: v for k, v in prods.items() if not v.get("clim") and not set(v["fields"]) & IFS9_SKIP}
     if m == "nbm":   # National Blend: its own period fields (1/6 h precip, 6 h snow, 3 h thunder, 12 h max/min)
