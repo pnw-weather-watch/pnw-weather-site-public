@@ -1,0 +1,767 @@
+{
+ "note": "Single region file for the second site. lcc = Lambert conformal (lon0, lat0, std parallels); merc = Mercator(lon0). ll = lon/lat shown (W,E,S,N); box = data box drawn (a bit larger). Views marked models=global run only on global models (GFS, ECMWF IFS/AIFS, ensembles); hires = HRRR/RRFS/NBM CONUS grids too.",
+ "views": {
+  "na": {
+   "label": "North America",
+   "size": [
+    16,
+    12
+   ],
+   "proj": [
+    "lcc",
+    -120,
+    48,
+    [
+     35,
+     60
+    ]
+   ],
+   "extent": [
+    -4670000.0,
+    4330000.0,
+    -3300000.0,
+    3400000.0
+   ],
+   "box": [
+    -210,
+    -5,
+    5,
+    88
+   ],
+   "models": "global",
+   "from": "Benjamin (unchanged)"
+  },
+  "pac": {
+   "label": "Pacific",
+   "size": [
+    16,
+    9.5
+   ],
+   "proj": [
+    "merc",
+    -160
+   ],
+   "ll": [
+    -210,
+    -110,
+    5,
+    62
+   ],
+   "box": [
+    -220,
+    -100,
+    0,
+    68
+   ],
+   "models": "global",
+   "from": "NEW (whole North Pacific, Japan to the West Coast; lon -210..-110 crosses the dateline)"
+  },
+  "pnw": {
+   "label": "Pacific Northwest",
+   "size": [
+    16,
+    10.5
+   ],
+   "proj": [
+    "merc",
+    -130
+   ],
+   "ll": [
+    -160,
+    -103,
+    37,
+    61
+   ],
+   "box": [
+    -165,
+    -98,
+    32,
+    66
+   ],
+   "models": "global",
+   "from": "Benjamin (unchanged)"
+  },
+  "pnwt": {
+   "label": "Pacific NW tight",
+   "size": [
+    16,
+    10.5
+   ],
+   "proj": [
+    "merc",
+    -126
+   ],
+   "ll": [
+    -138.0,
+    -113.5,
+    40.5,
+    54.5
+   ],
+   "box": [
+    -145,
+    -106,
+    36,
+    59
+   ],
+   "models": "global",
+   "from": "Benjamin (unchanged)"
+  },
+  "pnwhr": {
+   "label": "Pacific NW (high-res)",
+   "size": [
+    16,
+    11.2
+   ],
+   "proj": [
+    "lcc",
+    -122.6,
+    46.5,
+    [
+     42,
+     49
+    ]
+   ],
+   "ll": [
+    -128.4,
+    -112.6,
+    41.6,
+    50.4
+   ],
+   "box": [
+    -131.6,
+    -109.6,
+    40.5,
+    52.0
+   ],
+   "models": "hires+global",
+   "from": "Benjamin (already includes his 100 mi NW shift)"
+  },
+  "passes": {
+   "label": "Cascade Passes",
+   "size": [
+    16,
+    15
+   ],
+   "proj": [
+    "lcc",
+    -121.2,
+    47.3,
+    [
+     45,
+     49
+    ]
+   ],
+   "ll": [
+    -123.9,
+    -118.5,
+    46.2,
+    49.05
+   ],
+   "box": [
+    -125,
+    -117.5,
+    45.4,
+    49.8
+   ],
+   "models": "hires+global",
+   "passes": "WA_PASSES",
+   "from": "Benjamin (PNW pass view)"
+  },
+  "ca": {
+   "label": "California",
+   "size": [
+    16,
+    15
+   ],
+   "proj": [
+    "lcc",
+    -121.5,
+    37.0,
+    [
+     33,
+     41
+    ]
+   ],
+   "ll": [
+    -131.0,
+    -113.5,
+    32.0,
+    42.6
+   ],
+   "box": [
+    -134.0,
+    -111.0,
+    30.5,
+    44.0
+   ],
+   "models": "hires+global",
+   "from": "NEW (whole state with extra Pacific to the west, like the PNW wide view)"
+  },
+  "socal": {
+   "label": "Southern California",
+   "size": [
+    15,
+    15
+   ],
+   "proj": [
+    "lcc",
+    -118.06,
+    34.3,
+    [
+     32,
+     36.5
+    ]
+   ],
+   "ll": [
+    -122.61,
+    -113.5,
+    31.4,
+    37.1
+   ],
+   "box": [
+    -125.11,
+    -111.5,
+    29.4,
+    39.1
+   ],
+   "models": "hires+global",
+   "from": "11-04 8:47 PM Benjamin: a bit wider east (~12.5%), 50 mi further west"
+  },
+  "cenca": {
+   "label": "Central California",
+   "size": [
+    16,
+    10.5
+   ],
+   "proj": [
+    "lcc",
+    -121.45,
+    37.0,
+    [
+     35,
+     39
+    ]
+   ],
+   "ll": [
+    -127.15,
+    -115.75,
+    34.2,
+    39.9
+   ],
+   "box": [
+    -129.65,
+    -113.75,
+    32.2,
+    41.9
+   ],
+   "models": "hires+global",
+   "from": "11-04 8:47 PM Benjamin: twice as wide E-W (Sacramento/San Jose to Bakersfield kept)"
+  },
+  "norca": {
+   "label": "Northern California",
+   "size": [
+    16,
+    11
+   ],
+   "proj": [
+    "lcc",
+    -122.75,
+    39.6,
+    [
+     38,
+     41.5
+    ]
+   ],
+   "ll": [
+    -129.25,
+    -116.25,
+    36.9,
+    42.5
+   ],
+   "box": [
+    -131.75,
+    -114.25,
+    34.9,
+    44.5
+   ],
+   "models": "hires+global",
+   "from": "11-04 8:48 PM Benjamin: twice as wide E-W (Crescent City to Sacramento framing kept)"
+  },
+  "capasses": {
+   "label": "Sierra Passes",
+   "size": [
+    16,
+    15
+   ],
+   "proj": [
+    "lcc",
+    -119.6,
+    37.6,
+    [
+     35,
+     40
+    ]
+   ],
+   "ll": [
+    -122.2,
+    -117.4,
+    34.4,
+    40.0
+   ],
+   "box": [
+    -123.4,
+    -116.2,
+    33.8,
+    40.6
+   ],
+   "models": "hires+global",
+   "passes": "CA_PASSES",
+   "from": "NEW (Benjamin's pass view adapted; passes from Michael's ca_passes.csv v3)"
+  },
+  "hiw": {
+   "label": "Hawaii (wide)",
+   "size": [
+    16,
+    10.5
+   ],
+   "proj": [
+    "merc",
+    -157
+   ],
+   "ll": [
+    -168.0,
+    -148.0,
+    14.0,
+    26.5
+   ],
+   "box": [
+    -172.0,
+    -144.0,
+    11.0,
+    29.0
+   ],
+   "models": "global",
+   "from": "NEW (islands plus surrounding ocean; CONUS HRRR/RRFS/NBM grids do not cover Hawaii)"
+  }
+ },
+ "smooth": {
+  "na": 1.2,
+  "pac": 1.4,
+  "pnw": 0.8,
+  "pnwt": 0.6,
+  "pnwhr": 0.0,
+  "passes": 0.0,
+  "ca": 0.4,
+  "capasses": 0.0,
+  "hiw": 0.6,
+  "socal": 0.3,
+  "cenca": 0.3,
+  "norca": 0.3
+ },
+ "region_towns": {
+  "pnwhr": [
+   [
+    250000,
+    60000,
+    15000
+   ],
+   60
+  ],
+  "pnwt": [
+   [
+    250000,
+    60000,
+    20000
+   ],
+   55
+  ],
+  "ca": [
+   [
+    500000,
+    100000,
+    30000
+   ],
+   60
+  ],
+  "hiw": [
+   [
+    100000,
+    20000,
+    5000
+   ],
+   30
+  ],
+  "socal": [
+   [
+    300000,
+    60000,
+    15000
+   ],
+   45
+  ],
+  "cenca": [
+   [
+    300000,
+    60000,
+    15000
+   ],
+   45
+  ],
+  "norca": [
+   [
+    300000,
+    60000,
+    15000
+   ],
+   45
+  ]
+ },
+ "hl": {
+  "radius_km": {
+   "na": 800,
+   "pac": 1000,
+   "pnw": 400,
+   "pnwt": 400,
+   "ca": 300,
+   "hiw": 500,
+   "socal": 250,
+   "cenca": 250,
+   "norca": 250
+  },
+  "prominence_mb": {
+   "na": 3.0,
+   "pac": 3.0,
+   "pnw": 2.0,
+   "pnwt": 2.0,
+   "ca": 1.5,
+   "hiw": 2.0,
+   "socal": 1.5,
+   "cenca": 1.5,
+   "norca": 1.5
+  },
+  "edge_km": {
+   "na": 500,
+   "pac": 600,
+   "pnw": 450,
+   "pnwt": 450,
+   "ca": 300,
+   "hiw": 400,
+   "socal": 250,
+   "cenca": 250,
+   "norca": 250
+  }
+ },
+ "barbs_across": {
+  "na": 24,
+  "pac": 26,
+  "pnw": 20,
+  "pnwt": 20,
+  "pnwhr": 20,
+  "ca": 20,
+  "hiw": 18,
+  "socal": 18,
+  "cenca": 18,
+  "norca": 18
+ },
+ "model_views": {
+  "hrrr": [
+   "pnwhr",
+   "passes",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "capasses"
+  ],
+  "rrfs": [
+   "pnwhr",
+   "passes",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "capasses"
+  ],
+  "nbm": [
+   "pnwhr",
+   "passes",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "capasses"
+  ],
+  "gfs": [
+   "na",
+   "pac",
+   "pnw",
+   "pnwt",
+   "passes",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "capasses",
+   "hiw"
+  ],
+  "ifs": [
+   "na",
+   "pac",
+   "pnw",
+   "pnwt",
+   "passes",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "capasses",
+   "hiw"
+  ],
+  "ifs9": [
+   "pnwt",
+   "passes",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "capasses",
+   "hiw"
+  ],
+  "aifs": [
+   "na",
+   "pac",
+   "pnw",
+   "pnwt",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "hiw"
+  ],
+  "eps": [
+   "na",
+   "pac",
+   "pnw",
+   "pnwt",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "hiw"
+  ],
+  "aens": [
+   "na",
+   "pac",
+   "pnw",
+   "pnwt",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "hiw"
+  ],
+  "oisst": [
+   "na",
+   "pac",
+   "pnw",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "hiw"
+  ],
+  "gfsw": [
+   "na",
+   "pac",
+   "pnw",
+   "pnwt",
+   "ca",
+   "socal",
+   "cenca",
+   "norca",
+   "hiw"
+  ]
+ },
+ "default_view": "pnw",
+ "CA_PASSES": {
+  "Yuba Pass": {
+   "label": "Yuba",
+   "lat": 39.61741,
+   "lon": -120.48995,
+   "elev_ft": 6710,
+   "route": "SR-49"
+  },
+  "Donner Pass": {
+   "label": "Donner",
+   "lat": 39.33987,
+   "lon": -120.34396,
+   "elev_ft": 7239,
+   "route": "I-80"
+  },
+  "Mount Rose Summit": {
+   "label": "Mount Rose",
+   "lat": 39.31325,
+   "lon": -119.89659,
+   "elev_ft": 8911,
+   "route": "NV-431"
+  },
+  "Echo Summit": {
+   "label": "Echo",
+   "lat": 38.81297,
+   "lon": -120.0302,
+   "elev_ft": 7382,
+   "route": "US-50"
+  },
+  "Luther Pass": {
+   "label": "Luther",
+   "lat": 38.78686,
+   "lon": -119.94686,
+   "elev_ft": 7740,
+   "route": "SR-89"
+  },
+  "Carson Pass": {
+   "label": "Carson",
+   "lat": 38.6938,
+   "lon": -119.98853,
+   "elev_ft": 8574,
+   "route": "SR-88"
+  },
+  "Ebbetts Pass": {
+   "label": "Ebbetts",
+   "lat": 38.54436,
+   "lon": -119.81186,
+   "elev_ft": 8736,
+   "route": "SR-4"
+  },
+  "Sonora Pass": {
+   "label": "Sonora",
+   "lat": 38.3277,
+   "lon": -119.63685,
+   "elev_ft": 9624,
+   "route": "SR-108"
+  },
+  "Tioga Pass": {
+   "label": "Tioga",
+   "lat": 37.91104,
+   "lon": -119.25794,
+   "elev_ft": 9945,
+   "route": "SR-120"
+  },
+  "Walker Pass": {
+   "label": "Walker",
+   "lat": 35.66246,
+   "lon": -118.02675,
+   "elev_ft": 5250,
+   "route": "SR-178"
+  },
+  "Tehachapi Pass": {
+   "label": "Tehachapi",
+   "lat": 35.10219,
+   "lon": -118.2837,
+   "elev_ft": 3771,
+   "route": "SR-58"
+  },
+  "Tejon Pass": {
+   "label": "Tejon",
+   "lat": 34.80137,
+   "lon": -118.87539,
+   "elev_ft": 4144,
+   "route": "I-5"
+  }
+ },
+ "WA_PASSES": "kept in tools/forecast/temp_maps.py WA_PASSES (Snoqualmie, Stevens, White, Chinook, Blewett, Sherman, Satus, Wauconda, Disautel)",
+ "removed_from_benjamin": [
+  "wa",
+  "wwa",
+  "ewa",
+  "puget",
+  "bc",
+  "lm",
+  "newa",
+  "wawide (Studio)"
+ ],
+ "CA_PASS_TOWNS": [
+  [
+   "Sacramento",
+   38.5816,
+   -121.4944
+  ],
+  [
+   "Reno",
+   39.5296,
+   -119.8138
+  ],
+  [
+   "Truckee",
+   39.328,
+   -120.1833
+  ],
+  [
+   "South Lake Tahoe",
+   38.9399,
+   -119.9772
+  ],
+  [
+   "Carson City",
+   39.1638,
+   -119.7674
+  ],
+  [
+   "Placerville",
+   38.7296,
+   -120.7985
+  ],
+  [
+   "Auburn",
+   38.8966,
+   -121.0769
+  ],
+  [
+   "Grass Valley",
+   39.2191,
+   -121.0611
+  ],
+  [
+   "Sonora",
+   37.9841,
+   -120.3822
+  ],
+  [
+   "Mammoth Lakes",
+   37.6485,
+   -118.9721
+  ],
+  [
+   "Bishop",
+   37.3635,
+   -118.3951
+  ],
+  [
+   "Fresno",
+   36.7378,
+   -119.7871
+  ],
+  [
+   "Bakersfield",
+   35.3733,
+   -119.0187
+  ],
+  [
+   "Lancaster",
+   34.6868,
+   -118.1542
+  ],
+  [
+   "Stockton",
+   37.9577,
+   -121.2908
+  ],
+  [
+   "Modesto",
+   37.6391,
+   -120.9969
+  ]
+ ],
+ "CA_PASS_TOWNS_note": "KIT ADDITION (city-center coordinates, GeoNames-style; verify): towns drawn on the Sierra Passes view the way the Cascade Passes view uses WA_TOWNS.",
+ "hl_note": "11-3 Michael: ca matched to pnwt (similar frame size: 300 km / 1.5 mb / 300 km); hiw radius 500 km so weak subtropical centers are not doubled; edge 400 km."
+}
