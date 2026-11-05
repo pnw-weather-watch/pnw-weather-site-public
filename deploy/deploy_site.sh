@@ -28,7 +28,7 @@ echo "preview guard OK"
 [ $CONFIRM = 1 ] || { echo "stop: preview only (production needs --confirm after Benjamin's Push + Deploy)"; exit 0; }
 PREV=$(curl -s -H "$AH" "$API" | python3 -c "import json,sys;d=(json.load(sys.stdin)['result'].get('canonical_deployment') or {});print(d.get('id',''))")
 D=$(date +%Y%m%d); RB="$K/ROLLBACK_prod_${PREV:0:8}_$D.md"
-printf '# Rollback record %s\n- previous production deployment: %s\n- new commit: %s\n- preview tested: %s\n- rollback: POST %s/deployments/%s/rollback (Bearer CF_PAGES_KEY), or Pages dashboard > Deployments > Rollback\n' "$(date)" "${PREV:-none (first deploy)}" "$H" "$PV" "$API" "$PREV" > "$RB"; echo "wrote $RB"
+printf '# Rollback record %s\n- previous production deployment: %s\n- new commit: %s\n- preview tested: %s\n- rollback: POST %s/deployments/%s/rollback (Bearer PNW_CLOUDFLARE_API_TOKEN), or Pages dashboard > Deployments > Rollback\n' "$(date)" "${PREV:-none (first deploy)}" "$H" "$PV" "$API" "$PREV" > "$RB"; echo "wrote $RB"
 CLOUDFLARE_API_TOKEN="$CF_PAGES_KEY" npx wrangler pages deploy public --project-name=$PROJECT --branch=main --commit-hash=$H
 if ! python3 "$K/qa/guard.py" "https://$PROJECT.pages.dev" 1440x900 390x844 > "$K/qa/guard_prod.log" 2>&1; then
   echo "GUARD FAILED ON PRODUCTION"; grep -E '^FAIL' "$K/qa/guard_prod.log" | head
