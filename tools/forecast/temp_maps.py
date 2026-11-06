@@ -563,14 +563,12 @@ def pass_labels(ax, field, fmt, taken, r, pt, axbb, pass_corr=None):
 def frame(vid):
     V = VIEWS[vid]
     fig = plt.figure(figsize=HS.SCREEN_IN, dpi=100); fig.patch.set_facecolor(HS.BG)
-    if "extent" in V:
-        x0, x1, y0, y1 = V["extent"]; aspect = abs(x1 - x0) / max(abs(y1 - y0), 1e-6)
-    else:
-        aspect = HS.geo_aspect(V["ll"])
-    lay = HS.screen_layout(fig, aspect)
+    lay = HS.screen_layout(fig)
     ax = fig.add_axes(lay["axes"], projection=V["proj"])
     if "extent" in V: ax.set_extent(V["extent"], crs=V["proj"])
     else: ax.set_extent(V["ll"], crs=ccrs.PlateCarree())
+    HS.fill_projected_limits(ax, lay["axes"])
+    HS.frame(ax)
     fig._screen = lay
     return fig, ax, lay["key_y"]
 

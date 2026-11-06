@@ -225,6 +225,9 @@ async function boot() {
                                    fetch(DATA + "static/wave_views.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null, () => null),
                                    document.fonts.load("800 20px WXTheme"), document.fonts.load("500 12px WXTheme")]);
   S.man = waveViews(viewFixes(mergeRunsX(man), vf), wv);
+  // ECMWF 9 km is listed even when static has never written models.ifs9 (publisher paused).
+  if (!S.man.models.ifs9) S.man.models.ifs9 = { name: "ECMWF IFS", site: "ECMWF 9 km", res: "9 km (0.1\u00b0)", grid: "ll", note: "publishing paused", views: {}, products: {} };
+  S.man.runs = S.man.runs || {}; if (!S.man.runs.ifs9) S.man.runs.ifs9 = [];
   // runs: "model/cycle", newest first per model; models in a fixed order
   // ifs9 stays in the Runs menu when its publisher is paused and no cycle is in R2 yet.
   const LISTED_WITHOUT_RUNS = new Set(["ifs9"]);
@@ -633,7 +636,7 @@ async function productFields(run, pid, f) {
       for (let k = 0; k < z.length; k++) o[k] = z[k] - C[k]; out.fill = fld === "z500" ? blur(o, g.w, g.h, 1.0) : o;
     } else if (P.window && (P.wmax || P.wsum || P.wmin)) {   // highest value over the steps in the last N hours (incl. this one)
       const fld = P.wfield || P.fields[0], fs = S.runs[run].steps.map(x => x.f).filter(x => x > f - P.window && x <= f && (!P.wstep || (f - x) % P.wstep === 0));
-      if (f - P.window < 0 && !P.sofar) throw new Error(`nodata:${fld}`);
+      // A 24 h product on a run that has not reached 24 h yet still draws the hours that exist (RRFS fzra24).
       if (P.wstep && f % P.wstep) throw new Error(`nodata:${fld}`);   // NBM sums of 6 h amounts: only at 6-hourly valid times
       const arrs = await Promise.all(fs.map(x => getField(run, fld, x).then(r => r.v, () => null))), ok = arrs.filter(Boolean);
       if (!ok.length) throw new Error(`nodata:${fld}`);

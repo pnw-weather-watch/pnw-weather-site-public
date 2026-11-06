@@ -14,7 +14,7 @@ def apply(TM, ccrs, FE=None):
     import house_style as HS
     for k in R["removed_from_benjamin"]: TM.VIEWS.pop(k.split()[0], None)
     for vid, v in R["views"].items():
-        if v["from"].startswith("Benjamin") and vid in TM.VIEWS: continue   # keep his exact frame (incl. pnwhr shift)
+        # regions.json is the window for every view, including the ones that started in temp_maps.
         d = dict(label=v["label"], size=tuple(v["size"]), proj=_proj(ccrs, v["proj"]), box=tuple(v["box"]), fast_shift=True)
         if "ll" in v: d["ll"] = tuple(v["ll"])
         if "extent" in v: d["extent"] = tuple(v["extent"])

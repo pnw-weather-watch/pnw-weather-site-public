@@ -956,6 +956,8 @@ def static(m, out, views_only=None, x2_only=False):
     for vid in vids:
         V = TM.VIEWS[vid]
         fig, ax, ky = TM.frame(vid); fig.set_dpi(DPI); ax.apply_aspect(); fig.canvas.draw()
+        HS.fill_projected_limits(ax, fig._screen["axes"])   # apply_aspect must not inset the axes
+        fig.canvas.draw()
         W, H = fig.get_size_inches() * DPI; b = ax.get_position()
         px, py, pw, ph = b.x0 * W, (1 - b.y1) * H, b.width * W, b.height * H
         x0, x1, y0, y1 = ax.get_extent(V["proj"])
@@ -1491,7 +1493,7 @@ def static(m, out, views_only=None, x2_only=False):
         if "waves" in prods: prods["waves"]["extra"] = "arrows = primary wave direction  \u00b7  up to {hi} ft in view"
     if m == "oisst": prods = {k: v for k, v in prods.items() if k == "ssta"}
     if m == "epsm":   # 11-04: four member products; CVD-safe keys from theme/epsm_cvd_scales.json (deutan/protan dE>=3)
-        sc = json.load(open(os.path.join(os.path.dirname(HERE), "..", "..", "theme", "epsm_cvd_scales.json")))
+        sc = json.load(open(os.path.join(HERE, "..", "..", "theme", "epsm_cvd_scales.json")))
         base = {k: dict(ALLP[k]) for k in ("slp", "gust10", "z500anom", "snow") if k in ALLP}
         base["slp"]["fields"] = ["mslp"]; base["slp"]["title"] = "Sea-Level Pressure (member)"; base["slp"]["extra"] = "EPS single member  \u00b7  isobars every 4 mb"
         base["gust10"]["fields"] = ["gust"]; base["gust10"]["fill"] = "gust"; base["gust10"]["title"] = "10 m Wind Gusts (member)"

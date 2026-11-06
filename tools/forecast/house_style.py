@@ -72,11 +72,11 @@ def header(fig, title, valid, sub, badge_top, badge_bottom, top=0.985, h=0.095):
 
 
 def frame(ax):
-    """Thin light frame around the map panel."""
+    """No inset rectangle. The map meets the color bar and the timestamp."""
     for s in ax.spines.values():
-        s.set_edgecolor(PANEL_EDGE); s.set_linewidth(1.1)
+        s.set_visible(False)
     if hasattr(ax, "outline_patch"):
-        ax.outline_patch.set_edgecolor(PANEL_EDGE)
+        ax.outline_patch.set_visible(False)
 
 
 # State / province line width (Benjamin 10-25-26 10:28 PM: "we gotta make the state lines thicker"): 0.5 -> 0.75 pt (+50%).
@@ -128,27 +128,40 @@ def geo_aspect(ll):
     mid = (s + n) / 2.0
     return abs(e - w) * math.cos(math.radians(mid)) / max(abs(n - s), 1e-6)
 
-def screen_layout(fig, aspect):
-    """16:9 chrome. key_y is the bottom of the horizontal color bar. axes is [left, bottom, width, height]
-    in figure fraction, sized to `aspect` (width/height) and centered between the key and the timestamp."""
+def screen_layout(fig, aspect=None):
+    """16:9 chrome. The map axes fill everything between the color bar and the timestamp.
+    `aspect` is ignored: the geographic window is expanded instead of letterboxing."""
     W, H = fig.get_size_inches()
-    # product title row, then the color bar, then the map, then the timestamp
     title_in, gap_in, bar_in, tick_in, stamp_in = 0.52, 0.04, 0.36, 0.28, 0.46
     key_y = 1.0 - (title_in + gap_in + bar_in) / H
     map_top = key_y - tick_in / H
     map_bot = stamp_in / H
-    slot_w, slot_h = 0.96, map_top - map_bot
-    slot_aspect = (slot_w * W) / (slot_h * H)
-    if aspect >= slot_aspect:
-        mw = slot_w
-        mh = (mw * W) / max(aspect, 1e-6) / H
-    else:
-        mh = slot_h
-        mw = (mh * H) * aspect / W
-    left = 0.02 + (slot_w - mw) / 2.0
-    bottom = map_bot + (slot_h - mh) / 2.0
-    return {"key_y": key_y, "key_h": bar_in / H, "axes": [left, bottom, mw, mh],
+    axes = [0.0, map_bot, 1.0, map_top - map_bot]
+    return {"key_y": key_y, "key_h": bar_in / H, "axes": axes,
             "stamp_y": 0.018, "map_top": map_top, "map_bot": map_bot}
+
+def fill_projected_limits(ax, slot=None):
+    """Keep the view's center and expand the projected window until it matches `slot`.
+    Cartopy's equal aspect would otherwise shrink the axes and leave an inner rectangle
+    that the data raster does not share. `slot` is the axes rectangle to restore."""
+    fig = ax.figure
+    if slot is None:
+        p = ax.get_position()
+        slot = (p.x0, p.y0, p.width, p.height)
+    fig.canvas.draw()
+    x0, x1 = ax.get_xlim()
+    y0, y1 = ax.get_ylim()
+    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    dx, dy = abs(x1 - x0), abs(y1 - y0)
+    W, H = fig.get_size_inches()
+    A = (slot[2] * W) / max(slot[3] * H, 1e-9)
+    if dy > 0 and dx / dy < A:
+        dx = A * dy
+    elif dx > 0:
+        dy = dx / A
+    ax.set_xlim(cx - dx / 2.0, cx + dx / 2.0)
+    ax.set_ylim(cy - dy / 2.0, cy + dy / 2.0)
+    ax.set_position(slot)
 
 def layout(fig, key=True):
     """Figure fractions (key_y, map_top). Color key at the top of the 16:9 frame, map beneath it."""

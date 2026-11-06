@@ -23,22 +23,18 @@ class ScreenLayout(unittest.TestCase):
         self.assertAlmostEqual(w / h, 16 / 9, places=5)
         self.assertEqual((int(w * 100), int(h * 100)), (1920, 1080))
 
-    def test_key_is_above_the_map_and_stamp_is_below(self):
+    def test_key_is_above_the_map_and_the_map_fills_the_slot(self):
         class Fig:
             def get_size_inches(self):
                 return HS.SCREEN_IN
-        for aspect in (HS.geo_aspect((-132.5, -121.3, 41.95, 46.35)),
-                       HS.geo_aspect((-123.0, -117.4, 34.4, 41.75)),
-                       HS.geo_aspect((-168.0, -148.0, 16.08, 24.42))):
-            lay = HS.screen_layout(Fig(), aspect)
-            left, bottom, mw, mh = lay["axes"]
-            map_top = bottom + mh
-            self.assertGreater(lay["key_y"], map_top)
-            self.assertGreater(bottom, lay["stamp_y"])
-            got = (mw * HS.SCREEN_IN[0]) / (mh * HS.SCREEN_IN[1])
-            self.assertAlmostEqual(got, aspect, places=2)
-            self.assertGreaterEqual(left, 0.01)
-            self.assertLessEqual(left + mw, 0.99)
+        lay = HS.screen_layout(Fig(), 1.2)
+        left, bottom, mw, mh = lay["axes"]
+        self.assertGreater(lay["key_y"], bottom + mh)
+        self.assertGreater(bottom, lay["stamp_y"])
+        self.assertAlmostEqual(left, 0.0, places=3)
+        self.assertAlmostEqual(mw, 1.0, places=3)
+        # a tall view and a wide view get the same full-bleed axes
+        self.assertEqual(HS.screen_layout(Fig(), 0.4)["axes"], lay["axes"])
 
     def test_valid_line_is_pacific_wall_time(self):
         # 6 Nov 2026 22:00 UTC is 2 PM PST. 6 Jul 2026 21:00 UTC is 2 PM PDT.
