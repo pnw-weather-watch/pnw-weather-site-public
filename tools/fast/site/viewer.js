@@ -67,19 +67,7 @@ function fitPhone() {   // phones: map as large as fits between the menus and th
   const cb = CMPBOX && !document.body.classList.contains("phone") && !document.body.classList.contains("cslim") ? CMPBOX : null;   // compare: same size as the other map
   if (cb) { const k = Math.min(cb.w / LW, cb.h / LH, 1); cv.style.maxWidth = Math.floor(LW * k) + "px"; cv.style.maxHeight = Math.floor(LH * k) + "px"; }
   else { cv.style.maxWidth = `min(100%, ${LW}px)`; cv.style.maxHeight = document.body.classList.contains("phone") ? "none" : `min(100%, ${LH}px)`; }
-  if (!document.body.classList.contains("phone") || !cv.width) {
-    // Desktop, including 1920x1080: the whole graphic stays inside the window (no page scroll).
-    const wr = $("wrap");
-    if (wr && LW && LH && !document.body.classList.contains("phone")) {
-      const cs = getComputedStyle(wr), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight), padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-      const availW = wr.clientWidth - padX, availH = wr.clientHeight - padY;
-      if (availW > 40 && availH > 40) {
-        const k = Math.min(availW / LW, availH / LH);
-        cv.style.width = Math.floor(LW * k) + "px"; cv.style.height = Math.floor(LH * k) + "px"; schedSharp(); return;
-      }
-    }
-    cv.style.width = cv.style.height = ""; schedSharp(); return;
-  }
+  if (!document.body.classList.contains("phone") || !cv.width) { cv.style.width = cv.style.height = ""; schedSharp(); return; }
   const wr = $("wrap"), cs = getComputedStyle(wr), padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight), padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
   const vh = window.visualViewport ? visualViewport.height : innerHeight;
   const availW = document.documentElement.clientWidth - padX, availH = document.body.classList.contains("cslim") ? 1e5 : document.body.classList.contains("embed") ? vh - 2 : vh - $("bar").offsetHeight - $("dock").offsetHeight - padY;   // compare frames (11-01 t2027u): menus sit under the map, so they never change its size
@@ -822,7 +810,6 @@ async function render(lite) {
     const ctx = sizeMap(cv, V, lite), [LW, LH] = V.fig; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH); ctx.drawImage(layer(st2.base, st2.baseU, cv._rs), 0, 0, LW, LH);
     const why = String(e && e.message) === "nodata:clim" ? "climatology normals aren't available" : (window.__vjNoJump || S.dragging ? "no map at this hour" : "not in this model run");
     header(ctx, V, PRODS()[pid].title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${why}`, step.badge);
-  drawStamp(ctx, V, step.valid);
     S.cur = null; window.__drawn = `${pid}/${vid}/${f}`;
     postCompare(run, pid, vid, step);   // 10-31: still report to the side-by-side page (else sync never starts when a frame opens on such an hour)
     return;
@@ -914,7 +901,6 @@ async function render(lite) {
   let extra = (P.isobars && !D.iso && P.extra_noh ? P.extra_noh : P.extra).replace("{lo}", pc(P.pct[0]).toFixed(P.dec || 0)).replace("{hi}", pc(P.pct[1]).toFixed(P.dec || 0));
   if (pid === "gust10" && run.startsWith("eps/") && f <= 144 && f % 3 === 0) extra = extra.replace("in the 6 h ending", "in the 3 h ending");   // 10-31 EPS 3-hourly to F+144
   header(ctx, V, P.title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${extra}`, step.badge);
-  drawStamp(ctx, V, step.valid);
   S.peak = GUST_PIDS.test(pid) ? drawPeak(ctx, st, vals) : null;
   // 11-01 7:43 AM (Benjamin: "Add a 'max height:80ft' just underneath the bottom right of the graphic"): max wave maps show the tallest
   // value in this frame and view (true grid max over the view's rows/cols, nearest whole ft), right-aligned under the map's bottom-right corner
@@ -1495,32 +1481,16 @@ function fitFont(ctx, s, weight, size, maxw, min) {
   let z = size; for (; z > min; z -= 0.5) { ctx.font = `${weight} ${pt(z)}px WXTheme`; if (ctx.measureText(s).width <= maxw) break; }
   return `${weight} ${pt(z)}px WXTheme`;
 }
-function screenFrame(V) { const [W, H] = V.fig || [0, 0]; return H > 0 && Math.abs(W / H - 16 / 9) < 0.03; }
-function header(ctx, V, title, valid, sub, badge) {   // product name + hour badge. The valid time is drawStamp(), under the map.
-  const [W, H] = V.fig, x = 0.024 * W;
-  if (screenFrame(V)) {
-    ctx.textAlign = "left"; ctx.textBaseline = "top";
-    ctx.fillStyle = S.man.style.INK; ctx.font = `800 ${pt(22)}px WXTheme`; ctx.fillText(title, x, 6);
-    ctx.textAlign = "right"; ctx.font = `800 ${pt(22)}px WXTheme`; ctx.fillText(badge[0], W - x, 6);
-    ctx.fillStyle = S.man.style.MUTED; ctx.font = `600 ${pt(11)}px WXTheme`; ctx.fillText(badge[1], W - x, 6 + pt(24));
-    return;
-  }
-  const Hin = V.size_in[1], top = 0.985, h = 0.095, bw = 0.118, bh = h - 0.012;
+function header(ctx, V, title, valid, sub, badge) {   // house_style.header, text only (box + badge shape are in the base layer)
+  const [W, H] = V.fig, Hin = V.size_in[1], top = 0.985, h = 0.095, bw = 0.118, bh = h - 0.012, x = 0.024 * W;
   const Y = fr => (1 - fr) * H;
   ctx.textAlign = "left"; ctx.textBaseline = "top";
   ctx.fillStyle = S.man.style.INK; ctx.font = `800 ${pt(25)}px WXTheme`; ctx.fillText(title, x, Y(top - 0.004));
-  ctx.fillStyle = S.man.style.MUTED; ctx.font = fitFont(ctx, sub, 500, 12.5, (0.988 - bw - 0.012 - 0.024) * W, 9.5); ctx.fillText(sub, x, Y(top - 0.040 * 12 / Hin));
+  ctx.fillStyle = S.man.style.ACCENT; ctx.font = `700 ${pt(18)}px WXTheme`; ctx.fillText(valid, x, Y(top - 0.040 * 12 / Hin));
+  ctx.fillStyle = S.man.style.MUTED; ctx.font = fitFont(ctx, sub, 500, 12.5, (0.988 - bw - 0.012 - 0.024) * W, 9.5); ctx.fillText(sub, x, Y(top - 0.068 * 12 / Hin));
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; const cx = (0.988 - bw / 2) * W;
   ctx.fillStyle = S.man.style.INK; ctx.font = `800 ${pt(26)}px WXTheme`; ctx.fillText(badge[0], cx, Y(top - bh * 0.40));
   ctx.fillStyle = S.man.style.MUTED; ctx.font = `600 ${pt(10.5)}px WXTheme`; ctx.fillText(badge[1], cx, Y(top - bh * 0.80));
-}
-function drawStamp(ctx, V, iso) {   // under the map: "Friday, Nov 6, 2:00 PM PT" (Pacific, PST or PDT)
-  const s = WXSelect.formatValidPT(iso); if (!s) return;
-  const [W, H] = V.fig;
-  ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-  ctx.font = `700 ${pt(screenFrame(V) ? 20 : 16)}px WXTheme`;
-  ctx.lineJoin = "round"; ctx.lineWidth = pt(3); ctx.strokeStyle = S.man.style.BG || "#15171c";
-  ctx.strokeText(s, W / 2, H - 8); ctx.fillStyle = S.man.style.ACCENT || "#ffc970"; ctx.fillText(s, W / 2, H - 8); ctx.restore();
 }
 
 // per-frame line geometry (isobars, H/L, ensemble height lines), so scrubbing back and forth redraws lines for free

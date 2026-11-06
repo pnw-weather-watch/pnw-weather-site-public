@@ -562,17 +562,12 @@ def pass_labels(ax, field, fmt, taken, r, pt, axbb, pass_corr=None):
 
 def frame(vid):
     V = VIEWS[vid]
-    fig = plt.figure(figsize=HS.SCREEN_IN, dpi=100); fig.patch.set_facecolor(HS.BG)
-    if "extent" in V:
-        x0, x1, y0, y1 = V["extent"]; aspect = abs(x1 - x0) / max(abs(y1 - y0), 1e-6)
-    else:
-        aspect = HS.geo_aspect(V["ll"])
-    lay = HS.screen_layout(fig, aspect)
-    ax = fig.add_axes(lay["axes"], projection=V["proj"])
+    fig = plt.figure(figsize=V["size"], dpi=150); fig.patch.set_facecolor(HS.BG)
+    key_y, top = HS.layout(fig)
+    ax = fig.add_axes([0.024, 0.045, 0.952, top - 0.045], projection=V["proj"])
     if "extent" in V: ax.set_extent(V["extent"], crs=V["proj"])
     else: ax.set_extent(V["ll"], crs=ccrs.PlateCarree())
-    fig._screen = lay
-    return fig, ax, lay["key_y"]
+    return fig, ax, key_y
 
 
 def freeze_line(ax, LO, LA, F, level):
