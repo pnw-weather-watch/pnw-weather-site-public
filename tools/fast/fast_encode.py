@@ -69,6 +69,34 @@ MINFO = {"aens": dict(name="ECMWF AIFS Ensemble", site="AIFS ENS", res="0.25\u00
          "gfsw": dict(name="NOAA WaveWatch III", site="NOAA WW3", res="0.25\u00b0", noaa=True),
          "oisst": dict(name="NOAA OISST v2.1", site="NOAA OISST", res="0.25\u00b0 daily", noaa=True)}
 def as_model(m): return MODELS.get(m, {}).get("as_model", m)   # ifs9 = IFS (same fields / products / units), only the files differ
+# Products whose fields those models never encode. A missing entry is offered on every model (the old default), and
+# publish_static rebuilds manifest menus from this table, so a prune of live manifest.json does not last.
+# refc/ir: HRRR and RRFS only (_refc raises otherwise; IR is not in the GFS/IFS/AIFS open files).
+# snow (asnow): GFS open files have no ASNOW. frz/snowlvl: 0C isotherm is NOAA-only. vis: not in IFS/AIFS open data.
+# gust*: AIFS open data has no gust. gust10 stays on NBM (that model's menu is gust10 plus t2m and cloud cover).
+PRODUCT_ONLY = {
+    "refc": ("hrrr", "rrfs"),
+    "ir": ("hrrr", "rrfs"),
+    "snow": ("hrrr", "rrfs", "ifs", "aifs"),
+    "frz": ("hrrr", "rrfs", "gfs"),
+    "snowlvl": ("hrrr", "rrfs", "gfs"),
+    "vis": ("hrrr", "rrfs", "gfs"),
+    "gust10": ("hrrr", "rrfs", "gfs", "ifs", "nbm"),
+    "gust3": ("hrrr", "rrfs", "gfs", "ifs"),
+    "gust6": ("hrrr", "rrfs", "gfs", "ifs"),
+    "gust12": ("hrrr", "rrfs", "gfs", "ifs"),
+    "gust24": ("hrrr", "rrfs", "gfs", "ifs"),
+}
+def stamp_product_only(prods):
+    """Write PRODUCT_ONLY onto the product table (covers gust12/24, which are copied from gust6)."""
+    for pid, allow in PRODUCT_ONLY.items():
+        if pid in prods: prods[pid]["only"] = allow
+    return prods
+def menu_keeps(pid, spec, model):
+    """True when this model's menu should list pid. PRODUCT_ONLY wins over a copied only=."""
+    allow = PRODUCT_ONLY.get(pid, spec.get("only") if spec else None)
+    if allow is None: return True
+    return as_model(model) in allow
 def minfo(m):
     import menu_maps as M
     return MINFO.get(m) or M.MODELS[m]
@@ -1082,7 +1110,8 @@ def static(m, out, views_only=None, x2_only=False):
         "t2m": dict(title="2 m Temperature", fields=["t2m"], key="Temp (\u00b0F)", ticks=HS.TEMP_TICKS, **table(HS.TEMP_LEVELS, CM["t2m"], "both"),
                     freeze=32, extra="32\u00b0F line dashed  \u00b7  {lo} to {hi}\u00b0F in view", pct=[0.5, 99.5]),
         "gust10": dict(title="10 m Wind Gusts", fields=["gust"], key="Gust (mph)", ticks=GUST_TICKS, **table(GUST_L, CM["gust10"], "max"),
-                       extra=(M.gust_note(as_model(m)) if m in M.MODELS else "") + "  \u00b7  up to {hi} mph in view", pct=[1, 99.9]),
+                       extra=(M.gust_note(as_model(m)) if m in M.MODELS else "") + "  \u00b7  up to {hi} mph in view", pct=[1, 99.9],
+                       only=PRODUCT_ONLY["gust10"]),
         "aifswind": dict(title="MSLP + 10 m Wind", fields=["mslp", "u10", "v10"], fill="wspd", key="10 m wind (mph)", ticks=HS.WIND_TICKS,
                          **table(HS.WIND_LEVELS, CM["aifswind"], "max"), spd_sigma=1.5, isobars=dict(every=4, sigma=6.0 if m == "hrrr" else 2.5 if m == "ifs9" else 1.0,
                          color=HS.ISOBAR_COLOR, lw=HS.ISOBAR_LW, halo=HS.ISOBAR_HALO), barbs=dict(color=HS.BARB_COLOR, length=HS.BARB_LENGTH, lw=HS.BARB_LW),
@@ -1092,24 +1121,28 @@ def static(m, out, views_only=None, x2_only=False):
         "t700": dict(title="700 mb Temperature", fields=["t700"], key="700 mb temp (\u00b0C)", ticks=HS.T850_TICKS, tickfmt=True,
                      **table(HS.T850_LEVELS, CM["t700"], "both"), freeze=0, extra="0\u00b0C line dashed  \u00b7  {lo} to {hi}\u00b0C in view", pct=[0.5, 99.5], towns="none"),
         "refc": dict(title="Composite Reflectivity", fields=["refc"], key="Reflectivity (dBZ)", ticks=[5, 15, 25, 35, 45, 55, 65, 75], tickfmt=True,
-                     **table(REFC_L, CM["refc"], "max"), extra="simulated radar, strongest echo in the column  \u00b7  up to {hi} dBZ in view", pct=[0, 99.9], towns="names"),
+                     **table(REFC_L, CM["refc"], "max"), extra="simulated radar, strongest echo in the column  \u00b7  up to {hi} dBZ in view", pct=[0, 99.9], towns="names",
+                     only=PRODUCT_ONLY["refc"]),
         "qpf": dict(title="Precipitation Total", fields=["apcp"], key="Precip (in)", ticks=HS.QPF18_TICKS, tickfmt=True, keyver="_q18", _cm=HS.qpf18_cmap(),
                     **table(HS.QPF18_LEVELS, HS.qpf18_cmap(), "max"), extra="since the run started  \u00b7  liquid equivalent  \u00b7  max {hi} in in view",
                     pct=[0, 100], dec=2, fmt="in2", accum=True),
         "snow": dict(title="Snowfall Total", fields=["asnow"], key="Snow (in)", ticks=[0.1, 1, 3, 6, 10, 15, 24, 36, 48], tickfmt=True,
                      **table(M.SNOW_LEVELS, CM["snow"], "max"), extra="HRRR snowfall since the run started (model snow density)  \u00b7  max {hi} in in view",
-                     pct=[0, 100], dec=1, fmt="in1", accum=True),
+                     pct=[0, 100], dec=1, fmt="in1", accum=True, only=PRODUCT_ONLY["snow"]),
         "frz": dict(title="Freezing Level", fields=["frz"], key="Freezing level (ft)", ticks=[0, 2000, 4000, 6000, 8000, 10000, 12000], tickfmt=True,
-                    **table(FRZ_L, CM["frz"], "both"), extra="height of the 0\u00b0C level above sea level  \u00b7  {lo} to {hi} ft in view", pct=[1, 99], fmt="ft100", towns="numbers"),
+                    **table(FRZ_L, CM["frz"], "both"), extra="height of the 0\u00b0C level above sea level  \u00b7  {lo} to {hi} ft in view", pct=[1, 99], fmt="ft100", towns="numbers",
+                    only=PRODUCT_ONLY["frz"]),
         "snowlvl": dict(title="Snow Level (estimate)", fields=["frz"], fill="snowlvl", key="Snow level (ft)", ticks=[0, 2000, 4000, 6000, 8000, 10000, 12000], tickfmt=True,
-                        **table(FRZ_L, CM["snowlvl"], "both"), extra="estimate: freezing level minus 1,000 ft  \u00b7  {lo} to {hi} ft in view", pct=[1, 99], fmt="ft100", towns="numbers"),
+                        **table(FRZ_L, CM["snowlvl"], "both"), extra="estimate: freezing level minus 1,000 ft  \u00b7  {lo} to {hi} ft in view", pct=[1, 99], fmt="ft100", towns="numbers",
+                        only=PRODUCT_ONLY["snowlvl"]),
         "tcc": dict(title="Total Cloud Cover", fields=["tcc"], key="Cloud (%)", ticks=[0, 20, 40, 60, 80, 100], tickfmt=True,
                     **table(M.TCC_LEVELS, CM["tcc"], "neither"), extra="all cloud layers combined, percent of sky", pct=[0, 100], towns="names"),
         "vis": dict(title="Surface Visibility", fields=["vis"], key="Visibility (mi)", ticks=M.VIS_LEVELS, tickfmt=True,
                     **table(M.VIS_LEVELS, CM["vis"], "max"), extra="model visibility, miles  \u00b7  blank = 7 mi or more  \u00b7  lowest {lo} mi in view",
-                    pct=[0, 100], dec=1, fmt="vis"),
+                    pct=[0, 100], dec=1, fmt="vis", only=PRODUCT_ONLY["vis"]),
         "ir": dict(title="Simulated IR Satellite", fields=["ir"], key="Tops (\u00b0C)", ticks=[-80, -60, -40, -20, 0, 20, 40], tickfmt=True,
-                   **table(M.IR_LEVELS, CM["ir"], "both"), extra="model cloud-top temperature, 10.7 \u00b5m  \u00b7  colors = cold, high tops", pct=[0, 100], towns="names"),
+                   **table(M.IR_LEVELS, CM["ir"], "both"), extra="model cloud-top temperature, 10.7 \u00b5m  \u00b7  colors = cold, high tops", pct=[0, 100], towns="names",
+                   only=PRODUCT_ONLY["ir"]),
         "mucape": dict(title="Most Unstable CAPE", fields=["mucape"], key="MUCAPE (J/kg)", ticks=CAPE_L, tickfmt=True,
                        **table(CAPE_L, CM["mucape"], "max"), extra=("ECMWF most-unstable CAPE" if as_model(m) == "ifs" else "most-unstable parcel (lowest 255 mb)") +
                        "  \u00b7  blank under 100 J/kg  \u00b7  up to {hi} J/kg in view", pct=[0, 99.9], only=("ifs", "gfs", "hrrr", "rrfs")),
@@ -1180,10 +1213,10 @@ def static(m, out, views_only=None, x2_only=False):
                       pct=[0, 100], dec=1, fmt="in1", only=("hrrr", "rrfs")),
         "gust3": dict(title="3 h Max Wind Gust", fields=["gust"], window=3, wmax=True, wfield="gust", fill="window", key="Gust (mph)", ticks=GUST_TICKS,
                       **table(GUST_L, CM["gust10"], "max"), extra="highest gust over the model hours in the 3 h ending at the valid time  ·  up to {hi} mph in view",
-                      pct=[1, 99.9], only=("hrrr", "rrfs", "gfs", "ifs", "aifs")),
+                      pct=[1, 99.9], only=PRODUCT_ONLY["gust3"]),
         "gust6": dict(title="6 h Max Wind Gust", fields=["gust"], window=6, wmax=True, wfield="gust", fill="window", key="Gust (mph)", ticks=GUST_TICKS,
                       **table(GUST_L, CM["gust10"], "max"), extra="highest gust over the model hours in the 6 h ending at the valid time  \u00b7  up to {hi} mph in view",
-                      pct=[1, 99.9], only=("hrrr", "rrfs", "gfs", "ifs", "aifs")),
+                      pct=[1, 99.9], only=PRODUCT_ONLY["gust6"]),
         "ltng6": dict(title="6 h Max Lightning Threat", fields=["ltng"], window=6, wmax=True, wfield="ltng", fill="window", key="Flashes per km\u00b2 per 5 min",
                       ticks=LTNG_L, tickfmt=True, **table(LTNG_L, CM["ltng"], "max"), extra="highest hourly flash density in the 6 h ending at the valid time  \u00b7  up to {hi} in view",
                       pct=[0, 99.9], dec=2, towns="names", only=("hrrr", "rrfs")),
@@ -1372,9 +1405,11 @@ def static(m, out, views_only=None, x2_only=False):
                               keyver="_cd4" if src != "dsnod" else "_sc6")
             prods[pid].pop("kw", None); prods[pid].pop("cmap_of", None)
             if src == "dsnod": prods[pid]["outline_over"] = t["outline_over"]
+    stamp_product_only(prods)   # gust12/24 are copies of gust6; stamp the lists again so a copy cannot put them back on AIFS
     ALLP = {k: dict(v) for k, v in prods.items()}   # before the per-model filter (ensemble picks shared products below)
     for v in ALLP.values(): v.pop("only", None)
-    prods = {k: v for k, v in prods.items() if as_model(m) in v.pop("only", (as_model(m),))}
+    prods = {k: v for k, v in prods.items() if menu_keeps(k, v, m)}
+    for v in prods.values(): v.pop("only", None)
     if m == "gfsw":   # NOAA WW3: wave products only (products without an only= list are atmosphere products)
         prods = {k: v for k, v in prods.items() if set(v["fields"]) <= set(GFSW_FIELDS)}
         if "waves" in prods: prods["waves"]["extra"] = "arrows = primary wave direction  \u00b7  up to {hi} ft in view"
