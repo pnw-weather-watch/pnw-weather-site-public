@@ -116,14 +116,46 @@ def credit(fig, text, y=0.012):
     fig.text(0.024, y, text, color=MUTED, fontproperties=font(500, 9.5), va="bottom")
 
 
+# Every map is a 1920x1080 graphic (100 dpi). The color key is the top band, the map sits under it at its
+# true geographic aspect (centered, so a tall view is not stretched), and the valid time is a band under the map.
+SCREEN_IN = (19.2, 10.8)
+SCREEN_PX = (1920, 1080)
+
+def geo_aspect(ll):
+    """Map width/height for a lon/lat window (W, E, S, N), so the axes can hug the projection."""
+    import math
+    w, e, s, n = ll
+    mid = (s + n) / 2.0
+    return abs(e - w) * math.cos(math.radians(mid)) / max(abs(n - s), 1e-6)
+
+def screen_layout(fig, aspect):
+    """16:9 chrome. key_y is the bottom of the horizontal color bar. axes is [left, bottom, width, height]
+    in figure fraction, sized to `aspect` (width/height) and centered between the key and the timestamp."""
+    W, H = fig.get_size_inches()
+    # product title row, then the color bar, then the map, then the timestamp
+    title_in, gap_in, bar_in, tick_in, stamp_in = 0.50, 0.02, 0.36, 0.28, 0.50
+    key_y = 1.0 - (title_in + gap_in + bar_in) / H
+    map_top = key_y - tick_in / H
+    map_bot = stamp_in / H
+    slot_w, slot_h = 0.96, map_top - map_bot
+    slot_aspect = (slot_w * W) / (slot_h * H)
+    if aspect >= slot_aspect:
+        mw = slot_w
+        mh = (mw * W) / max(aspect, 1e-6) / H
+    else:
+        mh = slot_h
+        mw = (mh * H) * aspect / W
+    left = 0.02 + (slot_w - mw) / 2.0
+    bottom = map_bot + (slot_h - mh) / 2.0
+    return {"key_y": key_y, "key_h": bar_in / H, "axes": [left, bottom, mw, mh],
+            "stamp_y": 0.016, "map_top": map_top, "map_bot": map_bot}
+
 def layout(fig, key=True):
-    """Figure fractions (key_y, map_top) for: header, then (optionally) the color key band, then the map."""
-    H = fig.get_size_inches()[1]
-    header_bottom = 0.985 - 1.16 / H
+    """Figure fractions (key_y, map_top). Color key at the top of the 16:9 frame, map beneath it."""
+    lay = screen_layout(fig, 1.6)
     if not key:
-        return None, header_bottom - 0.10 / H
-    key_y = header_bottom - 0.16 / H - 0.27 / H
-    return key_y, key_y - 0.50 / H
+        return None, lay["map_top"]
+    return lay["key_y"], lay["map_top"]
 
 
 def hbar(fig, mappable, ticks, title, y, x0=0.150, x1=0.976, signed=False, spacing="uniform"):

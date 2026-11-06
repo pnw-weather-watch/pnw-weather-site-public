@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { lookupKey, climParts, resolveSelection, publicName } = require("./selection.js");
+const { lookupKey, climParts, resolveSelection, publicName, formatValidPT } = require("./selection.js");
 
 const ensViews = [
   ["na", "North America"], ["pac", "Pacific"], ["pnw", "Pacific Northwest"],
@@ -124,6 +124,14 @@ test("anomaly key lookup does not throw when the manifest has no key for North A
   assert.equal(lookupKey({ keys: { wa: "static/key_x.png" } }, { keysFrom: "wa" }, "na", "t2ma"), "static/key_x.png");
   assert.equal(lookupKey({ keys: { na: "static/from-product.png" } }, { keys: { t2ma: "static/from-view.png" } }, "na", "t2ma"), "static/from-view.png");
   assert.equal(lookupKey(null, {}, "na", "t2ma"), null);
+});
+
+test("valid time under the map is Pacific wall time, PST and PDT", () => {
+  // 6 Nov 2026 is after the DST fallback, so 22:00 UTC is 2:00 PM PST.
+  assert.equal(formatValidPT("2026-11-06T22:00:00Z"), "Friday, Nov 6, 2:00 PM PT");
+  // 6 Jul 2026 is PDT (UTC-7): 21:00 UTC is 2:00 PM.
+  assert.equal(formatValidPT("2026-07-06T21:00:00Z"), "Monday, Jul 6, 2:00 PM PT");
+  assert.equal(formatValidPT("not-a-date"), "");
 });
 
 test("climatology slots stay inside the file list (November 03Z uses hours 40 and 41)", () => {

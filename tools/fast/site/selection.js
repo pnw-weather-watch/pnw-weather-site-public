@@ -110,5 +110,18 @@
     return { prod, view, note, prefer: wanted, changed: prod !== reqProd || view !== reqView };
   }
 
-  return { lookupKey, climParts, resolveSelection, publicName };
+  // Valid time under the map. America/Los_Angeles so the hour is PST or PDT, labeled PT.
+  function formatValidPT(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const tz = "America/Los_Angeles";
+    const part = opt => new Intl.DateTimeFormat("en-US", Object.assign({ timeZone: tz }, opt)).format(d);
+    const wd = part({ weekday: "long" });
+    const mon = part({ month: "short" });
+    const day = part({ day: "numeric" });
+    const hm = part({ hour: "numeric", minute: "2-digit", hour12: true });
+    return wd + ", " + mon + " " + day + ", " + hm + " PT";
+  }
+
+  return { lookupKey, climParts, resolveSelection, publicName, formatValidPT };
 });
