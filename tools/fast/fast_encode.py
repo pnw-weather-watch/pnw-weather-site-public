@@ -683,7 +683,7 @@ def _clim_src(fn):
                 if p and os.path.exists(os.path.join(p, fn)))   # 11-04: second site uses only its own clim/ (no first-site fallback)
 SIERRA_ROADS = {("Interstate", "80"), ("Interstate", "5"), ("Interstate", "15"), ("Federal", "50"), ("Federal", "395")}
 def major_roads(ax):
-    """Natural Earth 10m roads (public domain): the Sierra Passes view's major routes as a thick line with a dark casing, one small
+    """Natural Earth 10m roads (public domain): the California Passes view's major routes as a thick line with a dark casing, one small
     label per route (I-80, US-50...) placed at the longest in-view piece, so the pass labels stay uncluttered."""
     import cartopy.io.shapereader as shp, cartopy.crs as ccrs, matplotlib.patheffects as pe
     pc = ccrs.PlateCarree(); x0, x1, y0, y1 = ax.get_extent(pc); best = {}
@@ -928,7 +928,7 @@ def static(m, out, views_only=None, x2_only=False):
         fig.savefig(path.replace("/static/", "/static/x2/"), dpi=DPI * X2, transparent=True)
         plt.close(fig); return os.path.getsize(path)
     def town_call(ax, vid, field):
-        if vid == "capasses":   # [KIT] Sierra Passes: same drawing path as the Cascade Passes view, CA passes + CA towns (regions.json)
+        if vid == "capasses":   # [KIT] California Passes: same drawing path as the Cascade Passes view, CA passes + CA towns (regions.json)
             keepT, keepP = TM.WA_TOWNS, TM.WA_PASSES
             n0 = len(keepT[0]) if keepT else 3
             TM.WA_TOWNS = [tuple(t) + tuple(keepT[0][3:]) if n0 > 3 else tuple(t) for t in TM.CA_PASS_TOWNS]; TM.WA_PASSES = TM.CA_PASSES
@@ -953,7 +953,7 @@ def static(m, out, views_only=None, x2_only=False):
         if not os.path.exists(f"{out}/static/base_{vid}.png") or views_only:
             fig, ax, ky = layer_fig(vid)
             HS.outlines(ax, cf, res="10m" if vid in WA_LIKE else "50m"); HS.frame(ax)
-            if vid == "capasses": major_roads(ax)   # 11-04 (Benjamin 3:10 PM): interstates + major US highways on Sierra Passes
+            if vid == "capasses": major_roads(ax)   # 11-04 (Benjamin 3:10 PM): interstates + major US highways on California Passes
             nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
             for t in fig.texts[nt:]: t.set_visible(False)
             sizes[f"base_{vid}"] = save(fig, f"{out}/static/base_{vid}.png")

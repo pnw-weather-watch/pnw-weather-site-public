@@ -1437,7 +1437,7 @@ function passCanvas(body, title, sub) {   // the Pass Forecaster table (cells, c
 function mgSave() {
   const btn = $("mgsave"), sub = mgRunText(MG.run), [m, c] = MG.run.split("/");
   if (isPass(MG.open)) {
-    const cv = passCanvas($("mgbody"), MG.open === "capass" ? "California Pass Forecaster \u2013 Sierra and Southern California passes" : "Washington Pass Forecaster \u2013 Washington mountain passes", sub); if (!cv) return;
+    const cv = passCanvas($("mgbody"), MG.open === "capass" ? "California Pass Forecaster \u2013 California passes" : "Washington Pass Forecaster \u2013 Washington mountain passes", sub); if (!cv) return;
     return saveCanvas(cv, `Pass-Forecaster_${fileClean(S.man.models[m].site)}_${c}Z.png`, btn);
   }
   const ch = $("mgc"); if (!ch || !ch.width) return;
@@ -2128,10 +2128,10 @@ function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x || 1))), r
 // 10-30-26 8:15 PM; same as temp_maps.WA_PASSES, checked 10-24 against USGS 3DEP). BC: DriveBC summit heights (fast_encode).
 const PASS_ELEV = { Snoqualmie: 3022, Stevens: 4061, White: 4500, Chinook: 5430, Blewett: 4102, Sherman: 5575, Satus: 3107, Wauconda: 4310,
                     Disautel: 3252, Coquihalla: 4081, Allison: 4403, Duffey: 4199,
-                    // California / Sierra (regions.json CA_PASSES elev_ft; "Sonora Pass" = pass point next to the town of Sonora)
-                    Yuba: 6710, Donner: 7239, "Mount Rose": 8911, Echo: 7382, Luther: 7740, Carson: 8574, Ebbetts: 8736, "Sonora Pass": 9624,
+                    // California passes (regions.json CA_PASSES elev_ft; "Sonora Pass" = pass point next to the town of Sonora)
+                    "Black Butte": 3912, Yuba: 6710, Donner: 7239, "Mount Rose": 8911, Echo: 7382, Luther: 7740, Carson: 8574, Ebbetts: 8736, "Sonora Pass": 9624,
                     Tioga: 9945, Walker: 5250, Tehachapi: 3771, Tejon: 4144 };
-const CA_PASS = new Set(["Yuba", "Donner", "Mount Rose", "Echo", "Luther", "Carson", "Ebbetts", "Sonora Pass", "Tioga", "Walker", "Tehachapi", "Tejon"]);
+const CA_PASS = new Set(["Black Butte", "Yuba", "Donner", "Mount Rose", "Echo", "Luther", "Carson", "Ebbetts", "Sonora Pass", "Tioga", "Walker", "Tehachapi", "Tejon"]);
 // 10-30 8:10 PM (Benjamin: "I don't see it on the phone. Show the lowest freezing level in feet. Next to every pass, show the
 // elevation of the pass."): elevation under each pass name; lowest freezing level is the 2nd column (it was the last one, off
 // the right edge of a phone); blue when it drops below the summit. Models without a freezing level (ECMWF IFS / AIFS / ensembles

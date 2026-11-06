@@ -97,5 +97,5 @@ Not used: ERA5 climatology (Copernicus CDS). Licence is CC BY 4.0 since 2 July 2
 - **PacIOOS SWAN (Univ. of Hawaii), 500 m:** NEVER used (Benjamin 11-05: Hawaii waves = European/ECMWF only). Its terms say the data "may be used and redistributed for free but is not intended for legal use" and ask for acknowledgment. Commercial or monetized use isn't explicitly addressed, so Benjamin has to approve it first.
 - **NOAA PSL NCEP/NCAR Reanalysis 1, SLP monthly long-term mean 1991–2020 (`slp.mon.ltm.1991-2020.nc`):** US Government, public domain. Used for the MSLP anomaly normals (`tools/fast/clim/ncep_slp_mon_ltm_1991_2020.npz`).
   - Courtesy line, already in the run line: "vs 1991–2020 NCEP/NCAR monthly normal". No image credit is legally required.
-- **Natural Earth 10m roads (`ne_10m_roads`):** public domain. Used for the major interstate and US highway lines on the Sierra Passes view. Covered by the existing "Basemap: Natural Earth" credit.
+- **Natural Earth 10m roads (`ne_10m_roads`):** public domain. Used for the major interstate and US highway lines on the California Passes view. Covered by the existing "Basemap: Natural Earth" credit.
 - **Pass elevations, California:** regions.json `CA_PASSES` `elev_ft` (facts, no license needed).

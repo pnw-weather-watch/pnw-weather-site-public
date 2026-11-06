@@ -19,7 +19,7 @@ The kit was built from the newest origin/main of Benjamin's site repo (commit bf
 
 ## Changed for the theme and regions (marked `[THEME]`, `[KIT]` in the code)
 - Site: theme.css (CSS variables + the WXTheme font). index, compare and meteograms CSS colors became `var(--...)`. Canvas chrome colors come from `TH`, and the H/L colors from `--map-hi/--map-lo`. The `pdata` preview supplement loads only with `?pv=1`.
-- Python: theme.py (applied at the end of house_style.py and in menu_maps.py), regions.py (called from fast_encode.extra_views), and a Sierra Passes branch in fast_encode town_call.
+- Python: theme.py (applied at the end of house_style.py and in menu_maps.py), regions.py (called from fast_encode.extra_views), and a California Passes branch in fast_encode town_call.
 - The viewer's default view, H/L and ensemble-low tuning for the new views come from regions.json (tools/apply_regions_site.py).
 - web/forecast/base.css and forecast.css use the theme font (the old-site font-faces were removed).
 
