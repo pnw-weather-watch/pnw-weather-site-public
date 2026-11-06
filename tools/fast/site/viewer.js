@@ -1690,7 +1690,7 @@ function gridInv(V, st, fi, fj, guess) {   // [fi, fj] -> panel px, or null when
 // with H ... highest pressure number"; 1:27 AM: also on MSLP + wind maps). Old site's house_style.find_centers ported: smoothed
 // MSLP, neighbourhood extreme over a radius (km) per view, prominence vs the median of the ring at that radius, min spacing;
 // the number is the raw (unsmoothed) min / max near the centre. Drawn on every map with MSLP isobars except ensemble lows.
-const HL_VIEW = { na: [800, 3.0, 75], pac: [1000, 3.0, 90], pnw: [400, 2.0, 50], pnwt: [400, 2.0, 50], pnwhr: [400, 2.0, 45], ca: [400, 2.0, 45], hiw: [400, 2.0, 50], bay: [200, 1.2, 35], orco: [220, 1.2, 40], bigi: [180, 1.5, 35] };   // [KIT] from regions.json   // radius km, prominence mb, smoothing km
+const HL_VIEW = { na: [800, 3.0, 75], pac: [1000, 3.0, 90], pnw: [400, 2.0, 50], pnwt: [400, 2.0, 50], pnwhr: [400, 2.0, 45], ca: [400, 2.0, 45], hiw: [400, 2.0, 50], bay: [200, 1.2, 35], orco: [300, 1.5, 55], bigi: [180, 1.5, 35] };   // [KIT] from regions.json   // radius km, prominence mb, smoothing km
 const HL_WA = [250, 1.5, 35];   // Washington-type frames (old HL_RADIUS_KM / HL_PROMINENCE_MB "wa")
 const HL_LOW_COLOR = (getComputedStyle(document.documentElement).getPropertyValue("--map-lo") || "").trim() || "#E4572E", HL_HIGH_COLOR = (getComputedStyle(document.documentElement).getPropertyValue("--map-hi") || "").trim() || "#0B2545";   // [THEME]   // L red, H blue (Benjamin 10-31 1:42 AM; old site H blue #1747c9)
 function drawHL(ctx, st, D, V, gk, P) {
