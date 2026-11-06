@@ -494,8 +494,10 @@ async function viewStatic(vid) {
     // towns layer is not needed for the first paint: draw without it, redraw when it lands (10-29 first-map speedup)
     const tP = V.towns_png || `static/towns_${vid}.png`, tU = (tP[0] === "@" ? tP.slice(1) : DATA + tP) + SV();
     // 11-05: declare obj before townsP callback (was TDZ: "Cannot access 'obj' before initialization")
-    const obj = { lut, base, towns: null, townsP: null, x0: 0, y0: 0, W: 0, H: 0, idx: null, wx: null, wy: null, gnx: 0,
-                  baseU: DATA + `static/base_${vid}.png` + SV(), townsU: tU };
+    const landU = DATA + `static/land_${vid}.png` + SV();
+    const obj = { lut, base, land: null, towns: null, townsP: null, x0: 0, y0: 0, W: 0, H: 0, idx: null, wx: null, wy: null, gnx: 0,
+                  baseU: DATA + `static/base_${vid}.png` + SV(), landU, townsU: tU };
+    img(landU).then(im => { obj.land = im; if (VSRC(S.view) === vid && window.__drawn) draw(); }, () => null);
     obj.townsP = img(tU).then(im => { obj.towns = im; if (VSRC(S.view) === vid && window.__drawn) draw(); return im; }, () => null);
     // per-pixel source index + weights, made once per view from the coarse LUT (bilinear in panel px)
     // 11-05: run.json may still be loading when the first viewStatic fires — wait briefly instead of throwing
@@ -841,8 +843,9 @@ async function render(lite) {
   // 1. color fill: value -> bin color, exactly the site's bins (contourf + BoundaryNorm)
   const smp = P.fill === "prt" ? (/^(ifs|ifs9)$/.test(run.split("/")[0]) ? sampleType : sampleNN) : (P.mask_edge || pid === "ssta") && P.min_show !== undefined ? (st_, F_, k_) => sampleMask(st_, F_, k_, P.min_show) : sample;
   const pal = palette(pid), mins = P.min_show, im = ctx.createImageData(st.W, st.H), o = im.data, F = D.fill, n = st.W * st.H;
-  // Land under the data: white on every product, black on snow (theme land_base). Town numbers stay dark with a white halo, so they read on both.
+  // White GSHHG land under the data on every product, including snow. Ocean stays transparent in that layer so the field shows.
   ctx.fillStyle = landHex(pid, P); ctx.fillRect(st.x0, st.y0, st.W, st.H);
+  if (st.land) ctx.drawImage(st.land, 0, 0, LW, LH);
   const vals = new Float32Array(n);
   if (lite) {   // half resolution: one sample per 2x2 block
     const W = st.W, H = st.H;
@@ -914,7 +917,7 @@ async function render(lite) {
   if (P.lows && S.lowPanel) paintLowPanel(ctx, st, V, S.lowPanel);
   // 5. key + header text
   if (L2.key) ctx.drawImage(L2.key, 0, 0, LW, LH);
-  drawCredit(ctx, st, pid, P, LW, LH, st.towns && tmode !== "none");   // 11-01-26 legal audit: credit line redrawn over the key's baked one
+  drawCredit(ctx, st, pid, P, LW, LH, st.towns && tmode !== "none", (step && step.valid_line) || (step && WXSelect.formatValidPT(step.valid)) || "");   // credit stays left of the Valid line
   const [r0, r1, c0, c1] = V.cut;                                            // same rows/cols temp_maps.cut() keeps
   if (!D.pct) D.pct = {};
   if (!D.pct[vid]) { const a = new Float32Array(Math.ceil((r1 - r0) / 2) * Math.ceil((c1 - c0) / 2)); let n = 0;   // every 2nd cell
@@ -973,18 +976,28 @@ function creditLines(pid, P, towns) {
   return L;
 }
 window.creditLines = creditLines;
-function drawCredit(ctx, st, pid, P, LW, LH, towns) {
-  const yb = st.y0 + st.H, top = yb + Math.max(3, LH * 0.004), L = creditLines(pid, P, towns);
-  const maxW = LW - LW * 0.03;   // [THEME] max wave text now sits inside the map
-  ctx.save(); ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, top, LW * 0.985, LH - top);
-  let fs = pt(9.5); ctx.font = `500 ${fs}px WXTheme`;
-  const wid = () => Math.max(...L.map(l => ctx.measureText(l).width));
-  while (fs > pt(6.5) && LW * 0.024 + wid() > maxW) { fs -= 0.5; ctx.font = `500 ${fs}px WXTheme`; }
-  const lh = fs * 1.25, avail = LH - top;
-  if (L.length * lh > avail) { fs = Math.max(pt(6), avail / L.length / 1.25); ctx.font = `500 ${fs}px WXTheme`; }
-  ctx.fillStyle = S.man.style.MUTED; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-  const y0 = LH - LH * 0.012 - fs * 0.22;
-  L.forEach((l, i) => ctx.fillText(l, LW * 0.024, y0 - (L.length - 1 - i) * fs * 1.25));
+function creditMaxWidth(W, stampW) {   // credit stays left of the centered Valid line
+  return Math.max(80, W / 2 - stampW / 2 - 16 - W * 0.024);
+}
+function wrapCredit(ctx, text, maxW) {
+  const words = text.split(" "), lines = []; let cur = "";
+  for (const w of words) { const n = cur ? cur + " " + w : w; if (cur && ctx.measureText(n).width > maxW) { lines.push(cur); cur = w; } else cur = n; }
+  if (cur) lines.push(cur); return lines;
+}
+function drawCredit(ctx, st, pid, P, LW, LH, towns, stamp) {
+  const L = creditLines(pid, P, towns).join("  ");
+  ctx.save();
+  ctx.font = `700 ${pt(18)}px WXTheme`;
+  const stampW = stamp ? ctx.measureText(stamp).width : 0;
+  const maxW = creditMaxWidth(LW, stampW);
+  let fs = pt(9); ctx.font = `500 ${fs}px WXTheme`;
+  let lines = wrapCredit(ctx, L, maxW);
+  while (fs > pt(6.5) && lines.length > 2) { fs -= 0.5; ctx.font = `500 ${fs}px WXTheme`; lines = wrapCredit(ctx, L, maxW); }
+  const lh = fs * 1.2, yb = LH - 8;
+  ctx.fillStyle = S.man.style.BG;
+  ctx.fillRect(0, yb - lines.length * lh - 2, LW * 0.024 + maxW + 8, lines.length * lh + 6);
+  ctx.fillStyle = S.man.style.MUTED; ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+  lines.forEach((l, i) => ctx.fillText(l, LW * 0.024, yb - (lines.length - 1 - i) * lh));
   ctx.restore();
 }
 const cv_ = () => $("map");
@@ -1014,7 +1027,7 @@ const WAVE_PIDS = /^(waves|wavemax|wavemax24|swper|swellhs)$/;
 const WC_BUOYS = ["46041", "46029", "46050", "46006", "46005", "46002", "46059", "46022", "46014", "46013", "46026", "46042", "46028", "46011", "46054",
   "46025", "46047", "46086", "46087", "46089", "46027", "46015", "46229", "46036", "46214"];
 const LOCAL_VIEWS = new Set(["wa", "puget", "newa", "wwa"]), isWaB = (tag, loc) => tag === "wa" || (loc && /inner/.test(tag || ""));
-const BUOYS = [["46041","Cape Elizabeth",47.351,-124.741,"wa"],["46029","Columbia River Bar",46.148,-124.508,"wa"],["46087","Neah Bay",48.493,-124.727,"wa"],["46005","West Washington",46.147,-131.077,"wa wide"],["46089","Tillamook",45.928,-125.815,"wa"],["46050","Stonewall Bank",44.679,-124.535,"wa"],["46002","West Oregon",42.56,-130.523,"wa wide"],["46211","Grays Harbor",46.857,-124.243,"wa"],["46088","New Dungeness",48.332,-123.179,"inner any"],["46267","Angeles Point",48.171,-123.6,"inner"],["46303","Southern Georgia Strait",49.02,-123.43,"inner"],["46120","Point Wells",47.761,-122.397,"inner"],["46118","Bellingham Bay",48.724,-122.576,"inner"],["46146","Halibut Bank",49.34,-123.73,"sog"],["46054","West Santa Barbara",34.265,-120.477,""],["46229","Umpqua Offshore",43.772,-124.549,""],["46015","Port Orford",42.754,-124.839,""],["46027","St Georges",41.84,-124.382,""],["46022","Eel River",40.716,-124.54,""],["46014","Point Arena",39.225,-123.98,""],["46013","Bodega Bay",38.235,-123.317,""],["46214","Point Reyes",37.944,-123.466,""],["46026","San Francisco",37.75,-122.838,""],["46042","Monterey",36.787,-122.408,""],["46028","Cape San Martin",35.763,-121.9,""],["46011","Santa Maria",34.937,-120.999,""],["46025","Santa Monica Basin",33.765,-119.077,""],["46047","Tanner Bank",32.418,-119.535,""],["46086","San Clemente Basin",32.504,-118.029,""],["46206","La Perouse Bank",48.84,-126.0,""],["46059","West California",38.067,-129.895,"wide"],["46006","Southeast Papa",40.73,-137.42,"wide"],["46036","South Nomad",48.36,-133.94,"wide"],["46004","Middle Nomad",50.93,-136.1,""],["46147","South Moresby",51.83,-131.22,""],["46208","West Moresby",52.52,-132.69,""],["46205","West Dixon Entrance",54.18,-134.32,""],["46184","North Nomad",53.92,-138.85,"wide"],["46246","Station Papa",49.903,-145.246,""],["46084","Cape Edgecumbe",56.614,-136.04,""],["46083","Fairweather Ground",58.276,-138.024,""],["46085","Central Gulf of Alaska",55.84,-142.895,"wide"],["46001","Western Gulf of Alaska",56.296,-148.027,"wide"],["46060","West Orca Bay",60.571,-146.795,""],["46078","Albatross Bank",55.561,-152.599,""],["46066","South Kodiak",52.776,-154.992,"wide"],["51001","NW Hawaii",24.475,-162.03,"wide"],["51000","Northern Hawaii",23.534,-153.752,""],["51003","Western Hawaii",19.151,-160.617,""],["51002","SW Hawaii",17.07,-157.755,""],["51004","SE Hawaii",17.504,-152.197,"wide"],["44025","Long Island",40.258,-73.175,""],["44008","Nantucket",40.5,-69.254,""],["44011","Georges Bank",41.088,-66.546,"wide"],["41001","East Hatteras",34.738,-72.503,"wide"],["41002","South Hatteras",31.743,-74.955,""],["41048","West Bermuda",31.878,-69.722,"wide"],["41010","Canaveral East",28.86,-78.478,"wide"],["41047","NE Bahamas",27.557,-71.48,""],["42002","West Gulf",25.95,-93.78,"wide"],["42001","Mid Gulf",25.922,-89.638,"wide"],["42003","East Gulf",25.925,-85.616,""]];
+const BUOYS = [["46041","Cape Elizabeth",47.351,-124.741,"wa"],["46029","Columbia River Bar",46.148,-124.508,"wa"],["46087","Neah Bay",48.493,-124.727,"wa"],["46005","West Washington",46.147,-131.077,"wa wide"],["46089","Tillamook",45.928,-125.815,"wa"],["46050","Stonewall Bank",44.679,-124.535,"wa"],["46002","West Oregon",42.56,-130.523,"wa wide"],["46211","Grays Harbor",46.857,-124.243,"wa"],["46088","New Dungeness",48.332,-123.179,"inner any"],["46267","Angeles Point",48.171,-123.6,"inner"],["46303","Southern Georgia Strait",49.02,-123.43,"inner"],["46120","Point Wells",47.761,-122.397,"inner"],["46118","Bellingham Bay",48.724,-122.576,"inner"],["46146","Halibut Bank",49.34,-123.73,"sog"],["46054","West Santa Barbara",34.265,-120.477,""],["46229","Umpqua Offshore",43.772,-124.549,""],["46015","Port Orford",42.754,-124.839,""],["46027","St Georges",41.84,-124.382,""],["46022","Eel River",40.716,-124.54,""],["46014","Point Arena",39.225,-123.98,""],["46013","Bodega Bay",38.235,-123.317,""],["46214","Point Reyes",37.944,-123.466,""],["46026","San Francisco",37.75,-122.838,""],["46042","Monterey",36.787,-122.408,""],["46028","Cape San Martin",35.763,-121.9,""],["46011","Santa Maria",34.937,-120.999,""],["46025","Santa Monica Basin",33.765,-119.077,""],["46047","Tanner Bank",32.418,-119.535,""],["46086","San Clemente Basin",32.504,-118.029,""],["46206","La Perouse Bank",48.84,-126.0,""],["46059","West California",38.067,-129.895,"wide"],["46006","Southeast Papa",40.73,-137.42,"wide"],["46036","South Nomad",48.36,-133.94,"wide"],["46004","Middle Nomad",50.93,-136.1,""],["46147","South Moresby",51.83,-131.22,""],["46208","West Moresby",52.52,-132.69,""],["46205","West Dixon Entrance",54.18,-134.32,""],["46184","North Nomad",53.92,-138.85,"wide"],["46246","Station Papa",49.903,-145.246,""],["46084","Cape Edgecumbe",56.614,-136.04,""],["46083","Fairweather Ground",58.276,-138.024,""],["46085","Central Gulf of Alaska",55.84,-142.895,"wide"],["46001","Western Gulf of Alaska",56.296,-148.027,"wide"],["46060","West Orca Bay",60.571,-146.795,""],["46078","Albatross Bank",55.561,-152.599,""],["46066","South Kodiak",52.776,-154.992,"wide"],["51001","NW Hawaii",24.475,-162.03,"wide"],["51000","Northern Hawaii",23.534,-153.752,""],["51003","Western Hawaii",19.151,-160.617,""],["51002","SW Hawaii",17.07,-157.755,""],["51004","SE Hawaii",17.504,-152.197,"wide"],["51206","Hilo",19.779,-154.97,""],["44025","Long Island",40.258,-73.175,""],["44008","Nantucket",40.5,-69.254,""],["44011","Georges Bank",41.088,-66.546,"wide"],["41001","East Hatteras",34.738,-72.503,"wide"],["41002","South Hatteras",31.743,-74.955,""],["41048","West Bermuda",31.878,-69.722,"wide"],["41010","Canaveral East",28.86,-78.478,"wide"],["41047","NE Bahamas",27.557,-71.48,""],["42002","West Gulf",25.95,-93.78,"wide"],["42001","Mid Gulf",25.922,-89.638,"wide"],["42003","East Gulf",25.925,-85.616,""]];
 function drawBuoys(ctx, st, D, P, V, LW, LH, taken0) {
   const cr = MD().crop || [0, 0, 0, 0], X0 = st.x0, Y0 = st.y0, X1 = st.x0 + st.W, Y1 = st.y0 + st.H;
   if (!st.buoyPx) st.buoyPx = {};
@@ -1037,7 +1050,9 @@ function drawBuoys(ctx, st, D, P, V, LW, LH, taken0) {
     if (tag === "sog" && loc) continue;
     const fi = (90 - la) / 0.25 - cr[0], fj = ((lo + 360) % 360) / 0.25 - cr[2];
     if (!(fi >= 0 && fj >= 0 && fi < h - 1 && fj < w - 1)) continue;
-    if (!(id in st.buoyPx)) { const q = gridInv(V, st, fi, fj, null); st.buoyPx[id] = q && q[0] >= 0 && q[1] >= 0 && q[0] <= st.W && q[1] <= st.H ? [X0 + q[0], Y0 + q[1]] : null; }
+    if (!(id in st.buoyPx)) { const hit = anchorHit(V, la, lo);
+      if (hit) st.buoyPx[id] = hit;
+      else { const q = gridInv(V, st, fi, fj, null); st.buoyPx[id] = q && q[0] >= 0 && q[1] >= 0 && q[0] <= st.W && q[1] <= st.H ? [X0 + q[0], Y0 + q[1]] : null; } }
     const minD = pt(wide ? 60 : isWaB(tag, loc) ? 30 : wcv ? 40 : 48), p = st.buoyPx[id]; if (!p || drawn.some(([a, b]) => (a - p[0]) ** 2 + (b - p[1]) ** 2 < minD * minD)) { if (p) (window.__buoyLog = window.__buoyLog || []).push(`${id}: spacing`); continue; }
     const r = Math.floor(fi), c = Math.floor(fj); let v;
     if (ok(r, c) && ok(r, c + 1) && ok(r + 1, c) && ok(r + 1, c + 1)) v = sampleRC(F, w, fi, fj);
@@ -1101,9 +1116,20 @@ const COAST_VIEWS = {   // order = priority; buoys: "first" = WA buoys placed be
   bay: { style: "region", re: [], add: ["San Francisco", "Half Moon Bay", "Santa Cruz", "Monterey", "Bodega Bay", "Point Arena"], buoys: "after", side: "r" },
   orco: { style: "region", re: [], add: ["Astoria", "Cannon Beach", "Garibaldi", "Newport", "Florence", "Shore Acres", "Coos Bay", "Brookings"], buoys: "after", side: "r" },
   pac: { style: "region", re: [], add: ["Westport", "Newport", "Eureka", "San Francisco", "Los Angeles", "Hanalei", "Honolulu", "Hilo"], buoys: "after", side: "r" } };   // no other city labels here: town names go on the (empty) land side, buoy labels keep the ocean
+function anchorHit(V, la, lo) {   // pixel from the same camera that drew the coast; no second projection
+  const A = V.anchors || [];
+  for (const a of A) {
+    const dlon = Math.abs(((((a.lon - lo) % 360) + 540) % 360) - 180);
+    if (Math.abs(a.lat - la) < 1e-3 && dlon < 1e-3) return [a.x, a.y];
+  }
+  return null;
+}
 const coastPx = (st, V) => (la, lo) => { const cr = MD().crop || [0, 0, 0, 0], k = `${la},${lo}`; if (!st.coastPx) st.coastPx = {};
-  if (!(k in st.coastPx)) { const q = gridInv(V, st, (90 - la) / 0.25 - cr[0], ((lo + 360) % 360) / 0.25 - cr[2], null);
-    st.coastPx[k] = q && q[0] >= 0 && q[1] >= 0 && q[0] <= st.W && q[1] <= st.H ? [st.x0 + q[0], st.y0 + q[1]] : null; } return st.coastPx[k]; };
+  if (!(k in st.coastPx)) { const hit = anchorHit(V, la, lo);
+    if (hit) st.coastPx[k] = hit;
+    else { const q = gridInv(V, st, (90 - la) / 0.25 - cr[0], ((lo + 360) % 360) / 0.25 - cr[2], null);
+      st.coastPx[k] = q && q[0] >= 0 && q[1] >= 0 && q[0] <= st.W && q[1] <= st.H ? [st.x0 + q[0], st.y0 + q[1]] : null; } }
+  return st.coastPx[k]; };
 // 11-01 9:36 AM (Benjamin t2001u "Remove all inland locations from the waves maps, except for the [ones] I mentioned in Washington"): on every wave
 // view only towns on saltwater keep a label ("n": name + model wave value); Seattle / Everett / Tacoma / Olympia stay as plain names ("p", t1998u
 // "Don't really want wave heights for seattle, everett, Tacoma, Olympia"); Oak Harbor -> Smith Island (t1998u). Everything else is left off.
@@ -1561,10 +1587,8 @@ function drawPeak(ctx, st, vals) {
   ctx.fillStyle = "#ffffff"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(s, x + pad, y + h / 2 + pt(0.5));
   return v;
 }
-function landHex(pid, P) {   // theme.json land_base: white, snow products black. Dark ink + white halo stays readable on both.
-  const mode = (P && (P.land_base === "black" || P.land_base === "white")) ? P.land_base
-    : (pid === "snowlvl" || pid === "frz" ? "white" : /^(snow|kuch|nsnow|esnow|dsnod)/.test(pid || "") ? "black" : "white");
-  return mode === "black" ? "#000000" : "#ffffff";
+function landHex(pid, P) {   // white land on every product, snow included
+  return "#ffffff";
 }
 function haloText(ctx, s, x, y, font, color, halo, align, base) {
   ctx.font = font; ctx.textAlign = align; ctx.textBaseline = base; ctx.lineJoin = "round";

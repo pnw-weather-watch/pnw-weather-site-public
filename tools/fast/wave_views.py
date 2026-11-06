@@ -48,27 +48,28 @@ def build_model(man, out, ver, model):
     def layer_fig():
         fig, ax, ky = TM.frame(VID); fig.patch.set_alpha(0); ax.patch.set_alpha(0); return fig, ax, ky
     def save(fig, path):
+        if getattr(fig, "_cam", None): fig._cam.snap()
         fig.savefig(path, dpi=FE.DPI, transparent=True); fig.savefig(path.replace("/static/", "/static/x2/"), dpi=FE.DPI * FE.X2, transparent=True)
         plt.close(fig); return os.path.getsize(path)
-    fig, ax, ky = TM.frame(VID); fig.set_dpi(FE.DPI); ax.apply_aspect(); fig.canvas.draw()
-    W, H = fig.get_size_inches() * FE.DPI; b = ax.get_position()
-    px, py, pw, ph = b.x0 * W, (1 - b.y1) * H, b.width * W, b.height * H
-    x0, x1, y0, y1 = ax.get_extent(V["proj"])
-    nx, ny = int(np.ceil(pw / FE.STRIDE)) + 1, int(np.ceil(ph / FE.STRIDE)) + 1
-    gxp = np.arange(nx) * FE.STRIDE; gyp = np.arange(ny) * FE.STRIDE
-    PX = x0 + (gxp[None, :] / pw) * (x1 - x0) + 0 * gyp[:, None]; PY = y1 - (gyp[:, None] / ph) * (y1 - y0) + 0 * gxp[None, :]
-    ll = pc.transform_points(V["proj"], PX, PY); LO_, LA_ = ll[..., 0], ll[..., 1]
-    n2 = V["proj"].transform_points(pc, LO_, np.minimum(LA_ + 0.05, 89.9))
-    ang = np.arctan2(-(n2[..., 1] - PY) / (y1 - y0) * ph, (n2[..., 0] - PX) / (x1 - x0) * pw)
+    import camera as CAM
+    fig, ax, ky = TM.frame(VID); cam = fig._cam
+    W, H = cam.size(); px, py, pw, ph = cam.panel()
+    g = CAM.sample_grid(cam, FE.STRIDE, FE.MODELS[model].get("res", 0.25))
+    nx, ny, ang = g["nx"], g["ny"], g["ang"]
+    bounds, anchors = list(cam.bounds()), cam.anchors()
     plt.close(fig)
     MI = man["models"][model]; i0, i1, j0, j1 = MI["crop"]; rs_ = FE.MODELS[model].get("res", 0.25)
-    fi, fj = (90.0 - LA_) / rs_, np.mod(LO_, 360.0) / rs_
+    fi, fj = g["fi"], g["fj"]
     assert fi.min() >= i0 and fi.max() <= i1 - 1 and fj.min() >= j0 and fj.max() <= j1 - 1, "view not inside the published crop"
     np.stack([fi - i0, fj - j0, ang], -1).astype("<f4").tofile(f"{out}/static/lut_{model}_{VID}.bin")
     crop_la = 90.0 - np.arange(i0, i1) * rs_; crop_lo = np.mod(np.arange(j0, j1) * rs_, 360.0)
     bx = V["box"]; rr = np.where((crop_la >= bx[2]) & (crop_la <= bx[3]))[0]; cc = np.where((crop_lo >= bx[0] % 360) & (crop_lo <= bx[1] % 360))[0]
     cut = [int(rr.min()), int(rr.max() + 1), int(cc.min()), int(cc.max() + 1)]
     sizes = {}
+    fig, ax, ky = layer_fig(); HS.land(ax, cf); HS.frame(ax)
+    nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
+    for t in fig.texts[nt:]: t.set_visible(False)
+    sizes["land"] = save(fig, f"{out}/static/land_{VID}.png")
     fig, ax, ky = layer_fig(); HS.outlines(ax, cf, res=HS.COAST_RES); HS.frame(ax)
     nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
     for t in fig.texts[nt:]: t.set_visible(False)
@@ -92,6 +93,7 @@ def build_model(man, out, ver, model):
         fn = f"static/key_{model}_{pid}_{VID}_{ver}.png"; sizes[fn] = save(fig, f"{out}/{fn}"); keys[pid] = fn
     entry = dict(label=V["label"], fig=[int(round(W)), int(round(H))], size_in=[float(x) for x in V["size"]], panel=[px, py, pw, ph],
                  stride=FE.STRIDE, nx=nx, ny=ny, barbs_across=20, lut=f"static/lut_{model}_{VID}.bin", cut=cut, towns=[],
+                 bounds=bounds, anchors=anchors,
                  towns_png=f"static/towns_{VID}.png", waveOnly=True, after="pnw", keys=keys)
     print(model, "sizes", sizes, "cut", cut, "panel", [round(x) for x in (px, py, pw, ph)], flush=True)
     return entry

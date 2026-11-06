@@ -952,25 +952,31 @@ def static(m, out, views_only=None, x2_only=False):
     else:
         rs_ = MD.get("res", 0.25)
         def to_ij(LO_, LA_): return (90.0 - LA_) / rs_, np.mod(LO_, 360.0) / rs_
+    import camera as CAM
     views, luts = {}, {}
     for vid in vids:
         V = TM.VIEWS[vid]
-        fig, ax, ky = TM.frame(vid); fig.set_dpi(DPI); ax.apply_aspect(); fig.canvas.draw()
-        HS.fill_projected_limits(ax, fig._screen["axes"])   # apply_aspect must not inset the axes
-        fig.canvas.draw()
-        W, H = fig.get_size_inches() * DPI; b = ax.get_position()
-        px, py, pw, ph = b.x0 * W, (1 - b.y1) * H, b.width * W, b.height * H
-        x0, x1, y0, y1 = ax.get_extent(V["proj"])
-        nx, ny = int(np.ceil(pw / STRIDE)) + 1, int(np.ceil(ph / STRIDE)) + 1
-        gxp = np.arange(nx) * STRIDE; gyp = np.arange(ny) * STRIDE
-        PX = x0 + (gxp[None, :] / pw) * (x1 - x0) + 0 * gyp[:, None]; PY = y1 - (gyp[:, None] / ph) * (y1 - y0) + 0 * gxp[None, :]
-        ll = pc.transform_points(V["proj"], PX, PY); LO_, LA_ = ll[..., 0], ll[..., 1]
-        fi, fj = to_ij(LO_, LA_)
-        n2 = V["proj"].transform_points(pc, LO_, np.minimum(LA_ + 0.05, 89.9))
-        ang = np.arctan2(-(n2[..., 1] - PY) / (y1 - y0) * ph, (n2[..., 0] - PX) / (x1 - x0) * pw)
+        fig, ax, ky = TM.frame(vid)   # the one camera: panel, coast and labels share it
+        cam = fig._cam
+        W, H = cam.size()
+        px, py, pw, ph = cam.panel()
+        if MD["grid"] == "ll":
+            g = CAM.sample_grid(cam, STRIDE, MD.get("res", 0.25))
+            fi, fj, ang = g["fi"], g["fj"], g["ang"]
+        else:
+            x0, x1, y0, y1 = cam.bounds()
+            nx, ny = int(np.ceil(pw / STRIDE)) + 1, int(np.ceil(ph / STRIDE)) + 1
+            gxp = np.arange(nx) * STRIDE; gyp = np.arange(ny) * STRIDE
+            PX = x0 + (gxp[None, :] / pw) * (x1 - x0); PY = y1 - (gyp[:, None] / ph) * (y1 - y0)
+            ll = pc.transform_points(V["proj"], PX, PY); LO_, LA_ = ll[..., 0], ll[..., 1]
+            fi, fj = to_ij(LO_, LA_)
+            n2 = V["proj"].transform_points(pc, LO_, np.minimum(LA_ + 0.05, 89.9))
+            ang = np.arctan2(-(n2[..., 1] - PY) / (y1 - y0) * ph, (n2[..., 0] - PX) / (x1 - x0) * pw)
+            g = {"nx": nx, "ny": ny}
         luts[vid] = (fi, fj, ang)
         views[vid] = dict(label=V["label"], fig=[int(round(W)), int(round(H))], size_in=[float(x) for x in fig.get_size_inches()],
-                          panel=[px, py, pw, ph], stride=STRIDE, nx=nx, ny=ny, barbs_across=HS.BARBS_ACROSS.get(vid, 20))
+                          panel=[px, py, pw, ph], stride=STRIDE, nx=g["nx"], ny=g["ny"], barbs_across=HS.BARBS_ACROSS.get(vid, 20),
+                          bounds=list(cam.bounds()), anchors=cam.anchors())
         b_ = V["box"]; lob = np.mod(lo, 360) if MD["grid"] == "ll" else lo; bl0, bl1 = (np.mod(b_[0], 360), np.mod(b_[1], 360)) if MD["grid"] == "ll" else (b_[0], b_[1])
         inlon = ((lob >= bl0) & (lob <= bl1)) if bl0 <= bl1 else ((lob >= bl0) | (lob <= bl1))
         mm = (la >= b_[2]) & (la <= b_[3]) & inlon
@@ -997,7 +1003,9 @@ def static(m, out, views_only=None, x2_only=False):
     # file only when its map bitmap is drawn above 1x (zoomed phone, retina desktop). 1x files are unchanged.
     os.makedirs(f"{out}/static/x2", exist_ok=True)
     def save(fig, path):
+        if getattr(fig, "_cam", None): fig._cam.snap()
         fig.savefig(path, dpi=DPI, transparent=True)
+        if getattr(fig, "_cam", None): fig._cam.snap()
         fig.savefig(path.replace("/static/", "/static/x2/"), dpi=DPI * X2, transparent=True)
         plt.close(fig); return os.path.getsize(path)
     def town_call(ax, vid, field):
@@ -1024,6 +1032,11 @@ def static(m, out, views_only=None, x2_only=False):
     sizes = {}
     for vid in vids:
         if not os.path.exists(f"{out}/static/base_{vid}.png") or views_only:
+            fig, ax, ky = layer_fig(vid)
+            HS.land(ax, cf); HS.frame(ax)
+            nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
+            for t in fig.texts[nt:]: t.set_visible(False)
+            sizes[f"land_{vid}"] = save(fig, f"{out}/static/land_{vid}.png")
             fig, ax, ky = layer_fig(vid)
             HS.outlines(ax, cf, res=HS.COAST_RES); HS.frame(ax)
             if vid == "capasses": major_roads(ax)   # 11-04 (Benjamin 3:10 PM): interstates + major US highways on California Passes
@@ -1621,8 +1634,10 @@ def static(m, out, views_only=None, x2_only=False):
     if "ntstm" in prods: prods["ntstm"]["min_show"] = 10
     for k in ("uh", "uhs", "cape3", "srh03", "refuh"):
         if k in prods: prods[k]["min_show"] = prods[k]["levels"][0]
-    for k in ("waves", "wavemax", "wavemax24", "swper", "swellhs"):   # land (swh -0.5) drawn in the basemap land tone (11-01: wavemax24 too, its land was black)
-        if k in prods: prods[k]["under"] = "#ece8df"
+    for k in ("waves", "wavemax", "wavemax24", "swper", "swellhs"):   # land is the GSHHG fill (swh -0.5 stays unpainted)
+        if k in prods:
+            prods[k]["under"] = None
+            prods[k]["min_show"] = 0.0
     for k in ("fog", "ivt"):   # light below the first level (old site: clear over the light basemap)
         if k in prods: prods[k]["under"] = "#f4f5f7"
     if "ptype" in prods: prods["ptype"]["under"] = "#f4f5f7"

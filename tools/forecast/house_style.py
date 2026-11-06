@@ -100,16 +100,20 @@ def theme():
 
 
 def land_base(pid=None):
-    """'white' on every product, 'black' on snow, Kuchera, snow rate, depth change, ensemble and NBM snow."""
-    t = theme()
-    if pid and t.get("land_base_by_product", {}).get(pid) == "black":
-        return "black"
-    base = t.get("land_base", "white")
-    return base if base in ("white", "black") else "white"
+    """White land on every product, including snow."""
+    del pid
+    theme()  # the setting lives in theme.json; it is white
+    return "white"
 
 
 def land_hex(pid=None):
-    return "#000000" if land_base(pid) == "black" else "#ffffff"
+    return "#ffffff"
+
+
+def land(ax, cf, color="#ffffff"):
+    """GSHHG full-resolution land polygon. Ocean stays empty so the data shows there."""
+    shore = cf.GSHHSFeature(scale="full", levels=[1])
+    ax.add_feature(shore, facecolor=color, edgecolor="none", linewidth=0, zorder=1)
 
 
 def outlines(ax, cf, res=COAST_RES, states=True):

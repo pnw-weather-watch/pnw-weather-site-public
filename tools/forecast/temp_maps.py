@@ -561,16 +561,11 @@ def pass_labels(ax, field, fmt, taken, r, pt, axbb, pass_corr=None):
 
 
 def frame(vid):
-    V = VIEWS[vid]
-    fig = plt.figure(figsize=HS.SCREEN_IN, dpi=100); fig.patch.set_facecolor(HS.BG)
-    lay = HS.screen_layout(fig)
-    ax = fig.add_axes(lay["axes"], projection=V["proj"])
-    if "extent" in V: ax.set_extent(V["extent"], crs=V["proj"])
-    else: ax.set_extent(V["ll"], crs=ccrs.PlateCarree())
-    HS.fill_projected_limits(ax, lay["axes"])
-    HS.frame(ax)
-    fig._screen = lay
-    return fig, ax, lay["key_y"]
+    """One camera for this view. Land, coast, towns and the data grid all use it."""
+    from camera import Camera
+    cam = Camera(VIEWS[vid])
+    HS.frame(cam.ax)
+    return cam.fig, cam.ax, cam.layout["key_y"]
 
 
 def freeze_line(ax, LO, LA, F, level):
