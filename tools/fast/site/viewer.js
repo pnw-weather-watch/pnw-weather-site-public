@@ -876,18 +876,23 @@ async function render(lite) {
   ctx.restore();
   // 4. towns (dots + names static) and live numbers
   const tmode = P.towns || "numbers";
-  const WT = WAVE_PIDS.test(pid) && MD().grid === "ll" ? coastPlan(ctx, st, V, LW, LH) : null;   // wave maps: coast towns (11-01 t1990u)
-  if (st.towns && tmode !== "none" && !(WT && WT.own)) ctx.drawImage(WT && WT.erase.length ? erasedTowns(L2.towns, `${st.townsU}#${WT.vid}`, WT.erase, LW) : L2.towns, 0, 0, LW, LH);
-  if (st.towns && tmode === "numbers") for (const t of V.towns) {
+  const wave = !WXSelect.showStaticTowns(pid, MD().grid);
+  const passView = VSRC(S.view) === "passes" || VSRC(S.view) === "capasses";
+  const WT = wave ? coastPlan(ctx, st, V, LW, LH) : null;   // wave maps: coast towns (11-01 t1990u)
+  // Wave maps never paint the static town layer: it includes inland cities. Coastal names are drawn by drawCoast.
+  if (st.towns && tmode !== "none" && WXSelect.showStaticTowns(pid, MD().grid) && !(WT && WT.own)) ctx.drawImage(WT && WT.erase.length ? erasedTowns(L2.towns, `${st.townsU}#${WT.vid}`, WT.erase, LW) : L2.towns, 0, 0, LW, LH);
+  if (!wave && st.towns && tmode === "numbers") for (const t of V.towns) {
+    if (passView && t.kind === "pass") continue;   // pass name + readout is drawn together
     if (WT && WT.re.has(t.name)) continue;   // re-placed with the coast towns
     if (!(t.fi >= 0 && t.fj >= 0 && t.fi < D.h - 1 && t.fj < D.w - 1)) continue;
     let v = sampleRC(D.fill, D.w, t.fi, t.fj); if (!isFinite(v)) continue;   // HRRR: integer = nearest 3 km point; global: bilinear at the pin
     if (pid === "t2m" && t.t2m_corr !== undefined) v += t.t2m_corr;          // pass summit height correction (temp_maps)
     haloText(ctx, fmtVal(P, v), t.x * LW, t.y * LH, `800 ${pt(t.size)}px WXTheme`, t.color, pt(3.0), "left", "middle");
   }
+  if (passView) drawPassLabels(ctx, st, D, P, pid, V, LW, LH);
+  if (wave && WT) { addCoastalTowns(WT, V); drawCoast(ctx, st, D, P, V, LW, LH, WT); }
   // 11-01 8:32 AM (Benjamin t1987u: "Include known buoy locations off the coast, and have them show the wave height numbers, do the same for
-  // significant wave height"; t1988u: "Just make them look like the other locations in the map"): NDBC buoys on the ECMWF wave maps only
-  if (WT) drawCoast(ctx, st, D, P, V, LW, LH, WT);
+  // significant wave height"; t1988u: "Just make them look like the other locations in the map"): NDBC buoys on every wave map
   if (P.lows && S.lowPanel) paintLowPanel(ctx, st, V, S.lowPanel);
   // 5. key + header text
   if (L2.key) ctx.drawImage(L2.key, 0, 0, LW, LH);
@@ -1180,6 +1185,69 @@ function seaVal(D, la, lo) {   // model value at a coast town: bilinear when the
   let bd = 2.26, v; for (let rr = r - 1; rr <= r + 2; rr++) for (let cc = c - 1; cc <= c + 2; cc++) { const d = (rr - fi) ** 2 + (cc - fj) ** 2; if (ok(rr, cc) && d < bd) { bd = d; v = F[rr * w + cc]; } }
   return v;
 }
+function townLatLon(t) {
+  if (Number.isFinite(t.lat) && Number.isFinite(t.lon)) return [t.lat, t.lon];
+  const cr = MD().crop || [0, 0, 0, 0], res = Number(MD().res) === 0.1 ? 0.1 : 0.25;
+  if (!(Number.isFinite(t.fi) && Number.isFinite(t.fj))) return null;
+  let lon = (t.fj + cr[2]) * res; if (lon > 180) lon -= 360;
+  return [90 - (t.fi + cr[0]) * res, lon];
+}
+// Towns already on the wave plan stay. Any other town pin within about 10 km of the coast is added
+// (Hawaii island towns included). Inland pins are left off.
+function addCoastalTowns(WT, V) {
+  const pts = WXSelect.coastPoints(); if (!pts.length || !WT || !WT.C) return;
+  const have = new Set([...(WT.pre || []), ...(WT.post || []), ...(WT.C.add || []), ...(WT.C.order || [])]);
+  const extra = [];
+  for (const t of V.towns || []) {
+    const nm = WAVE_RENAME[t.name] || t.name;
+    if (have.has(nm) || have.has(t.name)) continue;
+    const ll = townLatLon(t); if (!ll || !WXSelect.isCoastal(ll[0], ll[1], pts)) continue;
+    extra.push(nm); have.add(nm);
+    WT.xt = WT.xt || {};
+    if (!COAST_TOWNS[nm]) WT.xt[nm] = [ll[0], ll[1], "r"];
+  }
+  if (!extra.length) return;
+  if (WT.own) WT.post = (WT.post || []).concat(extra);
+  else WT.C = Object.assign({}, WT.C, { add: (WT.C.add || []).concat(extra) });
+}
+function drawPassLabels(ctx, st, D, P, pid, V, LW, LH) {
+  if (!D || !D.fill) return;
+  const list = WXSelect.passesForView(VSRC(S.view)); if (!list.length) return;
+  const showLayer = !!(st.towns && (P.towns || "numbers") !== "none");
+  const slots = (V.towns || []).filter(t => t.kind === "pass");
+  const slotOf = p => slots.find(t => t.name === p.label || t.name === p.id || (p.label === "Sonora" && t.name === "Sonora Pass"));
+  const model = Object.assign({ id: (S.run || "").split("/")[0] }, MD());
+  ctx.save();
+  for (const p of list) {
+    const slot = slotOf(p);
+    let fi = NaN, fj = NaN, x = null, y = null, baked = false;
+    if (slot && slot.x != null && slot.y != null) {
+      fi = slot.fi; fj = slot.fj; x = slot.x * LW; y = slot.y * LH; baked = showLayer;
+    } else {
+      const ij = WXSelect.latLonIndex(model, p.lat, p.lon); if (!ij) continue;
+      fi = ij[0]; fj = ij[1];
+      const q = gridInv(V, st, fi, fj, null);
+      if (!q || q[0] < -8 || q[1] < -8 || q[0] > st.W + 8 || q[1] > st.H + 8) continue;
+      x = st.x0 + q[0]; y = st.y0 + q[1];
+    }
+    let v = (fi >= 0 && fj >= 0 && fi < D.h - 1 && fj < D.w - 1) ? sampleRC(D.fill, D.w, fi, fj) : NaN;
+    if (pid === "t2m" && slot && slot.t2m_corr !== undefined && isFinite(v)) v += slot.t2m_corr;
+    const valueText = WXSelect.formatPassValue(pid, P, v);
+    if (baked) {
+      if (valueText) haloText(ctx, valueText, x, y, `800 ${pt(slot.size || 9.5)}px WXTheme`, "#0d0f13", pt(3.0), "left", "middle");
+      continue;
+    }
+    ctx.beginPath(); ctx.moveTo(x, y - pt(4.2)); ctx.lineTo(x - pt(3.4), y + pt(2.8)); ctx.lineTo(x + pt(3.4), y + pt(2.8)); ctx.closePath();
+    ctx.fillStyle = "#ffffff"; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x, y - pt(3.2)); ctx.lineTo(x - pt(2.6), y + pt(2.1)); ctx.lineTo(x + pt(2.6), y + pt(2.1)); ctx.closePath();
+    ctx.fillStyle = "#3b2a5c"; ctx.fill();
+    const fName = `italic 600 ${pt(8)}px WXTheme`, fNum = `800 ${pt(9.5)}px WXTheme`;
+    ctx.font = fName; const nw = ctx.measureText(p.label).width;
+    haloText(ctx, p.label, x + pt(6), y, fName, "#3b2a5c", pt(2.4), "left", "middle");
+    if (valueText) haloText(ctx, valueText, x + pt(6) + nw + pt(3), y, fNum, "#0d0f13", pt(3.0), "left", "middle");
+  }
+  ctx.restore();
+}
 function drawCoast(ctx, st, D, P, V, LW, LH, WT) {
   const C = WT.C; if (!C) { WT.taken = WT.boxes = WT.boxes || []; drawBuoys(ctx, st, D, P, V, LW, LH, WT.taken); return; }
   const wa = C.style === "wa", fName = `600 ${pt(wa ? 9.5 : 8.5)}px WXTheme`, fNum = `800 ${pt(wa ? 10.5 : 9.5)}px WXTheme`, gap = pt(wa ? 3.5 : 3.0), hh = pt(6.5);
@@ -1192,6 +1260,8 @@ function drawCoast(ctx, st, D, P, V, LW, LH, WT) {
   for (const n of (C.own ? [] : WT.re)) { const T = COAST_TOWNS[n], d = T && WT.px(T[0], T[1]); if (d) resv.push([d[0] - pt(2.5), d[1] - pt(2.5), d[0] + pt(2.5), d[1] + pt(2.5)]); }
   const place = (name, must) => {
     const T = COAST_TOWNS[name] || (WT.xt && WT.xt[name]), d = T && WT.px(T[0], T[1]); if (!d) { WT.log.push(`${name}: off map`); return; }
+    const coast = WXSelect.coastPoints();
+    if (coast.length && !WXSelect.isCoastal(T[0], T[1], coast)) { WT.log.push(`${name}: inland`); return; }
     const [x, y] = d, dot = [x - pt(2.5), y - pt(2.5), x + pt(2.5), y + pt(2.5)], big = (C.big || []).includes(name);
     if (must) { const k = resv.findIndex(b => Math.abs(b[0] + pt(2.5) - x) < 0.01 && Math.abs(b[1] + pt(2.5) - y) < 0.01); if (k >= 0) resv.splice(k, 1); }   // its own dot reserve
     if (!must && (hit(dot, pt(1)) || dots.some(([a, b]) => (a - x) ** 2 + (b - y) ** 2 < pt(wa ? 9 : 11) ** 2))) { WT.log.push(`${name}: dot blocked`); return; }
@@ -1690,7 +1760,7 @@ function gridInv(V, st, fi, fj, guess) {   // [fi, fj] -> panel px, or null when
 // with H ... highest pressure number"; 1:27 AM: also on MSLP + wind maps). Old site's house_style.find_centers ported: smoothed
 // MSLP, neighbourhood extreme over a radius (km) per view, prominence vs the median of the ring at that radius, min spacing;
 // the number is the raw (unsmoothed) min / max near the centre. Drawn on every map with MSLP isobars except ensemble lows.
-const HL_VIEW = { na: [800, 3.0, 75], pac: [1000, 3.0, 90], pnw: [400, 2.0, 50], pnwt: [400, 2.0, 50], pnwhr: [400, 2.0, 45], ca: [400, 2.0, 45], hiw: [400, 2.0, 50], bay: [200, 1.2, 35], orco: [300, 1.5, 55], bigi: [180, 1.5, 35] };   // [KIT] from regions.json   // radius km, prominence mb, smoothing km
+const HL_VIEW = { na: [800, 3.0, 75], pac: [1000, 3.0, 90], pnw: [400, 2.0, 50], pnwt: [400, 2.0, 50], pnwhr: [400, 2.0, 45], ca: [400, 2.0, 45], hiw: [350, 1.5, 40], bay: [200, 1.2, 35], orco: [300, 1.5, 55], bigi: [180, 1.5, 35] };   // [KIT] from regions.json   // radius km, prominence mb, smoothing km
 const HL_WA = [250, 1.5, 35];   // Washington-type frames (old HL_RADIUS_KM / HL_PROMINENCE_MB "wa")
 const HL_LOW_COLOR = (getComputedStyle(document.documentElement).getPropertyValue("--map-lo") || "").trim() || "#E4572E", HL_HIGH_COLOR = (getComputedStyle(document.documentElement).getPropertyValue("--map-hi") || "").trim() || "#0B2545";   // [THEME]   // L red, H blue (Benjamin 10-31 1:42 AM; old site H blue #1747c9)
 function drawHL(ctx, st, D, V, gk, P) {

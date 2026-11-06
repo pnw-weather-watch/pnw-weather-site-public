@@ -322,26 +322,26 @@
    "label": "Hawaii (wide)",
    "size": [
     16,
-    10.5
+    7
    ],
    "proj": [
     "merc",
-    -157
+    -158
    ],
    "ll": [
     -168.0,
     -148.0,
-    14.0,
-    26.5
+    16.08,
+    24.42
    ],
    "box": [
-    -172.0,
-    -144.0,
-    11.0,
-    29.0
+    -169.6,
+    -146.4,
+    15.2,
+    25.3
    ],
    "models": "global",
-   "from": "NEW (islands plus surrounding ocean; CONUS HRRR/RRFS/NBM grids do not cover Hawaii)"
+   "from": "11-06 Benjamin: 1.5x closer north-south (12.5 deg -> 8.34) and 1.5x wider than that zoom, so longitude stays 20 deg. Center -158, 20.25. Canvas [16, 7] matches that aspect. Niihau through the Big Island stay inside with a margin."
   },
   "bay": {
    "label": "Bay Area",
@@ -438,7 +438,7 @@
   "passes": 0.0,
   "ca": 0.4,
   "capasses": 0.0,
-  "hiw": 0.6,
+  "hiw": 0.45,
   "socal": 0.3,
   "cenca": 0.3,
   "norca": 0.3,
@@ -473,11 +473,11 @@
   ],
   "hiw": [
    [
-    100000,
-    20000,
-    5000
+    80000,
+    15000,
+    4000
    ],
-   30
+   36
   ],
   "socal": [
    [
@@ -543,7 +543,7 @@
    "pnw": 400,
    "pnwt": 400,
    "ca": 300,
-   "hiw": 500,
+   "hiw": 350,
    "socal": 250,
    "cenca": 250,
    "norca": 250,
@@ -557,7 +557,7 @@
    "pnw": 2.0,
    "pnwt": 2.0,
    "ca": 1.5,
-   "hiw": 2.0,
+   "hiw": 1.5,
    "socal": 1.5,
    "cenca": 1.5,
    "norca": 1.5,
@@ -571,7 +571,7 @@
    "pnw": 450,
    "pnwt": 450,
    "ca": 300,
-   "hiw": 400,
+   "hiw": 280,
    "socal": 250,
    "cenca": 250,
    "norca": 250,
@@ -587,7 +587,7 @@
   "pnwt": 20,
   "pnwhr": 20,
   "ca": 20,
-  "hiw": 18,
+  "hiw": 20,
   "socal": 18,
   "cenca": 18,
   "norca": 18,

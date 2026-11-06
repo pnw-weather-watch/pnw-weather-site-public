@@ -3,7 +3,7 @@
 set -e; cd "$(dirname "$0")"; K=..; SRC=$K/tools/fast/site
 rm -rf public; mkdir -p public/fonts public/obs public/old
 cp $K/web/forecast/obs/obs.js $K/web/forecast/obs/obs.css $K/web/forecast/obs/basemap.json $K/web/forecast/obs/obsimg.js public/obs/
-cp $SRC/fonts/* public/fonts/; cp $SRC/theme.css $SRC/selection.js $SRC/viewer.js $SRC/compare.html $SRC/compare.js $SRC/meteograms.js $SRC/buoys_ndbc.json $SRC/reqbox.js public/
+cp $SRC/fonts/* public/fonts/; cp $SRC/theme.css $SRC/selection.js $SRC/viewer.js $SRC/coastline.js $SRC/compare.html $SRC/compare.js $SRC/meteograms.js $SRC/buoys_ndbc.json $SRC/reqbox.js public/
 cp $K/web/forecast/base.css $K/web/forecast/forecast.css public/old/
 for d in mkeys slayers; do [ -d $SRC/$d ] && cp -r $SRC/$d public/ || true; done   # site-shipped "@" keys / town layers once you generate them
 inj='s#<head>#<head><meta name="robots" content="noindex,nofollow">#'

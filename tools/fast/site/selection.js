@@ -110,5 +110,155 @@
     return { prod, view, note, prefer: wanted, changed: prod !== reqProd || view !== reqView };
   }
 
-  return { lookupKey, climParts, resolveSelection, publicName };
+  // Cascade passes: tools/forecast/temp_maps.py WA_PASSES (label, lat, lon, elev ft).
+  const WA_PASSES = [
+    { id: "Snoqualmie Pass", label: "Snoqualmie", lat: 47.4245, lon: -121.4136, elev: 3022 },
+    { id: "Stevens Pass", label: "Stevens", lat: 47.7465, lon: -121.0854, elev: 4061 },
+    { id: "White Pass", label: "White", lat: 46.6383, lon: -121.3911, elev: 4500 },
+    { id: "Chinook Pass", label: "Chinook", lat: 46.8714, lon: -121.5156, elev: 5430 },
+    { id: "Blewett Pass", label: "Blewett", lat: 47.3348, lon: -120.5786, elev: 4102 },
+    { id: "Sherman Pass", label: "Sherman", lat: 48.6055, lon: -118.4636, elev: 5575 },
+    { id: "Satus Pass", label: "Satus", lat: 45.9847, lon: -120.6536, elev: 3107 },
+    { id: "Wauconda Pass", label: "Wauconda", lat: 48.7262, lon: -118.9595, elev: 4310 },
+    { id: "Disautel Pass", label: "Disautel", lat: 48.2818, lon: -119.1434, elev: 3252 },
+  ];
+
+  // Imagery and categorical fills: a single number at the pass is not a useful readout.
+  const PASS_NAME_ONLY = { refc: 1, refuh: 1, ir: 1, ptype: 1, prt: 1, spag: 1 };
+
+  function passUnit(pid, P) {
+    if (!pid || PASS_NAME_ONLY[pid] || (P && P.fill === "prt")) return null;
+    const fmt = P && P.fmt;
+    if (fmt === "in2" || fmt === "in1" || fmt === "in1s") return "\"";
+    if (fmt === "ft100") return " ft";
+    if (fmt === "vis") return " mi";
+    if (/^gust/.test(pid)) return " mph";
+    if (/^(t2m|feels|d2m|nmaxt|nmint|ehigh|elow)/.test(pid) || pid === "t2ma") return "\u00b0F";
+    if (/^t\d/.test(pid)) return "\u00b0C";
+    if (/^(slp|mslp)/.test(pid) && pid.indexOf("qpf") < 0) return " mb";
+    if (/^(tcc|fog|ep32|ntstm|qpfa|qpfpct)/.test(pid)) return "%";
+    if (/^(w500|w250|w300|w850)/.test(pid)) return " kt";
+    if (pid === "aifswind") return " mph";
+    if (/^(waves|wavemax|wavemax24|swellhs)/.test(pid)) return " ft";
+    if (pid === "swper") return " s";
+    if (/cape/.test(pid)) return " J/kg";
+    return "";
+  }
+
+  function formatPassValue(pid, P, v) {
+    if (!Number.isFinite(v)) return null;
+    const unit = passUnit(pid, P);
+    if (unit === null) return null;
+    const fmt = P && P.fmt;
+    let num;
+    if (fmt === "in2") num = v < 0.005 ? "0" : v.toFixed(2);
+    else if (fmt === "in1" || fmt === "in1s") {
+      if (Math.abs(v) < 0.05) num = "0";
+      else {
+        const a = Math.abs(v) < 10 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(0);
+        num = fmt === "in1s" && v < 0 ? "-" + a : a;
+      }
+    } else if (fmt === "vis") num = v >= 7 ? "7+" : (v < 3 ? v.toFixed(1) : v.toFixed(0));
+    else if (fmt === "ft100") num = String(Math.round(v / 100) * 100);
+    else num = String(Math.round(v));
+    return num + unit;
+  }
+
+  function passCaption(label, valueText) {
+    return valueText ? label + " " + valueText : label;
+  }
+
+  // regions/regions.json CA_PASSES. Short label is what the map draws; Sonora collides with the town of Sonora.
+  const CA_PASSES = [
+    { id: "Black Butte Summit", label: "Black Butte", lat: 41.3546, lon: -122.3539, elev: 3912 },
+    { id: "Yuba Pass", label: "Yuba", lat: 39.61741, lon: -120.48995, elev: 6710 },
+    { id: "Donner Pass", label: "Donner", lat: 39.33987, lon: -120.34396, elev: 7239 },
+    { id: "Mount Rose Summit", label: "Mount Rose", lat: 39.31325, lon: -119.89659, elev: 8911 },
+    { id: "Echo Summit", label: "Echo", lat: 38.81297, lon: -120.0302, elev: 7382 },
+    { id: "Luther Pass", label: "Luther", lat: 38.78686, lon: -119.94686, elev: 7740 },
+    { id: "Carson Pass", label: "Carson", lat: 38.6938, lon: -119.98853, elev: 8574 },
+    { id: "Ebbetts Pass", label: "Ebbetts", lat: 38.54436, lon: -119.81186, elev: 8736 },
+    { id: "Sonora Pass", label: "Sonora", lat: 38.3277, lon: -119.63685, elev: 9624 },
+    { id: "Tioga Pass", label: "Tioga", lat: 37.91104, lon: -119.25794, elev: 9945 },
+    { id: "Walker Pass", label: "Walker", lat: 35.66246, lon: -118.02675, elev: 5250 },
+    { id: "Tehachapi Pass", label: "Tehachapi", lat: 35.10219, lon: -118.2837, elev: 3771 },
+    { id: "Tejon Pass", label: "Tejon", lat: 34.80137, lon: -118.87539, elev: 4144 },
+  ];
+
+  function passesForView(view, caPasses) {
+    if (view === "passes") return WA_PASSES;
+    if (view === "capasses") return caPasses || CA_PASSES;
+    return [];
+  }
+
+  // HRRR / RRFS 3 km Lambert. Origin is the GRIB first grid point (NOAA HRRR mass grid).
+  const HRRR_LCC = { lon0: -97.5, lat0: 38.5, lat1: 38.5, R: 6371229, dx: 3000, lon00: -122.719528, lat00: 21.138123 };
+  function lambertXY(lon, lat, p) {
+    const rad = Math.PI / 180, n = Math.sin(p.lat1 * rad);
+    const F = Math.cos(p.lat1 * rad) * Math.pow(Math.tan(Math.PI / 4 + p.lat1 * rad / 2), n) / n;
+    const rho = la => p.R * F / Math.pow(Math.tan(Math.PI / 4 + la * rad / 2), n);
+    const rho0 = rho(p.lat0), th = n * (lon - p.lon0) * rad, r = rho(lat);
+    return [r * Math.sin(th), rho0 - r * Math.cos(th)];
+  }
+  function latLonIndex(model, lat, lon) {
+    const cr = (model && model.crop) || [0, 0, 0, 0];
+    if (!model || model.grid !== "lcc") {
+      const res = model && /0\.1|9 km/.test(String(model.res || "")) ? 0.1 : 0.25;
+      const fi = (90 - lat) / res - cr[0];
+      const lon360 = ((lon % 360) + 360) % 360;
+      return [fi, lon360 / res - cr[2]];
+    }
+    if (model.id && model.id !== "hrrr" && model.id !== "rrfs") return null;
+    const o = lambertXY(HRRR_LCC.lon00, HRRR_LCC.lat00, HRRR_LCC);
+    const q = lambertXY(lon, lat, HRRR_LCC);
+    return [(q[1] - o[1]) / HRRR_LCC.dx - cr[0], (q[0] - o[0]) / HRRR_LCC.dx - cr[2]];
+  }
+
+  function kmToCoast(lat, lon, pts) {
+    let best = 1e9;
+    const clat = Math.max(Math.cos(lat * Math.PI / 180), 0.2);
+    for (let i = 0; i < pts.length; i++) {
+      const dlat = (lat - pts[i][1]) * 111.2, dlon = (lon - pts[i][0]) * 111.2 * clat;
+      const d = Math.hypot(dlat, dlon);
+      if (d < best) best = d;
+    }
+    return best;
+  }
+  function isCoastal(lat, lon, pts, km) {
+    return kmToCoast(lat, lon, pts) <= (km == null ? 10 : km);
+  }
+  function isWaveProduct(pid) {
+    return /^(waves|wavemax|wavemax24|swper|swellhs)$/.test(pid || "");
+  }
+  // The baked town picture includes inland cities. Wave maps on a lat/lon grid never draw it.
+  function showStaticTowns(pid, grid) {
+    return !(isWaveProduct(pid) && grid === "ll");
+  }
+  // Wave maps draw a town only when it sits on or within about 10 km of the coast, including Hawaii.
+  function coastalTowns(towns, pts, km) {
+    return (towns || []).filter(t => Number.isFinite(t.lat) && Number.isFinite(t.lon) && isCoastal(t.lat, t.lon, pts, km));
+  }
+  function decodeCoast(b64) {
+    const raw = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+    const n = (raw.length / 4) | 0, pts = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const o = i * 4;
+      let lon = raw.charCodeAt(o) | (raw.charCodeAt(o + 1) << 8);
+      let lat = raw.charCodeAt(o + 2) | (raw.charCodeAt(o + 3) << 8);
+      if (lon & 0x8000) lon -= 0x10000;
+      if (lat & 0x8000) lat -= 0x10000;
+      pts[i] = [lon / 100, lat / 100];
+    }
+    return pts;
+  }
+  let _coast = null;
+  function coastPoints() {
+    if (_coast) return _coast;
+    const b64 = typeof WXCoastB64 === "string" ? WXCoastB64 : "";
+    _coast = b64 ? decodeCoast(b64) : [];
+    return _coast;
+  }
+
+  return { lookupKey, climParts, resolveSelection, publicName, WA_PASSES, CA_PASSES, passUnit, formatPassValue, passCaption,
+    passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, coastalTowns, decodeCoast, coastPoints };
 });
