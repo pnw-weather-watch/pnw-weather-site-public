@@ -69,7 +69,7 @@ def build_model(man, out, ver, model):
     bx = V["box"]; rr = np.where((crop_la >= bx[2]) & (crop_la <= bx[3]))[0]; cc = np.where((crop_lo >= bx[0] % 360) & (crop_lo <= bx[1] % 360))[0]
     cut = [int(rr.min()), int(rr.max() + 1), int(cc.min()), int(cc.max() + 1)]
     sizes = {}
-    fig, ax, ky = layer_fig(); HS.outlines(ax, cf, res="50m"); HS.frame(ax)
+    fig, ax, ky = layer_fig(); HS.outlines(ax, cf, res=HS.COAST_RES); HS.frame(ax)
     nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
     for t in fig.texts[nt:]: t.set_visible(False)
     sizes["base"] = save(fig, f"{out}/static/base_{VID}.png")

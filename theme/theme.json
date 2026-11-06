@@ -20,6 +20,7 @@
  "map": {
   "bg": "#05080D",
   "land": "#FFFFFF",
+  "land_base": "white",
   "ocean": "#EAF4F4",
   "lake": "#EAF4F4",
   "ink": "#E8F0F7",
@@ -60,5 +61,31 @@
   "qpf": "theme/michael_design/theme_coastal_daylight.py (QPF_EDGES / QPF_COLORS, no green)",
   "waves": "theme/michael_design/theme_cd_waves_v4.py"
  },
- "note_11_3": "Benjamin 11-3: white base map inside the image, black empty space around it (like his site); thicker state and country lines."
+ "note_11_3": "Benjamin 11-3: white base map inside the image, black empty space around it (like his site); thicker state and country lines.",
+ "land_base": "white",
+ "land_base_by_product": {
+  "snow": "black",
+  "snow1": "black",
+  "snow6": "black",
+  "snow12": "black",
+  "snow24": "black",
+  "snow48": "black",
+  "kuchera": "black",
+  "kuch6": "black",
+  "kuch12": "black",
+  "kuch24": "black",
+  "kuch48": "black",
+  "dsnod": "black",
+  "esnow": "black",
+  "esnow6": "black",
+  "esnow12": "black",
+  "esnow24": "black",
+  "esnow48": "black",
+  "esnow90": "black",
+  "nsnow6": "black",
+  "nsnow12": "black",
+  "nsnow24": "black",
+  "nsnow48": "black",
+  "nsnowtot": "black"
+ }
 }

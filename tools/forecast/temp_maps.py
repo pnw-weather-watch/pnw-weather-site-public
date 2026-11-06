@@ -607,7 +607,7 @@ def render_t2m(m, c, step, lat, lon, t2k, vid, out, orog=None):
     if SMOOTH[vid]: F = gaussian_filter(F, SMOOTH[vid])
     fig, ax, key_y = frame(vid); pc = ccrs.PlateCarree(); cm = HS.temp_cmap()
     fill = ax.contourf(LO, LA, F, levels=HS.TEMP_LEVELS, cmap=cm, norm=BoundaryNorm(HS.TEMP_LEVELS, cm.N), extend="both", transform=pc)
-    HS.outlines(ax, cf, res="10m" if vid == "wa" else "50m")
+    HS.outlines(ax, cf, res=HS.COAST_RES)
     freeze_line(ax, LO, LA, F, 32)
     towns(ax, vid, (LA, LO, F), pass_corr=(LAPSE_T_F_PER_FT, orog) if orog is not None else None)   # town + pass numbers, F
     HS.frame(ax)
@@ -636,7 +636,7 @@ def render_t850(m, c, step, lat, lon, tk, gh, u, v, vid, out, sp=None):
         ax.contourf(LO, LA, binary_dilation(under, iterations=2).astype(float), levels=[0.5, 1.5], colors=[BELOW_GROUND],
                     transform=pc, zorder=0.5)
     fill = ax.contourf(LO, LA, C, levels=HS.T850_LEVELS, cmap=cm, norm=BoundaryNorm(HS.T850_LEVELS, cm.N), extend="both", transform=pc)
-    HS.outlines(ax, cf, res="10m" if vid == "wa" else "50m")
+    HS.outlines(ax, cf, res=HS.COAST_RES)
     freeze_line(ax, LO, LA, C, 0)
     hc = ax.contour(LO, LA, Zs, levels=np.arange(90, 180, 3), colors=HS.ISOBAR_COLOR, linewidths=HS.ISOBAR_LW, transform=pc, zorder=4)
     hc.set(path_effects=HS.halo("white", HS.ISOBAR_HALO))
@@ -660,7 +660,7 @@ def render_t2manom(m, c, step, lat, lon, t2k, zm, vid, out):
     A = gaussian_filter(A, max(SMOOTH[vid], 1.0))   # the normal is ~200 km; keep the anomaly from looking sharper than it is
     fig, ax, key_y = frame(vid); pc = ccrs.PlateCarree(); cm = t2a_cmap()
     fill = ax.contourf(LO, LA, A, levels=T2A_LEVELS, cmap=cm, norm=BoundaryNorm(T2A_LEVELS, cm.N), extend="both", transform=pc)
-    HS.outlines(ax, cf, res="10m" if vid == "wa" else "50m")
+    HS.outlines(ax, cf, res=HS.COAST_RES)
     towns(ax, vid, (LA, LO, A), fmt_signed)   # town numbers: anomaly, F (+/-)
     HS.frame(ax)
     lo, hi = np.nanpercentile(A, [0.5, 99.5])
@@ -719,7 +719,7 @@ def render_t850anom(c, step, lat, lon, tk, vid, out, who, gh=None, sp=None, orog
         from scipy.ndimage import binary_dilation
         ax.contourf(LO, LA, binary_dilation(under, iterations=2).astype(float), levels=[0.5, 1.5], colors=[BELOW_GROUND], transform=pc, zorder=0.5)
     fill = ax.contourf(LO, LA, An, levels=T8A_LEVELS, cmap=cm, norm=BoundaryNorm(T8A_LEVELS, cm.N), extend="both", transform=pc)
-    HS.outlines(ax, cf, res="50m")
+    HS.outlines(ax, cf, res=HS.COAST_RES)
     if Z is not None:
         Zs = np.where(under, np.nan, gaussian_filter(Z / 10.0, 1.5 * k))
         hc = ax.contour(LO, LA, Zs, levels=np.arange(90, 180, 3), colors=HS.ISOBAR_COLOR, linewidths=HS.ISOBAR_LW, transform=pc, zorder=4)

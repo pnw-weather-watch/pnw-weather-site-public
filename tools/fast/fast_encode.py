@@ -1025,7 +1025,7 @@ def static(m, out, views_only=None, x2_only=False):
     for vid in vids:
         if not os.path.exists(f"{out}/static/base_{vid}.png") or views_only:
             fig, ax, ky = layer_fig(vid)
-            HS.outlines(ax, cf, res="10m" if vid in WA_LIKE else "50m"); HS.frame(ax)
+            HS.outlines(ax, cf, res=HS.COAST_RES); HS.frame(ax)
             if vid == "capasses": major_roads(ax)   # 11-04 (Benjamin 3:10 PM): interstates + major US highways on California Passes
             nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
             for t in fig.texts[nt:]: t.set_visible(False)
@@ -1683,6 +1683,9 @@ def static(m, out, views_only=None, x2_only=False):
         P["ticks"] = [float(t) for t in tk0]
     for P in prods.values(): P.pop("_cm", None)   # 11-03 q18: colormap objects are for the key pictures only (not JSON)
     prods_x = {k: prods.pop(k) for k in [k for k, v in prods.items() if v.pop("xprod", False)]}   # Severe tab 10-31: manifest products_x
+    for _bucket in (prods, prods_x):
+        for _pid, _P in _bucket.items():
+            _P["land_base"] = HS.land_base(_pid)   # white, except snow products (theme.json)
     if x2_only:
         json.dump(prods, open(f"{out}/products_{m}.json", "w"), indent=1)
         json.dump(prods_x, open(f"{out}/products_x_{m}.json", "w"), indent=1)   # for a targeted manifest merge (tools: add_product.py)
@@ -1701,7 +1704,7 @@ def static(m, out, views_only=None, x2_only=False):
             else: print(f"clim {var}: no source in clim/ (skipped)", flush=True)
     for k in [k for k, P in prods.items() if P.get("clim") and P["clim"] not in clim]:   # 11-04: a product whose normals are not in this kit's clim/ is not offered (no blank anomaly maps)
         print(f"{m}: product {k} dropped (no {prods[k]['clim']} normals)", flush=True); del prods[k]
-    man.update(dpi=DPI, style=dict(BG=HS.BG, INK=HS.INK, MUTED=HS.MUTED, ACCENT=HS.ACCENT))
+    man.update(dpi=DPI, style=dict(BG=HS.BG, INK=HS.INK, MUTED=HS.MUTED, ACCENT=HS.ACCENT, LAND=HS.land_hex()))
     MI = minfo(m)
     man.setdefault("models", {})[m] = dict(name=MI["name"], site=MI["site"], res=MI["res"], grid=MD["grid"],
                                           crop=[i0, i1, j0, j1], views=views, products=prods, clim=clim, **({"products_x": prods_x} if prods_x else {}))

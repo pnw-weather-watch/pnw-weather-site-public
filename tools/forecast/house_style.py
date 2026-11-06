@@ -5,6 +5,7 @@ Charcoal canvas, Montserrat type (SIL OFL, committed in tools/wa_maps/assets/fon
 name, the valid time in PT as the second-largest line, and a forecast-hour badge on the right; the map sits in a
 thin framed panel under a wide color key that sits directly below the header; coastlines and borders are dark lines on a light
 halo and contour labels carry halos, so they stay readable over any fill. Part of wx-models (MIT)."""
+import json
 import os
 import matplotlib.patheffects as pe
 from matplotlib import font_manager
@@ -83,18 +84,47 @@ def frame(ax):
 # Country borders never thinner than state lines. HS_STATE_LW overrides (comparison samples only).
 STATE_LW = float(os.environ.get("HS_STATE_LW", "0.75"))
 COAST_LW, COUNTRY_LW = 1.0, max(0.9, STATE_LW)
+# GSHHG full resolution (scale "f"). Natural Earth 50m/110m is too coarse for Hawaii and the bays.
+COAST_RES = "full"
+_THEME = None
 
 
-def outlines(ax, cf, res="50m", states=True):
-    """Coastlines and borders: dark line over a soft light halo, readable over dark and light fills."""
-    feats = [(cf.NaturalEarthFeature("physical", "coastline", res), COAST_LW),
-             (cf.NaturalEarthFeature("cultural", "admin_0_boundary_lines_land", res), COUNTRY_LW)]
+def theme():
+    """theme/theme.json. land_base is white, except the snow products listed as black."""
+    global _THEME
+    if _THEME is None:
+        path = os.path.normpath(os.path.join(HERE, "..", "..", "theme", "theme.json"))
+        with open(path, encoding="utf-8") as f:
+            _THEME = json.load(f)
+    return _THEME
+
+
+def land_base(pid=None):
+    """'white' on every product, 'black' on snow, Kuchera, snow rate, depth change, ensemble and NBM snow."""
+    t = theme()
+    if pid and t.get("land_base_by_product", {}).get(pid) == "black":
+        return "black"
+    base = t.get("land_base", "white")
+    return base if base in ("white", "black") else "white"
+
+
+def land_hex(pid=None):
+    return "#000000" if land_base(pid) == "black" else "#ffffff"
+
+
+def outlines(ax, cf, res=COAST_RES, states=True):
+    """GSHHG full-resolution shore, dark line on a white halo so it reads on white land, black land and dark fills.
+    State and country borders stay Natural Earth 10m (they are not the shoreline)."""
+    del res  # shoreline scale is always GSHHG full; the argument remains so older callers still run
+    shore = cf.GSHHSFeature(scale="full", levels=[1])
+    ax.add_feature(shore, facecolor="none", edgecolor=COAST_HALO, linewidth=COAST_LW + 1.4, zorder=3)
+    ax.add_feature(shore, facecolor="none", edgecolor=COAST_DARK, linewidth=COAST_LW, zorder=3.1)
     if states:
-        feats.append((cf.NaturalEarthFeature("cultural", "admin_1_states_provinces_lines", res), STATE_LW))
-    for f, lw in feats:
-        ax.add_feature(f, facecolor="none", edgecolor=COAST_HALO, lw=lw + 1.4, zorder=3)
-    for f, lw in feats:
-        ax.add_feature(f, facecolor="none", edgecolor=COAST_DARK, lw=lw, zorder=3.1)
+        borders = [(cf.NaturalEarthFeature("cultural", "admin_0_boundary_lines_land", "10m"), COUNTRY_LW),
+                   (cf.NaturalEarthFeature("cultural", "admin_1_states_provinces_lines", "10m"), STATE_LW)]
+        for feat, lw in borders:
+            ax.add_feature(feat, facecolor="none", edgecolor=COAST_HALO, linewidth=lw + 1.4, zorder=3)
+            ax.add_feature(feat, facecolor="none", edgecolor=COAST_DARK, linewidth=lw, zorder=3.1)
 
 
 def vbar(fig, mappable, ticks, title, rect=(0.052, 0.095, 0.022, 0.72), note=None):

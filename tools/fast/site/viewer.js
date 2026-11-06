@@ -841,9 +841,8 @@ async function render(lite) {
   // 1. color fill: value -> bin color, exactly the site's bins (contourf + BoundaryNorm)
   const smp = P.fill === "prt" ? (/^(ifs|ifs9)$/.test(run.split("/")[0]) ? sampleType : sampleNN) : (P.mask_edge || pid === "ssta") && P.min_show !== undefined ? (st_, F_, k_) => sampleMask(st_, F_, k_, P.min_show) : sample;
   const pal = palette(pid), mins = P.min_show, im = ctx.createImageData(st.W, st.H), o = im.data, F = D.fill, n = st.W * st.H;
-  // 11-04 (white base map rule): fields that leave dry / below-threshold points empty (QPF, precip, rain...) show the theme's white
-  // base under them, not the page's black. Dark-base products (snow, radar/reflectivity, pass views) keep the dark surround.
-  if (mins !== undefined && !/snow|sn[0-9]|kuch|refl|radar|dbz/i.test(pid) && !/passes/.test(vid) && pid !== "ssta") { ctx.fillStyle = (S.man.style.LAND || "#ffffff"); ctx.fillRect(st.x0, st.y0, st.W * (rs > 1 && !lite && !S.timer ? 1 : 1), st.H); }
+  // Land under the data: white on every product, black on snow (theme land_base). Town numbers stay dark with a white halo, so they read on both.
+  ctx.fillStyle = landHex(pid, P); ctx.fillRect(st.x0, st.y0, st.W, st.H);
   const vals = new Float32Array(n);
   if (lite) {   // half resolution: one sample per 2x2 block
     const W = st.W, H = st.H;
@@ -1561,6 +1560,11 @@ function drawPeak(ctx, st, vals) {
   ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, pt(4)); else ctx.rect(x, y, w, h); ctx.fill(); ctx.stroke();
   ctx.fillStyle = "#ffffff"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(s, x + pad, y + h / 2 + pt(0.5));
   return v;
+}
+function landHex(pid, P) {   // theme.json land_base: white, snow products black. Dark ink + white halo stays readable on both.
+  const mode = (P && (P.land_base === "black" || P.land_base === "white")) ? P.land_base
+    : (pid === "snowlvl" || pid === "frz" ? "white" : /^(snow|kuch|nsnow|esnow|dsnod)/.test(pid || "") ? "black" : "white");
+  return mode === "black" ? "#000000" : "#ffffff";
 }
 function haloText(ctx, s, x, y, font, color, halo, align, base) {
   ctx.font = font; ctx.textAlign = align; ctx.textBaseline = base; ctx.lineJoin = "round";
