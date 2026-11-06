@@ -960,19 +960,10 @@ def static(m, out, views_only=None, x2_only=False):
         cam = fig._cam
         W, H = cam.size()
         px, py, pw, ph = cam.panel()
-        if MD["grid"] == "ll":
-            g = CAM.sample_grid(cam, STRIDE, MD.get("res", 0.25))
-            fi, fj, ang = g["fi"], g["fj"], g["ang"]
-        else:
-            x0, x1, y0, y1 = cam.bounds()
-            nx, ny = int(np.ceil(pw / STRIDE)) + 1, int(np.ceil(ph / STRIDE)) + 1
-            gxp = np.arange(nx) * STRIDE; gyp = np.arange(ny) * STRIDE
-            PX = x0 + (gxp[None, :] / pw) * (x1 - x0); PY = y1 - (gyp[:, None] / ph) * (y1 - y0)
-            ll = pc.transform_points(V["proj"], PX, PY); LO_, LA_ = ll[..., 0], ll[..., 1]
-            fi, fj = to_ij(LO_, LA_)
-            n2 = V["proj"].transform_points(pc, LO_, np.minimum(LA_ + 0.05, 89.9))
-            ang = np.arctan2(-(n2[..., 1] - PY) / (y1 - y0) * ph, (n2[..., 0] - PX) / (x1 - x0) * pw)
-            g = {"nx": nx, "ny": ny}
+        # Lambert (HRRR, RRFS, NBM) and lat/lon models share this mesh. The old Lambert
+        # branch passed a row and a column into transform_points and cartopy rejected it.
+        g = CAM.sample_grid(cam, STRIDE, MD.get("res", 0.25), to_ij=to_ij if MD["grid"] == "lcc" else None)
+        fi, fj, ang = g["fi"], g["fj"], g["ang"]
         luts[vid] = (fi, fj, ang)
         views[vid] = dict(label=V["label"], fig=[int(round(W)), int(round(H))], size_in=[float(x) for x in fig.get_size_inches()],
                           panel=[px, py, pw, ph], stride=STRIDE, nx=g["nx"], ny=g["ny"], barbs_across=HS.BARBS_ACROSS.get(vid, 20),

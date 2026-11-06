@@ -2143,6 +2143,7 @@ async function mgDraw() {
   const pg = $("mgpage"); if (pg) pg.href = `meteograms#s=${MG.run.split("/")[0]}&w=${encodeURIComponent(MG.town)}`;
   const T = mgTown(D, MG.town); body.innerHTML = `<canvas id="mgc"></canvas>`; mgChart($("mgc"), T, body);
 }
+const MG_FLOORS = window.MG_FLOORS = { passPrecipIn: 3, passSnow6In: 12 };   // one constant, mirrored in meteograms.js; the pass-floor check reads this
 function mgChart(cv, T, box) {
   const dpr = Math.min(2, devicePixelRatio || 1), W = box.clientWidth, sm0 = W < 600;
   // Benjamin 10-31 8:58 AM "A snowfall graph on the pass meteograms would be cool": passes with snow data get their own Snow panel
@@ -2224,10 +2225,13 @@ function mgChart(cv, T, box) {
         const xx = X(T.t[k]), yy = y1 - 9, r = (T.wdir[k] + 180) * Math.PI / 180; c.save(); c.translate(xx, yy); c.rotate(r); c.beginPath(); c.moveTo(0, -6); c.lineTo(3.5, 4); c.lineTo(-3.5, 4); c.closePath(); c.fill(); c.restore(); } }
     } else if (kind === "pcp") {
       const pc = T.pcp6 && !T.pcp ? null : T.pcp, sn = T.snow || null, sn6 = T.snow6 || null, p6 = T.pcp6 || null;
-      const hiP = Math.max(0.1, ...(pc || []).filter(v => v != null), ...(p6 || []).filter(v => v != null)), scP = scale(0, niceStep(hiP) * Math.ceil(hiP / niceStep(hiP)));
+      const hiP = Math.max(0.1, ...(pc || []).filter(v => v != null), ...(p6 || []).filter(v => v != null));
+      const pTop0 = niceStep(hiP) * Math.ceil(hiP / niceStep(hiP));
+      const pFloor = T.P && T.P.k === "pass" ? MG_FLOORS.passPrecipIn : 0;
+      const pTop = Math.max(pFloor, pTop0), scP = scale(0, pTop);
       const runS = sn ? sn.reduce((acc, v, k) => (acc.push((acc[k - 1] || 0) + (v || 0)), acc), []) : sn6 ? (() => { let q = 0; return sn6.map((v, k) => T.f[k] % 6 === 0 ? (q += v || 0) : null); })() : [];
-      const anySnow = (sn || sn6 || []).some(v => v > 0.05), hiS = Math.max(12, ...runS.filter(v => v != null).concat([0])), topS = niceStep(hiS) * Math.ceil(hiS / niceStep(hiS)), scS = scale(0, topS);
-      const pTop = niceStep(hiP) * Math.ceil(hiP / niceStep(hiP)); axis(0, pTop, scP, "\u2033", false, "#6fd38a");
+      const anySnow = (sn || sn6 || []).some(v => v > 0.05), hiS = Math.max(MG_FLOORS.passSnow6In, ...runS.filter(v => v != null).concat([0])), topS = niceStep(hiS) * Math.ceil(hiS / niceStep(hiS)), scS = scale(0, topS);
+      axis(0, pTop, scP, "\u2033", false, "#6fd38a");
       if (p6 && T.pcp) bars(p6.map((v, k) => T.f[k] % 6 === 0 && T.f[k] > 36 ? v : null), scP, "#3ea95888", 2.2);
       if (pc) bars(pc, scP, "#3ea958"); else if (p6) bars(p6.map((v, k) => T.f[k] % 6 === 0 ? v : null), scP, "#3ea958", 2.2);
       if (anySnow && !snowPan) { axis(0, topS, scS, "\u2033", true, "#d9ecff"); line(runS, scS, "#d9ecff", 2); }
@@ -2239,7 +2243,7 @@ function mgChart(cv, T, box) {
       const s6 = T.f.map((f, k) => f % 6 !== 0 ? null : sn ? sumWin(T, sn, f - 6, f) : sn6[k]);
       let q = 0; const runS = sn ? sn.map(v => (q += v || 0)) : sn6.map((v, k) => T.f[k] % 6 === 0 ? (q += v || 0) : null), tot = q;
       // 11-05 Weather Bot / Benjamin: scale floors so small storms look small — 6 h snow axis at least 12 in
-      const hiB = Math.max(12, ...s6.filter(v => v != null).concat([0])), topB = niceStep(hiB) * Math.ceil(hiB / niceStep(hiB)), scB = scale(0, topB);
+      const hiB = Math.max(MG_FLOORS.passSnow6In, ...s6.filter(v => v != null).concat([0])), topB = niceStep(hiB) * Math.ceil(hiB / niceStep(hiB)), scB = scale(0, topB);
       const hiR = Math.max(12, ...runS.filter(v => v != null).concat([0])), topR = niceStep(hiR) * Math.ceil(hiR / niceStep(hiR)), scR = scale(0, topR);
       axis(0, topB, scB, "\u2033", false, "#9fc8ff"); axis(0, topR, scR, "\u2033", true, TH.canvas_ink);
       c.fillStyle = "#5b9dff"; const gap6 = Math.max(1, (X(T.t[n - 1]) - X(T.t[0])) / Math.max(1, (t1 - t0) / 216e5) * 0.12);

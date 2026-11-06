@@ -11,7 +11,7 @@ Access: behind Cloudflare Access the guard needs a service token: env QA_ACCESS_
 import os, sys, json, asyncio, io
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from _access import scope_async
-B = sys.argv[1].rstrip("/"); VW = [tuple(map(int, a.split("x"))) for a in sys.argv[2:]] or [(1440, 900), (390, 844)]
+B = sys.argv[1].rstrip("/"); VW = [tuple(map(int, a.split("x"))) for a in sys.argv[2:]] or [(1920, 1080), (390, 844)]
 HDR = {}
 if os.environ.get("QA_ACCESS_CLIENT_ID"): HDR = {"CF-Access-Client-Id": os.environ["QA_ACCESS_CLIENT_ID"], "CF-Access-Client-Secret": os.environ.get("QA_ACCESS_CLIENT_SECRET", "")}
 DATA = "/d/" if not B.startswith("http://127.") and not B.startswith("http://localhost") else "/data/"
@@ -59,6 +59,8 @@ async def main():
             p.on("response", lambda rr: rr.status >= 400 and errs.append(f"{rr.status} {rr.url}"))
             # 11-04: Access + many models: networkidle often times out on the phone pass; commit is enough, then settle
             await p.goto(B + "/index.html", wait_until="commit", timeout=60000); await p.wait_for_timeout(4000)
+            floors = await p.evaluate("()=>window.MG_FLOORS||null")
+            res(floors and floors.passPrecipIn == 3 and floors.passSnow6In == 12, f"{W}x{H} pass floors", json.dumps(floors))
             ok_run = await p.evaluate("()=>!!document.getElementById('run')")
             if not ok_run:
                 res(False, f"{W}x{H} run menu present", "missing #run"); await ctx.close(); continue

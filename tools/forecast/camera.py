@@ -142,8 +142,13 @@ class Camera:
         plt.close(self.fig)
 
 
-def sample_grid(cam, stride, res=RES):
-    """One lookup grid for this camera. fi, fj are cell-center indices, lon mod 360."""
+def sample_grid(cam, stride, res=RES, to_ij=None):
+    """One lookup grid for this camera.
+
+    PX and PY are both (ny, nx). A 1-d row and a 1-d column make cartopy raise
+    'x and y arrays must have the same length' on Lambert views. Lat/lon grids
+    use cell centers. Lambert grids pass to_ij(lon, lat) from the same mesh.
+    """
     px, py, pw, ph = cam.panel()
     x0, x1, y0, y1 = cam.bounds()
     nx = int(np.ceil(pw / stride)) + 1
@@ -152,11 +157,13 @@ def sample_grid(cam, stride, res=RES):
     gyp = np.arange(ny) * stride
     PX = x0 + (gxp[None, :] / pw) * (x1 - x0) + 0.0 * gyp[:, None]
     PY = y1 - (gyp[:, None] / ph) * (y1 - y0) + 0.0 * gxp[None, :]
+    if PX.shape != PY.shape:
+        raise ValueError("sample mesh x and y must be the same shape")
     proj = cam.ax.projection
     pc = cam.ccrs.PlateCarree()
     ll = pc.transform_points(proj, PX, PY)
     LO, LA = ll[..., 0], ll[..., 1]
-    fi, fj = cell_ij(LA, LO, res)
+    fi, fj = to_ij(LO, LA) if to_ij is not None else cell_ij(LA, LO, res)
     n2 = proj.transform_points(pc, np.where(LO > 180.0, LO - 360.0, LO), np.minimum(LA + 0.05, 89.9))
     ang = np.arctan2(-(n2[..., 1] - PY) / (y1 - y0) * ph, (n2[..., 0] - PX) / (x1 - x0) * pw)
     return {"fi": fi, "fj": fj, "ang": ang, "nx": nx, "ny": ny,

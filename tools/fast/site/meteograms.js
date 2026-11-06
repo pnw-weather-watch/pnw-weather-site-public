@@ -474,8 +474,9 @@ const mrLabel = (c) => `${c.slice(8)}Z ${+c.slice(4, 6)}/${+c.slice(6, 8)}`;
 const SHADES = ["#b5b7bb", "#8c8f95", "#6c6f75"];
 const floor0 = (top) => (lo, hi) => [0, Math.max(hi, top == null ? 0.25 : top)];
 // 11-05 Weather Bot: pass/meteogram scale floors — small storms stay visually small
-const SCALE_FLOOR_SNOW6 = 12;   // inches per 6 h (and similar snow accum charts)
-const SCALE_FLOOR_SNOWRATE = 3; // inches per hour
+const MG_FLOORS = { passPrecipIn: 3, passSnow6In: 12 };   // same object as viewer.js; the pass-floor check requires they match
+const SCALE_FLOOR_SNOW6 = MG_FLOORS.passSnow6In;   // inches per 6 h (and similar snow accum charts)
+const SCALE_FLOOR_SNOWRATE = 3; // inches per hour (rate panel; not the pass precip floor)
 const bottom0 = (lo, hi) => [0, hi];
 function membersItems(S_, color, lw, alpha, meanLabel) {   // meteo_suite.members(): member lines, mean (white, 3), median (orange dashed)
   return [{ t: "multi", S: S_, color, lw: lw || 0.8, alpha: alpha == null ? 0.55 : alpha },
@@ -553,7 +554,8 @@ async function build(sec, prod, town) {
         const sn = T.snow ? cut(T.snow) : null, fz = T.fzinc ? cut(T.fzinc) : null;
         const sw = Pinc.map((p, i) => Math.min(p, sn ? (sn[i] || 0) / 10 : 0)), fr = Pinc.map((p, i) => Math.min(p - sw[i], fz ? fz[i] || 0 : 0)), rn = Pinc.map((p, i) => Math.max(0, p - sw[i] - fr[i]));
         const b1 = sw, b2 = sw.map((v, i) => v + fr[i]), bw = w[1] || w[0];
-        panels.push({ ylab: `in per ${every} h`, legend: "upper left", items: [{ t: "bars", x, y: sw, w: bw, color: K.SNOW, label: "Snow" }, { t: "bars", x, y: fr, base: b1, w: bw, color: K.ICE, label: "Freezing rain" },
+        const pMx = Math.max(0, ...Pinc), pFloor = town.pt.k === "pass" ? MG_FLOORS.passPrecipIn : 0.05;
+        panels.push({ ylab: `in per ${every} h`, legend: "upper left", ylim: () => [0, Math.max(pFloor, pMx * 1.2)], items: [{ t: "bars", x, y: sw, w: bw, color: K.SNOW, label: "Snow" }, { t: "bars", x, y: fr, base: b1, w: bw, color: K.ICE, label: "Freezing rain" },
           { t: "bars", x, y: x.map(() => 0), w: bw, color: K.PLUM, label: "Sleet" }, { t: "bars", x, y: rn, base: b2, w: bw, color: K.RAIN, label: "Rain" }, { t: "bars", x, y: x.map(() => 0), w: bw, color: K.MUTED, label: "Type not set" }] });
         const SN = T.snowTot ? cut(T.snowTot).map((v) => v || 0) : null;
         // Benjamin 10-31 ("snowfall bar graph (snow per 6 h) on the pass meteograms", same as the map page's Pass Forecaster): passes get
