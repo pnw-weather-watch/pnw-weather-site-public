@@ -18,8 +18,16 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import fast_encode as FE
 
-VID, M_ = "wc", "ifs"
-PIDS = ("waves", "wavemax", "wavemax24")
+VID = "wc"
+# IFS gets the estimated-max products. GFS-Wave gets combined wave height + swell period.
+# Both share this one wave-only window.
+WAVE_MODELS = {
+    "ifs": ("waves", "wavemax", "wavemax24"),
+    "gfsw": ("waves", "swellhs"),
+}
+# Vancouver Island to San Diego, widened west so the offshore buoys fit.
+WC_LL = (-152.0, -116.0, 31.8, 49.8)
+WC_BOX = (-155.0, -113.0, 30.0, 51.5)
 
 def setup():
     import matplotlib; matplotlib.use("Agg")
@@ -27,10 +35,10 @@ def setup():
     import house_style as HS, temp_maps as TM
     HS.use_for_plots(); FE.extra_views(TM, ccrs)
     TM.VIEWS[VID] = dict(label="West Coast", size=(16, 10.5), proj=ccrs.Mercator(central_longitude=-134),
-                         ll=(-152.0, -116.0, 31.8, 49.8), box=(-155.0, -113.0, 30.0, 51.5))
+                         ll=WC_LL, box=WC_BOX)
     return TM, HS, ccrs
 
-def build(man, out, ver):
+def build_model(man, out, ver, model):
     import matplotlib.pyplot as plt
     import cartopy.feature as cf
     from matplotlib.colors import ListedColormap, BoundaryNorm
@@ -53,10 +61,10 @@ def build(man, out, ver):
     n2 = V["proj"].transform_points(pc, LO_, np.minimum(LA_ + 0.05, 89.9))
     ang = np.arctan2(-(n2[..., 1] - PY) / (y1 - y0) * ph, (n2[..., 0] - PX) / (x1 - x0) * pw)
     plt.close(fig)
-    MI = man["models"][M_]; i0, i1, j0, j1 = MI["crop"]; rs_ = FE.MODELS[M_].get("res", 0.25)
+    MI = man["models"][model]; i0, i1, j0, j1 = MI["crop"]; rs_ = FE.MODELS[model].get("res", 0.25)
     fi, fj = (90.0 - LA_) / rs_, np.mod(LO_, 360.0) / rs_
     assert fi.min() >= i0 and fi.max() <= i1 - 1 and fj.min() >= j0 and fj.max() <= j1 - 1, "view not inside the published crop"
-    np.stack([fi - i0, fj - j0, ang], -1).astype("<f4").tofile(f"{out}/static/lut_{M_}_{VID}.bin")
+    np.stack([fi - i0, fj - j0, ang], -1).astype("<f4").tofile(f"{out}/static/lut_{model}_{VID}.bin")
     crop_la = 90.0 - np.arange(i0, i1) * rs_; crop_lo = np.mod(np.arange(j0, j1) * rs_, 360.0)
     bx = V["box"]; rr = np.where((crop_la >= bx[2]) & (crop_la <= bx[3]))[0]; cc = np.where((crop_lo >= bx[0] % 360) & (crop_lo <= bx[1] % 360))[0]
     cut = [int(rr.min()), int(rr.max() + 1), int(cc.min()), int(cc.max() + 1)]
@@ -68,7 +76,8 @@ def build(man, out, ver):
     fig, ax, ky = layer_fig(); sizes["towns"] = save(fig, f"{out}/static/towns_{VID}.png")   # empty: wave maps draw their own labels
     allP = {}; [allP.update(MI.get(k) or {}) for k in ("products", "products_x", "products_p", "products_n", "products_t", "products_v")]
     keys = {}
-    for pid in PIDS:
+    for pid in WAVE_MODELS[model]:
+        if pid not in allP: continue
         P = allP[pid]; L = np.asarray(P["levels"], float); kw = P.get("kw"); tkd = list(P["ticks"])
         cm = ListedColormap(P["colors"]);
         if P.get("under"): cm.set_under(P["under"])
@@ -79,14 +88,26 @@ def build(man, out, ver):
         cs = ax.contourf(X, Y, np.full((2, 2), np.nan), levels=L, cmap=cm, norm=BoundaryNorm(L, cm.N), extend=ext, transform=ax.projection); cs.set_visible(False)
         cb = HS.hbar(fig, cs, [], P["key"], ky, **({"spacing": "proportional"} if kw else {})); cb.set_ticks(tkd)
         cb.ax.set_xticklabels([f"{t:g}" for t in P["ticks"]], fontproperties=HS.font(700, 13))
-        HS.credit(fig, M.credit(M_))
-        fn = f"static/key_{M_}_{pid}_{VID}_{ver}.png"; sizes[fn] = save(fig, f"{out}/{fn}"); keys[pid] = fn
+        HS.credit(fig, M.credit(model if model in M.MODELS else "gfs"))
+        fn = f"static/key_{model}_{pid}_{VID}_{ver}.png"; sizes[fn] = save(fig, f"{out}/{fn}"); keys[pid] = fn
     entry = dict(label=V["label"], fig=[int(round(W)), int(round(H))], size_in=[float(x) for x in V["size"]], panel=[px, py, pw, ph],
-                 stride=FE.STRIDE, nx=nx, ny=ny, barbs_across=20, lut=f"static/lut_{M_}_{VID}.bin", cut=cut, towns=[],
+                 stride=FE.STRIDE, nx=nx, ny=ny, barbs_across=20, lut=f"static/lut_{model}_{VID}.bin", cut=cut, towns=[],
                  towns_png=f"static/towns_{VID}.png", waveOnly=True, after="pnw", keys=keys)
-    doc = dict(built=time.strftime("%Y-%m-%dT%H:%M:%S%z"), note="wave-only views (wave_views.py); not in manifest.json", models={M_: {VID: entry}})
+    print(model, "sizes", sizes, "cut", cut, "panel", [round(x) for x in (px, py, pw, ph)], flush=True)
+    return entry
+
+def build(man, out, ver):
+    models = {}
+    for model in WAVE_MODELS:
+        if model not in man.get("models", {}):
+            print(f"skip {model}: not in this manifest", flush=True); continue
+        pids = [p for p in WAVE_MODELS[model] if p in (man["models"][model].get("products") or {}) or p in (man["models"][model].get("products_v") or {})]
+        if not pids:
+            print(f"skip {model}: none of {WAVE_MODELS[model]} in its menu", flush=True); continue
+        models[model] = {VID: build_model(man, out, ver, model)}
+    doc = dict(built=time.strftime("%Y-%m-%dT%H:%M:%S%z"), note="wave-only views (wave_views.py); not in manifest.json", models=models)
     json.dump(doc, open(f"{out}/static/wave_views.json", "w"), indent=1)
-    print("sizes", sizes, "cut", cut, "panel", [round(x) for x in (px, py, pw, ph)], flush=True); return doc
+    return doc
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("--manifest", required=True); ap.add_argument("--out", required=True); ap.add_argument("--ver", default="v1")

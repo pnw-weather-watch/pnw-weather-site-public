@@ -226,7 +226,9 @@ async function boot() {
                                    document.fonts.load("800 20px WXTheme"), document.fonts.load("500 12px WXTheme")]);
   S.man = waveViews(viewFixes(mergeRunsX(man), vf), wv);
   // runs: "model/cycle", newest first per model; models in a fixed order
-  const order = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "aensm", "epsm", "gfsw", "oisst"].filter(m => S.man.models[m] && (S.man.runs[m] || []).length);
+  // ifs9 stays in the Runs menu when its publisher is paused and no cycle is in R2 yet.
+  const LISTED_WITHOUT_RUNS = new Set(["ifs9"]);
+  const order = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "aensm", "epsm", "gfsw", "oisst"].filter(m => S.man.models[m] && ((S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)));
   const all = []; for (const m of order) for (const c of [...S.man.runs[m]].reverse()) all.push(`${m}/${c}`);
   const qr = Q.get("run"), qm = Q.get("model");
   // 11-01: a ?prod= link with no run/model (e.g. ?prod=waves) opens the first model that has that product
@@ -241,16 +243,17 @@ async function boot() {
   // 10-31 6:08 PM (Benjamin "Go for it on the eps 3 hourly"): the group label says how often a model's maps come (manifest note, else here)
   const RUN_NOTE = { eps: "3-hourly to F+144, then 6-hourly" }, runNote = m => S.man.models[m].note || RUN_NOTE[m] || "";
   // 11-03 (Benjamin t2228u "Put these products under the waves tab"): the picker lists only the runs that belong to the open tab (runInTab)
-  const runMenu = (ord0, al0) => { S._runs = [ord0, al0]; const al = al0.filter(r => r === S.run || runInTab(r, S.tab)), ord = ord0.filter(m => al.some(r => r.startsWith(m + "/")));
-    $("run").innerHTML = ord.map(m => `<optgroup label="${S.man.models[m].site}${runNote(m) ? ` \u00b7 ${runNote(m)}` : ""}">` +
-    al.filter(r => r.startsWith(m + "/")).map(r => `<option value="${r}"${r === S.run ? " selected" : ""}>${runLabel(r)}</option>`).join("") + "</optgroup>").join(""); };
+  const runMenu = (ord0, al0) => { S._runs = [ord0, al0]; const al = al0.filter(r => r === S.run || runInTab(r, S.tab)), ord = ord0.filter(m => al.some(r => r.startsWith(m + "/")) || (LISTED_WITHOUT_RUNS.has(m) && S.tab !== "wav"));
+    $("run").innerHTML = ord.map(m => { const runs = al.filter(r => r.startsWith(m + "/"));
+      const body = runs.length ? runs.map(r => `<option value="${r}"${r === S.run ? " selected" : ""}>${runLabel(r)}</option>`).join("") : `<option disabled value="">publishing paused</option>`;
+      return `<optgroup label="${S.man.models[m].site}${runNote(m) ? ` \u00b7 ${runNote(m)}` : ""}">${body}</optgroup>`; }).join(""); };
   runMenu(order, all); S.runMenu = () => S._runs && runMenu(...S._runs);
   // 10-31 frame at a time: every 2 min re-read the manifest so a run that just started shows up in the Runs menu without a reload
   setInterval(async () => {
     if (document.hidden) return; let M2; try { M2 = await (await fetch(DATA + "manifest.json", { cache: "no-cache" })).json(); } catch (e) { return; }
     mergeRunsX(pvMerge(M2)); if (JSON.stringify([M2.runs, M2.progress]) === JSON.stringify([S.man.runs, S.man.progress])) return;
     S.man.runs = M2.runs; S.man.progress = M2.progress; S.man.mgruns = M2.mgruns;
-    const o2 = order.filter(m => (S.man.runs[m] || []).length), a2 = []; for (const m of o2) for (const c of [...S.man.runs[m]].reverse()) a2.push(`${m}/${c}`);
+    const o2 = order.filter(m => (S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)), a2 = []; for (const m of o2) for (const c of [...(S.man.runs[m] || [])].reverse()) a2.push(`${m}/${c}`);
     if (!a2.includes(S.run)) a2.push(S.run);
     runMenu(o2, a2); loadNote();
   }, 120e3);
