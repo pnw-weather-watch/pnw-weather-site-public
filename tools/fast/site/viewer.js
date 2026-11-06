@@ -263,7 +263,7 @@ async function boot() {
   $("obsbtn") && ($("obsbtn").onclick = obsOpen);
   $("mgbtn") && ($("mgbtn").onclick = () => mgOpen("town")); $("pfbtn") && ($("pfbtn").onclick = () => mgOpen("pass")); $("pfcabtn") && ($("pfcabtn").onclick = () => mgOpen("capass"));
   $("prod").onchange = e => { S.prod = e.target.value; S.lastTab[S.tab || tabOf(S.prod)] = S.prod; syncUrl(); draw(); };
-  $("view").onchange = e => { S.view = e.target.value; resetZoom(); syncUrl(); draw(); };
+  $("view").onchange = e => { S.view = S.viewPrefer = e.target.value; resetZoom(); syncUrl(); draw(); };
   const sl = $("step"), endDrag = () => { if (S.dragging) { S.dragging = false; draw(); } };
   sl.addEventListener("pointerdown", () => { S.dragging = true; });
   sl.addEventListener("touchstart", () => { S.dragging = true; }, { passive: true });
@@ -340,7 +340,7 @@ async function onCompareMsg(e) {
   if (d.run && d.run !== S.run) { try { await loadRun(d.run); S.run = d.run; $("run").value = d.run; } catch (err) { return; } }
   const P = PRODS(), has = new Set(S.runs[S.run].fields);
   if (d.prod && P[d.prod] && P[d.prod].fields.every(x => has.has(x))) { S.prod = d.prod; S.tab = null; }
-  if (d.view && VIEWS()[d.view]) S.view = d.view;
+  if (d.view) { S.viewPrefer = d.view; if (VIEWS()[d.view]) S.view = d.view; }
   setLists();
   const lead = typeof d.i === "number";   // shared slider (compare page): this frame leads, so its new state is passed on to the other map
   if (lead) { S.i = Math.max(0, Math.min(S.runs[S.run].steps.length - 1, d.i)); $("step").value = S.i; d.valid = null; }
@@ -409,11 +409,12 @@ function setLists() {   // products this run carries (all their fields present),
   const tabs = [...TABS, ["other", "Other", []]].map(([id, label, ids]) => [id, label,
     prods.filter(([k]) => id === "other" ? tabOf(k) === "other" : ids.includes(k)).sort((a, b) => ids.indexOf(a[0]) - ids.indexOf(b[0]))]).filter(t => t[2].length);
   const bootPick = !S._listed;
+  if (S.viewPrefer == null) S.viewPrefer = S.view;   // remember the chosen view across models that lack it
   const resolved = WXSelect.resolveSelection({
     products: tabs.flatMap(([id, , items]) => items.map(([k, p]) => ({ id: k, title: p.title, tab: id }))),
-    views: Object.entries(V).map(([id, v]) => ({ id, label: v.label || id, waveOnly: !!v.waveOnly })),
-    prod: S.prod, view: S.view, currentTab: S.tab, tabOf, isWave: id => WAVE_PIDS.test(id),
-    prodTitle: (P[S.prod] && P[S.prod].title) || S.prod,
+    views: Object.entries(V).map(([id, v]) => ({ id, label: v.label || "", waveOnly: !!v.waveOnly })),
+    prod: S.prod, view: S.viewPrefer, prefer: S.viewPrefer, currentTab: S.tab, tabOf, isWave: id => WAVE_PIDS.test(id),
+    prodTitle: (P[S.prod] && P[S.prod].title) || "",
   });
   S.prod = resolved.prod; S.view = resolved.view;
   const asked = bootPick ? ((Q.get("prod") && resolved.prod !== Q.get("prod")) || (Q.get("view") && resolved.view !== Q.get("view"))) : resolved.changed;
@@ -794,11 +795,11 @@ async function render(lite) {
       if (seq !== drawSeq || S.run !== run || S.prod !== pid) return;
       if (alt !== null) {
         const f2 = S.runs[run].steps[alt].f; S.i = alt; $("step").value = alt; lastI = alt;
-        jumpNote(`No ${PRODS()[pid].title} map at F+${f}; showing F+${f2}`, 2500); if (typeof loadNote === "function") loadNote();
+        jumpNote(`No ${WXSelect.publicName(PRODS()[pid] && PRODS()[pid].title, "That product")} map at F+${f}; showing F+${f2}`, 2500); if (typeof loadNote === "function") loadNote();
         return render(lite);
       }
       otherRunWith(run, pid).then((r2) => { if (S.run !== run || S.prod !== pid) return;
-        const title = PRODS()[pid].title, climMiss = String(e && e.message) === "nodata:clim";
+        const title = WXSelect.publicName(PRODS()[pid] && PRODS()[pid].title, "That product"), climMiss = String(e && e.message) === "nodata:clim";
         const msg = climMiss ? `${title} can't be drawn: climatology normals aren't available for this model. Still showing ${title}.`
           : `This run has no ${title} maps.` + (r2 ? ` <button type="button" id="jumprun">Open ${r2.split("/")[1].slice(8)}Z ${r2.split("/")[1].slice(4, 6)}-${r2.split("/")[1].slice(6, 8)} run</button>` : " Try another run in the Runs menu.");
         const n = jumpNote(msg, 0);

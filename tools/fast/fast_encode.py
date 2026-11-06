@@ -15,7 +15,7 @@ for p in (os.environ.get("WX_FORECAST_TOOLS"), os.path.join(HERE, "..", "forecas
 
 DPI = 100; STRIDE = 8; X2 = 2   # X2: hi-res copies of the fixed layers (static/x2/)
 HRRR_LCC = dict(central_longitude=-97.5, central_latitude=38.5, standard_parallels=(38.5, 38.5))
-GLOBAL_VIEWS = ("puget", "wa", "wwa", "ewa", "passes", "newa", "lm", "bc", "pnwt", "pnw", "na")
+GLOBAL_VIEWS = ("puget", "wa", "wwa", "ewa", "passes", "newa", "lm", "bc", "pnwt", "pnw", "na")  # regions.apply() replaces every model's views from regions/regions.json (pnwhr on each)
 MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lon rolled to 0..360)
     # 10-31 12:02 PM (Benjamin pt1876u): runs on the site = 4 for HRRR / RRFS / NBM / ECMWF / EPS / AIFS ENS, 3 for GFS / AIFS,
     # 2 for ECMWF 9 km (keep=). R2 ~3.6 -> ~6 GB; older runs still keep town files for the meteograms page (MG_KEEP).

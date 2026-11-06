@@ -41,17 +41,41 @@
     return parts.filter(p => p[1] > 1e-6 && ok(p[0]));
   }
 
+  // Tighter frame -> the wider frame it sits in. A model that lacks the chosen view
+  // shows the nearest parent (high-res Pacific Northwest -> Pacific Northwest) with no toast.
+  const VIEW_PARENT = {
+    pnwhr: "pnw", pnwt: "pnw", pnw: "na", pac: "na",
+    passes: "pnwhr", puget: "wa", wwa: "wa", ewa: "wa", newa: "wa", lm: "wa", wa: "pnwhr", bc: "pnw",
+    orco: "pnwt", bay: "norca", norca: "ca", cenca: "ca", socal: "ca", capasses: "ca",
+    bigi: "hiw", hiw: "pac", wc: "pnw",
+  };
+
   function pickView(views, usable, requested) {
     const has = (list, id) => list.some(v => v.id === id);
     if (has(usable, requested)) return requested;
+    const seen = new Set();
+    let id = requested;
+    while (VIEW_PARENT[id] && !seen.has(id)) {
+      seen.add(id);
+      id = VIEW_PARENT[id];
+      if (has(usable, id)) return id;
+    }
     const pref = ["pnw", "pnwhr"];
-    return pref.find(id => has(usable, id)) || (usable[0] && usable[0].id)
-      || pref.find(id => has(views, id)) || (views[0] && views[0].id) || requested;
+    return pref.find(x => has(usable, x)) || (usable[0] && usable[0].id)
+      || pref.find(x => has(views, x)) || (views[0] && views[0].id) || requested;
+  }
+
+  // User-facing names only. A raw id (pnwhr, t2ma) is never shown.
+  function publicName(text, fallback) {
+    const s = text == null ? "" : String(text).trim();
+    if (!s || /^[a-z0-9][a-z0-9_-]*$/.test(s)) return fallback;
+    return s;
   }
 
   // products: available on this run, in menu order, {id, title, tab}
   // views: model views in menu order, {id, label, waveOnly}
-  // Returns {prod, view, note, changed}. note is set only when the request could not be kept.
+  // Returns {prod, view, note, prefer, changed}. note is a product or wave-only message.
+  // A view this model does not have is silent: prefer stays the chosen id so the next model can restore it.
   function resolveSelection(o) {
     const products = o.products || [];
     const views = o.views || [];
@@ -64,26 +88,27 @@
       const own = o.tabOf && o.tabOf(reqProd);
       const pick = products.find(p => p.tab === tab) || products.find(p => p.tab === own) || products[0];
       prod = pick ? pick.id : reqProd;
-      const got = (pick && pick.title) || prod;
-      const asked = o.prodTitle || reqProd || "That product";
+      const got = publicName(pick && pick.title, "another product");
+      const asked = publicName(o.prodTitle, "That product");
       prodNote = `${asked} isn't in this run. Showing ${got}.`;
     }
     const wavy = o.isWave ? o.isWave(prod) : false;
     const usable = views.filter(v => wavy || !v.waveOnly);
-    const view = pickView(views, usable, reqView);
+    const wanted = o.prefer || reqView;
+    const view = pickView(views, usable, wanted);
     let viewNote = null;
-    if (view !== reqView) {
-      const reqV = views.find(v => v.id === reqView);
-      const gotV = views.find(v => v.id === view);
-      const asked = reqV ? reqV.label : (reqView || "That view");
-      const got = gotV ? gotV.label : view;
-      viewNote = reqV && reqV.waveOnly && !wavy
-        ? `${asked} is only for wave maps. Showing ${got}.`
-        : `${asked} isn't a view on this model. Showing ${got}.`;
+    if (view !== wanted) {
+      const reqV = views.find(v => v.id === wanted);
+      // The view exists here but only for wave maps. A view this model does not have
+      // falls back silently (no overlay, and never the internal id).
+      if (reqV && reqV.waveOnly && !wavy) {
+        const gotV = views.find(v => v.id === view);
+        viewNote = `${publicName(reqV.label, "That view")} is only for wave maps. Showing ${publicName(gotV && gotV.label, "another view")}.`;
+      }
     }
     const note = [prodNote, viewNote].filter(Boolean).join(" ") || null;
-    return { prod, view, note, changed: prod !== reqProd || view !== reqView };
+    return { prod, view, note, prefer: wanted, changed: prod !== reqProd || view !== reqView };
   }
 
-  return { lookupKey, climParts, resolveSelection };
+  return { lookupKey, climParts, resolveSelection, publicName };
 });

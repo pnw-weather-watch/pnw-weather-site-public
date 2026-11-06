@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { lookupKey, climParts, resolveSelection } = require("./selection.js");
+const { lookupKey, climParts, resolveSelection, publicName } = require("./selection.js");
 
 const ensViews = [
   ["na", "North America"], ["pac", "Pacific"], ["pnw", "Pacific Northwest"],
@@ -43,26 +43,48 @@ test("unknown product falls back inside the same tab and keeps a valid view", ()
   const r = resolve("no-such-product", "na", { prodTitle: "no-such-product", currentTab: "sfc" });
   assert.equal(r.prod, "t2m");
   assert.equal(r.view, "na");
-  assert.match(r.note, /isn't in this run/);
+  assert.match(r.note, /That product isn't in this run/);
   assert.match(r.note, /Showing 2 m Temperature/);
+  assert.doesNotMatch(r.note, /no-such-product/);
   assert.doesNotMatch(r.note, /Big Island/);
 });
 
-test("unknown view falls back to Pacific Northwest and keeps the anomaly product", () => {
+test("unknown view falls back to Pacific Northwest with no overlay", () => {
   const r = resolve("t2ma", "not-a-view");
   assert.equal(r.prod, "t2ma");
   assert.equal(r.view, "pnw");
-  assert.match(r.note, /isn't a view on this model/);
-  assert.match(r.note, /Pacific Northwest/);
+  assert.equal(r.note, null);
+  assert.equal(r.prefer, "not-a-view");
   assert.notEqual(r.view, "bigi");
 });
 
-test("both product and view unsupported use the same fallback, not the previous Big Island map", () => {
+test("high-res Pacific Northwest falls back to Pacific Northwest with no raw id", () => {
+  const r = resolve("t2m", "pnwhr", { prodTitle: "2 m Temperature (ens. mean)" });
+  assert.equal(r.view, "pnw");
+  assert.equal(r.note, null);
+  assert.equal(r.prefer, "pnwhr");
+});
+
+test("switching back to a model that has the view restores it", () => {
+  const away = resolve("t2m", "pnwhr", { prodTitle: "2 m Temperature (ens. mean)" });
+  assert.equal(away.view, "pnw");
+  const hrrr = [
+    ["pnwhr", "Pacific NW (high-res)"], ["passes", "Cascade Passes"], ["ca", "California"],
+  ].map(([id, label]) => ({ id, label, waveOnly: false }));
+  const back = resolve("t2m", away.prefer, { views: hrrr, prodTitle: "2 m Temperature" });
+  assert.equal(back.view, "pnwhr");
+  assert.equal(back.note, null);
+});
+
+test("both product and view unsupported stay silent about the view and hide raw ids", () => {
   const r = resolve("retired", "retired-view", { prodTitle: "retired" });
   assert.equal(r.prod, "t2m");
   assert.equal(r.view, "pnw");
-  assert.match(r.note, /isn't in this run/);
-  assert.match(r.note, /isn't a view on this model/);
+  assert.match(r.note, /That product isn't in this run/);
+  assert.doesNotMatch(r.note, /isn't a view/);
+  assert.doesNotMatch(r.note, /retired/);
+  assert.equal(publicName("pnwhr", "Map"), "Map");
+  assert.equal(publicName("Pacific Northwest", "Map"), "Pacific Northwest");
 });
 
 test("wave-only view with a temperature product falls back and says why", () => {
@@ -70,7 +92,11 @@ test("wave-only view with a temperature product falls back and says why", () => 
   const r = resolve("t2m", "wc", { views, prodTitle: "2 m Temperature (ens. mean)" });
   assert.equal(r.prod, "t2m");
   assert.equal(r.view, "pnw");
-  assert.match(r.note, /only for wave maps/);
+  assert.match(r.note, /West Coast is only for wave maps/);
+  assert.doesNotMatch(r.note, /\bwc\b/);
+  const raw = resolve("t2m", "wc", { views: ensViews.concat([{ id: "wc", label: "wc", waveOnly: true }]), prodTitle: "2 m Temperature (ens. mean)" });
+  assert.match(raw.note, /That view is only for wave maps/);
+  assert.doesNotMatch(raw.note, /\bwc\b/);
 });
 
 test("wave product keeps a wave-only view", () => {
