@@ -69,17 +69,18 @@ MINFO = {"aens": dict(name="ECMWF AIFS Ensemble", site="AIFS ENS", res="0.25\u00
          "gfsw": dict(name="NOAA WaveWatch III", site="NOAA WW3", res="0.25\u00b0", noaa=True),
          "oisst": dict(name="NOAA OISST v2.1", site="NOAA OISST", res="0.25\u00b0 daily", noaa=True)}
 def as_model(m): return MODELS.get(m, {}).get("as_model", m)   # ifs9 = IFS (same fields / products / units), only the files differ
-# Products whose fields those models never encode. A missing entry is offered on every model (the old default), and
+# Products a model offers only when its encoder can fill them. A missing entry is offered on every model.
 # publish_static rebuilds manifest menus from this table, so a prune of live manifest.json does not last.
-# refc/ir: HRRR and RRFS only (_refc raises otherwise; IR is not in the GFS/IFS/AIFS open files).
-# snow (asnow): GFS open files have no ASNOW. frz/snowlvl: 0C isotherm is NOAA-only. vis: not in IFS/AIFS open data.
-# gust*: AIFS open data has no gust. gust10 stays on NBM (that model's menu is gust10 plus t2m and cloud cover).
+# Checked against open-data indexes, 2026-11-06 12Z:
+#   GFS pgrb2 has REFC, SNOD (snow depth; no ASNOW), and TMP at low/middle/high cloud tops. No simulated-IR brightness temp.
+#   IFS and AIFS have t and gh on pressure levels, so the 0 C height is derived. They have no reflectivity, visibility, or IR.
+#   AIFS open data has no 10 fg gust. vis stays on the NOAA models that publish VIS:surface.
 PRODUCT_ONLY = {
-    "refc": ("hrrr", "rrfs"),
-    "ir": ("hrrr", "rrfs"),
-    "snow": ("hrrr", "rrfs", "ifs", "aifs"),
-    "frz": ("hrrr", "rrfs", "gfs"),
-    "snowlvl": ("hrrr", "rrfs", "gfs"),
+    "refc": ("hrrr", "rrfs", "gfs"),
+    "ir": ("hrrr", "rrfs", "gfs"),
+    "snow": ("hrrr", "rrfs", "gfs", "ifs", "aifs"),
+    "frz": ("hrrr", "rrfs", "gfs", "ifs", "aifs"),
+    "snowlvl": ("hrrr", "rrfs", "gfs", "ifs", "aifs"),
     "vis": ("hrrr", "rrfs", "gfs"),
     "gust10": ("hrrr", "rrfs", "gfs", "ifs", "nbm"),
     "gust3": ("hrrr", "rrfs", "gfs", "ifs"),
@@ -325,7 +326,8 @@ def _apcp(R, m):
     if m in NOAA: return np.asarray(R.acc0("APCP:surface")[2], float) / 25.4
     tp = np.asarray(R.f("tp")[2], float); return tp * 1000 / 25.4 if m == "ifs" else tp / 25.4
 def _refc(R, m):
-    if m not in ("hrrr", "rrfs"): raise KeyError("refc")
+    # GFS 0.25 pgrb2 publishes REFC:entire atmosphere (same record name as HRRR). IFS/AIFS open data does not.
+    if m not in ("hrrr", "rrfs", "gfs"): raise KeyError("refc")
     k = "REFC:entire atmosphere" + (" (considered as a single layer)" if m == "rrfs" else "")
     return np.clip(np.asarray(R._idx(k, R.url)[2], float), -10, 80)
 def _ltng(R, m):
@@ -361,6 +363,8 @@ def _asnow(R, m):
     # AIFS (Benjamin 10-31 1:49 AM "verify snow map and just use that"): its open data has sf too, in kg/m2 (mm water), not m;
     # same 10:1 (mm / 25.4 x 10). Checked 00Z 10-31 F24: global mean 0.45 mm vs IFS 0.43 mm.
     if m == "aifs": return np.clip(_ec("sf")(R, m), 0, None) * 0.393701
+    # GFS 0.25 has no ASNOW. SNOD:surface is the snow depth in metres (checked 2026-11-06 12Z f006).
+    if m == "gfs": return np.clip(np.asarray(R._idx("SNOD:surface", R.url)[2], float) * 39.3701, 0, None)
     if m not in ("hrrr", "rrfs"): raise KeyError("asnow")
     return np.asarray(R.acc0("ASNOW:surface")[2], float) / 0.0254
 def _prev_step(m, c, s):
@@ -474,8 +478,75 @@ def _ivt(R, m):
     R.cache["_ivt"] = r = (iu, iv); return r
 def _tcc(R, m):
     t = np.asarray(R.f("tcc")[2], float); return np.clip(t * 100.0 if np.nanmax(t) <= 1.01 else t, 0, 100)
+def gfs_cloud_top_c(layers_k, t2m_k):
+    """Coldest GFS cloud-top temperature (C). Clear columns use the 2 m temperature. layers_k are Kelvin."""
+    stack = np.stack([np.asarray(a, float) for a in layers_k])
+    finite = np.isfinite(stack) & (stack < 350)
+    filled = np.where(finite, stack, np.inf)
+    cold = np.min(filled, axis=0)
+    t2 = np.asarray(t2m_k, float)
+    cold = np.where(np.isfinite(cold) & (cold < 1e20), cold, t2)
+    return np.clip(cold - 273.15, -100, 60)
+
 def _ir(R, m):
+    # GFS has no GOES brightness temperature. It does publish TMP at the low, middle and high cloud tops
+    # (0-6 h average). The coldest of those is the cloud top; a clear column falls back to 2 m temperature.
+    if m == "gfs":
+        layers = []
+        for key in ("TMP:high cloud top level", "TMP:middle cloud top level", "TMP:low cloud top level"):
+            try: layers.append(np.asarray(R._idx(key, R.url, "ave")[2], float))
+            except KeyError: continue
+        if not layers: raise KeyError("ir")
+        return gfs_cloud_top_c(layers, np.asarray(R.f("t2m")[2], float))
     b = np.asarray(R.f("ir")[2], float) - 273.15; return np.clip(np.where(b > 60, np.nan, b), -100, 60)
+
+# Pressure levels used to place the 0 C surface on IFS / AIFS (they have t and gh, not an isotherm record).
+FRZ_LEVELS_HPA = (1000, 925, 850, 700, 600, 500, 400, 300)
+
+def freezing_level_m(temps_k, heights_m, sp_pa=None, levels_hpa=FRZ_LEVELS_HPA):
+    """Metres of the 0 C surface. temps_k and heights_m are lowest level first (1000 hPa).
+    A column already below freezing at its lowest above-ground level uses that height.
+    A column still above freezing at the top of the profile uses the top height."""
+    T = [np.asarray(a, float) for a in temps_k]
+    Z = [np.asarray(a, float) for a in heights_m]
+    shape = T[0].shape
+    out = np.full(shape, np.nan)
+    t0 = 273.15
+    sp = None if sp_pa is None else np.asarray(sp_pa, float)
+    for k in range(len(T) - 1):
+        above = np.ones(shape, bool) if sp is None else (sp >= levels_hpa[k] * 100.0)
+        above_hi = np.ones(shape, bool) if sp is None else (sp >= levels_hpa[k + 1] * 100.0)
+        cross = above & above_hi & np.isfinite(T[k]) & np.isfinite(T[k + 1]) & (T[k] >= t0) & (T[k + 1] <= t0) & ~np.isfinite(out)
+        w = np.clip((T[k] - t0) / np.maximum(T[k] - T[k + 1], 1e-3), 0, 1)
+        out = np.where(cross, Z[k] + w * (Z[k + 1] - Z[k]), out)
+    lowest_set = np.zeros(shape, bool)
+    lowest_t = np.full(shape, np.nan)
+    lowest_z = np.full(shape, np.nan)
+    top_z = np.full(shape, np.nan)
+    for k in range(len(T)):
+        above = np.ones(shape, bool) if sp is None else (sp + 50.0 >= levels_hpa[k] * 100.0)
+        take = above & ~lowest_set & np.isfinite(T[k]) & np.isfinite(Z[k])
+        lowest_t = np.where(take, T[k], lowest_t)
+        lowest_z = np.where(take, Z[k], lowest_z)
+        lowest_set |= take
+    for k in range(len(T) - 1, -1, -1):
+        above = np.ones(shape, bool) if sp is None else (sp >= levels_hpa[k] * 100.0)
+        take = above & np.isfinite(Z[k]) & ~np.isfinite(top_z)
+        top_z = np.where(take, Z[k], top_z)
+    out = np.where(~np.isfinite(out) & lowest_set & (lowest_t < t0), lowest_z, out)
+    return np.where(np.isfinite(out), out, top_z)
+
+def _frz(R, m):
+    if m in NOAA:
+        return np.clip(np.asarray(R._idx("HGT:0C isotherm", R.url)[2], float) * 3.28084, 0, 20000)
+    if m not in ("ifs", "aifs"): raise KeyError("frz")
+    Ts, Zs = [], []
+    for lev in FRZ_LEVELS_HPA:
+        Ts.append(np.asarray(R.f(f"T:{lev}")[2], float))
+        Zs.append(np.asarray(R.f(f"Z:{lev}")[2], float))
+    try: sp = np.asarray(R.f("sp")[2], float)
+    except KeyError: sp = None
+    return np.clip(freezing_level_m(Ts, Zs, sp) * 3.28084, 0, 20000)
 
 def _ec(*params):   # ECMWF sfc param under any of its names (10fg is 10fg3 at 93-144 h, 10fg6 elsewhere on some runs)
     def g(R, m):
@@ -542,7 +613,7 @@ FIELDS = {   # name: (getter, units)
     "vis":  (_f("vis", lambda w: np.clip(w / 1609.34, 0, 10)), "mi"),
     "ir":   (_ir, "C"),
     "refc": (_refc, "dBZ"),
-    "frz":  (_raw("HGT:0C isotherm", lambda z: np.clip(z * 3.28084, 0, 20000)), "ft"),
+    "frz":  (_frz, "ft"),
     "apcp": (_apcp, "in"),
     "asnow": (_asnow, "in"),
     # stage 1 (Benjamin 10-29-26 7:36 PM): instability + lightning
@@ -1405,6 +1476,11 @@ def static(m, out, views_only=None, x2_only=False):
                               keyver="_cd4" if src != "dsnod" else "_sc6")
             prods[pid].pop("kw", None); prods[pid].pop("cmap_of", None)
             if src == "dsnod": prods[pid]["outline_over"] = t["outline_over"]
+    if m == "gfs":
+        if "snow" in prods: prods["snow"]["extra"] = "GFS snow depth (SNOD)  \u00b7  max {hi} in in view"
+        if "ir" in prods: prods["ir"]["extra"] = "GFS cloud-top temperature, coldest low / middle / high top  \u00b7  2 m temp where clear"
+    if as_model(m) in ("ifs", "aifs") and "frz" in prods:
+        prods["frz"]["extra"] = "0\u00b0C height from the model temperature profile  \u00b7  {lo} to {hi} ft in view"
     stamp_product_only(prods)   # gust12/24 are copies of gust6; stamp the lists again so a copy cannot put them back on AIFS
     ALLP = {k: dict(v) for k, v in prods.items()}   # before the per-model filter (ensemble picks shared products below)
     for v in ALLP.values(): v.pop("only", None)

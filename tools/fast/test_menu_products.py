@@ -13,20 +13,20 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fast_encode as fe
 
-# Drawn-product mismatches from the live newest runs (model -> products it must not offer).
+# Still no source field, so the menu must not offer them (selecting one used to fall back to another product).
 ABSENT = {
-    "gfs": ("refc", "snow", "ir"),
-    "ifs": ("refc", "frz", "snowlvl", "vis", "ir"),
-    "aifs": ("gust10", "gust3", "gust6", "gust12", "gust24", "refc", "frz", "snowlvl", "vis", "ir"),
+    "gfs": (),
+    "ifs": ("refc", "vis", "ir"),
+    "aifs": ("gust10", "gust3", "gust6", "gust12", "gust24", "refc", "vis", "ir"),
 }
-# Models that do encode the field keep the product. NBM's menu is gust10. ifs9 is IFS.
+# Encoded directly, or derived from fields the open files publish. NBM's menu is gust10. ifs9 is IFS.
 PRESENT = {
     "hrrr": ("refc", "snow", "frz", "snowlvl", "vis", "ir", "gust10", "gust3", "gust6", "gust12", "gust24"),
     "rrfs": ("refc", "snow", "frz", "snowlvl", "vis", "ir", "gust10", "gust6"),
-    "gfs": ("frz", "snowlvl", "vis", "gust10", "gust3", "gust6", "gust12", "gust24"),
-    "ifs": ("snow", "gust10", "gust3", "gust6", "gust12", "gust24"),
-    "aifs": ("snow",),
-    "ifs9": ("snow", "gust10", "gust12"),
+    "gfs": ("refc", "snow", "ir", "frz", "snowlvl", "vis", "gust10", "gust3", "gust6", "gust12", "gust24"),
+    "ifs": ("snow", "frz", "snowlvl", "gust10", "gust3", "gust6", "gust12", "gust24"),
+    "aifs": ("snow", "frz", "snowlvl"),
+    "ifs9": ("snow", "frz", "snowlvl", "gust10", "gust12"),
     "nbm": ("gust10",),
 }
 

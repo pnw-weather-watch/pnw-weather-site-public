@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
-const { lookupKey, climParts, resolveSelection, publicName, formatPassValue, passCaption, passesForView,
+const { lookupKey, climParts, resolveSelection, publicName, formatValidPT, formatPassValue, passCaption, passesForView,
   WA_PASSES, CA_PASSES, latLonIndex, showStaticTowns, coastalTowns, isWaveProduct, decodeCoast } = require("./selection.js");
 
 const ensViews = [
@@ -139,6 +139,15 @@ test("climatology slots stay inside the file list (November 03Z uses hours 40 an
   assert.deepEqual(short, []);
   assert.equal(climParts(null, "2026-11-04T03:00:00+00:00"), null);
   assert.deepEqual(climParts(clim, "not-a-date"), []);
+});
+
+test("valid time under the map is Pacific wall time, PST and PDT", () => {
+  // 6 Nov 2026 is after the DST fallback, so 22:00 UTC is 2:00 PM PST.
+  assert.equal(formatValidPT("2026-11-06T22:00:00Z"), "Valid Fri 11-6 \u00b7 2 PM PT");
+  // 6 Jul 2026 is PDT (UTC-7): 21:00 UTC is 2:00 PM.
+  assert.equal(formatValidPT("2026-07-06T21:00:00Z"), "Valid Mon 7-6 \u00b7 2 PM PT");
+  assert.equal(formatValidPT("2026-11-06T22:30:00Z"), "Valid Fri 11-6 \u00b7 2:30 PM PT");
+  assert.equal(formatValidPT("not-a-date"), "");
 });
 
 test("pass labels carry units and skip imagery products", () => {

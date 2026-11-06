@@ -259,6 +259,20 @@
     return _coast;
   }
 
-  return { lookupKey, climParts, resolveSelection, publicName, WA_PASSES, CA_PASSES, passUnit, formatPassValue, passCaption,
+  // Valid time under the map. America/Los_Angeles so the hour is PST or PDT, labeled PT.
+  // "Valid Fri 11-6 · 2 PM PT" (minutes only when the valid time is not on the hour).
+  function formatValidPT(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const tz = "America/Los_Angeles";
+    const part = opt => new Intl.DateTimeFormat("en-US", Object.assign({ timeZone: tz }, opt)).format(d);
+    const wd = part({ weekday: "short" });
+    const md = part({ month: "numeric", day: "numeric" }).split("/");
+    let hm = part({ hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s/g, " ");
+    if (hm.indexOf(":00") >= 0) hm = hm.replace(":00", "");
+    return "Valid " + wd + " " + md[0] + "-" + md[1] + " \u00b7 " + hm + " PT";
+  }
+
+  return { lookupKey, climParts, resolveSelection, publicName, formatValidPT, WA_PASSES, CA_PASSES, passUnit, formatPassValue, passCaption,
     passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, coastalTowns, decodeCoast, coastPoints };
 });
