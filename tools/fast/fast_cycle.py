@@ -86,11 +86,13 @@ def union_live_runs(s3, model, preview_ids, keep):
 # Copy a product row from a model that already has it, once a preview run actually encoded the fields.
 # Color-key paths are dropped: they name the donor's PNGs, and the viewer skips a missing key.
 _GRAFT_EXTRA = {
-    "gfs": {"snow": "GFS snow depth (SNOD)  \u00b7  max {hi} in in view",
+    "gfs": {"snow": "GFS precip while snow was falling, 10:1  \u00b7  since the run started  \u00b7  max {hi} in in view",
             "ir": "GFS cloud-top temperature, coldest low / middle / high top  \u00b7  2 m temp where clear"},
     "ifs": {"frz": "0\u00b0C height from the model temperature profile  \u00b7  {lo} to {hi} ft in view"},
     "aifs": {"frz": "0\u00b0C height from the model temperature profile  \u00b7  {lo} to {hi} ft in view"},
 }
+# These products were copied onto GFS and AIFS without a color bar for each view.
+_KEY_PRODUCTS = {"refc", "ir", "snow", "frz", "snowlvl"}
 _DONORS = ("hrrr", "rrfs", "ifs", "gfs", "aifs")
 
 def graft_encoded_products(man, m, fields):
@@ -111,13 +113,33 @@ def graft_encoded_products(man, m, fields):
                 donor = P; break
         if not donor: continue
         copied = json.loads(json.dumps(donor))
-        copied.pop("keys", None); copied.pop("only", None)
+        copied.pop("keys", None); copied.pop("only", None); copied.pop("_cm", None)
         extra = (_GRAFT_EXTRA.get(m) or {}).get(pid)
         if extra: copied["extra"] = extra
+        if m == "gfs" and pid == "snow": copied["title"] = "Snowfall Total (10:1)"
         prods[pid] = copied
         added.append(pid)
+    keyed = ensure_view_keys(me, m)
     if added: print(m, "menu gained", ",".join(added), flush=True)
-    return added
+    if keyed: print(m, "color keys for", ",".join(keyed), flush=True)
+    return list(dict.fromkeys(added + keyed))
+
+def ensure_view_keys(model_entry, model):
+    """Give refc, ir, snow, and freezing level a color-key path for every view this model publishes."""
+    views = list((model_entry.get("views") or {}))
+    if not views: return []
+    changed = []
+    for bucket in ("products", "products_x"):
+        for pid, P in (model_entry.get(bucket) or {}).items():
+            if pid not in _KEY_PRODUCTS or not isinstance(P, dict): continue
+            keys = dict(P.get("keys") or {})
+            missing = [vid for vid in views if not keys.get(vid)]
+            if not missing: continue
+            for vid in missing:
+                keys[vid] = FE.product_key(model, pid, vid)
+            P["keys"] = keys
+            changed.append(pid)
+    return changed
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--models", default="hrrr,gfs,ifs,aifs"); ap.add_argument("--minutes", type=float, default=40)
@@ -249,6 +271,7 @@ def publish_manifest(s3, D, m, prog=None, fields=None):
     # 10-31: runs the box published for the hidden preview before this code was pushed (manifest "runs_x", file run_x.json, so
     # the old workflow never listed them). Once this code runs they are dropped from the manifest and deleted below.
     xr = []
+    gained = []
     def both(mn):
         mn.setdefault("runs", {})[m] = kept; mn.setdefault("mgruns", {})[m] = sorted(set(mg) | set(kept))
         # 10-31: runs still coming in -> manifest "progress" {model: {cycle: [last hour live, last hour expected]}} so the site can
@@ -261,8 +284,22 @@ def publish_manifest(s3, D, m, prog=None, fields=None):
         if not pg: mn["progress"].pop(m)
         xr[:] = (mn.get("runs_x") or {}).pop(m, None) or []
         if "runs_x" in mn and not mn["runs_x"]: del mn["runs_x"]
-        graft_encoded_products(mn, m, fields)
+        gained[:] = graft_encoded_products(mn, m, fields) or []
     man = update_manifest(s3, both)
+    if gained:
+        me = (man.get("models") or {}).get(m) or {}
+        specs = {}
+        for pid in gained:
+            for bucket in ("products", "products_x"):
+                P = (me.get(bucket) or {}).get(pid)
+                if isinstance(P, dict) and P.get("keys"): specs[pid] = P
+        try:
+            paths = FE.write_product_keys(m, specs, D)
+        except Exception as e:
+            print(m, "color keys not drawn:", e, flush=True); paths = []
+        for rel in paths:
+            s3.upload_file(f"{D}/{rel}", BUCKET, rel, ExtraArgs={"ContentType": "image/png"})
+        if paths: print(m, "uploaded", len(paths), "color keys", flush=True)
     for old in [r for r in xr if r not in present]:
         ks = [o["Key"] for pg in s3.get_paginator("list_objects_v2").paginate(Bucket=BUCKET, Prefix=f"runs/{m}/{old}/") for o in pg.get("Contents", [])]
         for i in range(0, len(ks), 1000): s3.delete_objects(Bucket=BUCKET, Delete={"Objects": [{"Key": k} for k in ks[i:i + 1000]]})

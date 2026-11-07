@@ -364,8 +364,13 @@ def _asnow(R, m):
     # AIFS (Benjamin 10-31 1:49 AM "verify snow map and just use that"): its open data has sf too, in kg/m2 (mm water), not m;
     # same 10:1 (mm / 25.4 x 10). Checked 00Z 10-31 F24: global mean 0.45 mm vs IFS 0.43 mm.
     if m == "aifs": return np.clip(_ec("sf")(R, m), 0, None) * 0.393701
-    # GFS 0.25 has no ASNOW. SNOD:surface is the snow depth in metres (checked 2026-11-06 12Z f006).
-    if m == "gfs": return np.clip(np.asarray(R._idx("SNOD:surface", R.url)[2], float) * 39.3701, 0, None)
+    # GFS 0.25 has no ASNOW. Snowfall is the run-total liquid precip times the fraction of that
+    # window the categorical snow flag was on, at 10:1 (same ratio as ECMWF). Checked 2026-11-07 12Z:
+    # CSNOW 0-N hour ave is a 0..1 fraction; SNOD uses 9999 as a missing value and is not snowfall.
+    if m == "gfs":
+        swe = np.asarray(R.acc0("APCP:surface")[2], float)
+        frac = np.asarray(R._idx("CSNOW:surface", R.url, (f"0-{R.s} hour ave fcst",))[2], float)
+        return gfs_snowfall_in(swe, frac)
     if m not in ("hrrr", "rrfs"): raise KeyError("asnow")
     return np.asarray(R.acc0("ASNOW:surface")[2], float) / 0.0254
 def _prev_step(m, c, s):
@@ -479,6 +484,59 @@ def _ivt(R, m):
     R.cache["_ivt"] = r = (iu, iv); return r
 def _tcc(R, m):
     t = np.asarray(R.f("tcc")[2], float); return np.clip(t * 100.0 if np.nanmax(t) <= 1.01 else t, 0, 100)
+def product_key(model, pid, vid, ver=""):
+    """Color-bar file for one model, product, and view. Same name static() writes."""
+    return f"static/key_{model}_{pid}{ver or ''}_{vid}.png"
+
+def write_product_keys(model, products, out):
+    """Draw the color bar for each view path already stored on these products. Returns the files written."""
+    import matplotlib; matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import cartopy.crs as ccrs
+    import house_style as HS, temp_maps as TM
+    from matplotlib.colors import BoundaryNorm
+    HS.use_for_plots(); extra_views(TM, ccrs)
+    written = []
+    for pid, P in (products or {}).items():
+        colors, levels, keys = P.get("colors") or [], P.get("levels") or [], P.get("keys") or {}
+        if len(colors) < 1 or len(levels) < 2 or not keys: continue
+        cm = HS.cmap(colors, P.get("under") or colors[0], P.get("over") or colors[-1])
+        under, over = P.get("under"), P.get("over")
+        ext = "both" if under and over else "max" if over else "min" if under else "neither"
+        if pid == "vis": ext = "max"
+        for vid, fn in keys.items():
+            if vid not in TM.VIEWS: continue
+            fig, ax, ky = TM.frame(vid)
+            x0, x1, y0, y1 = ax.get_extent(TM.VIEWS[vid]["proj"])
+            X, Y = np.meshgrid([x0, x1], [y0, y1])
+            L = np.asarray(levels, float)
+            cs = ax.contourf(X, Y, np.full((2, 2), np.nan), levels=L, cmap=cm, norm=BoundaryNorm(L, cm.N), extend=ext, transform=ax.projection)
+            cs.set_visible(False)
+            ticks = list(P.get("ticks") or [])
+            if P.get("tickfmt"):
+                cb = HS.hbar(fig, cs, [], P.get("key") or pid, ky); cb.set_ticks(ticks)
+                cb.ax.set_xticklabels([f"{t:g}" for t in ticks], fontproperties=HS.font(700, 13))
+            else:
+                HS.hbar(fig, cs, ticks, P.get("key") or pid, ky)
+            HS.frame(ax)
+            path = f"{out}/{fn}"; os.makedirs(os.path.dirname(path), exist_ok=True)
+            fig.savefig(path, dpi=DPI, transparent=True)
+            x2 = path.replace("/static/", "/static/x2/")
+            os.makedirs(os.path.dirname(x2), exist_ok=True)
+            fig.savefig(x2, dpi=DPI * X2, transparent=True)
+            plt.close(fig)
+            written += [fn, fn.replace("static/", "static/x2/", 1)]
+    return written
+
+def gfs_snowfall_in(precip_kg_m2, snow_fraction):
+    """Inches of snow since the run started. precip is kg/m2. snow_fraction is 0..1 (or 0..100) over that window."""
+    swe = np.asarray(precip_kg_m2, float) / 25.4
+    frac = np.asarray(snow_fraction, float)
+    if frac.size and np.isfinite(frac).any() and float(np.nanmax(frac)) > 1.5: frac = frac / 100.0
+    frac = np.where(np.isfinite(frac), np.clip(frac, 0.0, 1.0), 0.0)
+    swe = np.where(np.isfinite(swe) & (swe >= 0.0) & (swe < 100.0), swe, 0.0)
+    return np.clip(swe * frac * 10.0, 0.0, None)
+
 def gfs_cloud_top_c(layers_k, t2m_k):
     """Coldest GFS cloud-top temperature (C). Clear columns use the 2 m temperature. layers_k are Kelvin."""
     stack = np.stack([np.asarray(a, float) for a in layers_k])
@@ -1692,6 +1750,13 @@ def static(m, out, views_only=None, x2_only=False):
     if as_model(m) in ("ifs", "aifs") and "snow" in prods:
         prods["snow"]["extra"] = "ECMWF snowfall water x 10 (10:1)  \u00b7  since the run started  \u00b7  max {hi} in in view"
         prods["snow"]["title"] = "Snowfall Total (10:1)"
+    if m == "gfs" and "snow" in prods:
+        prods["snow"]["extra"] = "GFS precip while snow was falling, 10:1  \u00b7  since the run started  \u00b7  max {hi} in in view"
+        prods["snow"]["title"] = "Snowfall Total (10:1)"
+    if m == "gfs" and "ir" in prods:
+        prods["ir"]["extra"] = "GFS cloud-top temperature, coldest low / middle / high top  \u00b7  2 m temp where clear"
+    if m in ("ifs", "aifs") and "frz" in prods:
+        prods["frz"]["extra"] = "0\u00b0C height from the model temperature profile  \u00b7  {lo} to {hi} ft in view"
     for k in ("kuchera", "kuch24", "fzra"):
         if k in prods: prods[k]["min_show"] = prods[k]["levels"][0]
     for k in ("qpf", "snow", "refc", "qpf1", "qpf3", "qpf6", "qpf12", "qpf24", "qpf48", "snow1", "snow6", "ltng6"):
@@ -1720,7 +1785,7 @@ def static(m, out, views_only=None, x2_only=False):
             if old_keys.get(pid): P["keys"] = dict(old_keys[pid])
             continue
         for vid in vids:
-            fn = f"static/key_{m}_{pid}{kv}_{vid}.png"; P["keys"][vid] = fn
+            fn = product_key(m, pid, vid, kv); P["keys"][vid] = fn
             fig, ax, ky = layer_fig(vid); x0, x1, y0, y1 = ax.get_extent(TM.VIEWS[vid]["proj"])
             X, Y = np.meshgrid([x0, x1], [y0, y1]); L = np.asarray(P["levels"]); cm = P["_cm"] if "_cm" in P else CM[pid] if pid in CM else CM[P["cmap_of"]]
             kw = P.get("kw"); tkd = P["ticks"]

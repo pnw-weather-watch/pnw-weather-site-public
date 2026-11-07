@@ -129,18 +129,22 @@ class Graft(unittest.TestCase):
                 "ir": {"title": "IR", "fields": ["ir"], "keys": {"wa": "static/key_hrrr_ir.png"}},
                 "snow": {"title": "Snow", "fields": ["asnow"], "extra": "HRRR snowfall", "keys": {"wa": "k"}},
             }},
-            "gfs": {"products": {"t2m": {"fields": ["t2m"]}}},
+            "gfs": {"views": {"na": {}, "pac": {}, "pnwwide": {}}, "products": {"t2m": {"fields": ["t2m"]}}},
             "ifs": {"products": {"frz": {"title": "Freezing Level", "fields": ["frz"], "keys": {"na": "k"}}}},
-            "aifs": {"products": {}},
+            "aifs": {"views": {"na": {}, "pnwhr": {}}, "products": {}},
         }}
         added = graft_encoded_products(man, "gfs", ["t2m", "refc", "asnow"])
         self.assertEqual(added, ["refc", "snow"])
-        self.assertNotIn("keys", man["models"]["gfs"]["products"]["refc"])
-        self.assertIn("SNOD", man["models"]["gfs"]["products"]["snow"]["extra"])
+        keys = man["models"]["gfs"]["products"]["refc"]["keys"]
+        self.assertEqual(set(keys), {"na", "pac", "pnwwide"})
+        self.assertEqual(keys["pnwwide"], "static/key_gfs_refc_pnwwide.png")
+        self.assertEqual(set(man["models"]["gfs"]["products"]["snow"]["keys"]), {"na", "pac", "pnwwide"})
+        self.assertIn("10:1", man["models"]["gfs"]["products"]["snow"]["extra"])
         self.assertNotIn("ir", man["models"]["gfs"]["products"])
         added = graft_encoded_products(man, "aifs", ["frz"])
         self.assertEqual(added, ["frz"])
         self.assertIn("profile", man["models"]["aifs"]["products"]["frz"]["extra"])
+        self.assertEqual(set(man["models"]["aifs"]["products"]["frz"]["keys"]), {"na", "pnwhr"})
         self.assertEqual(graft_encoded_products(man, "gfs", ["t2m", "refc", "asnow"]), [])
 
     def test_aifs_frz_skips_a_missing_level(self):
