@@ -407,13 +407,13 @@ function camFor(vid) {
   const md = MD();
   if (!md || !md.crop) return null;
   const m = S.run.split("/")[0];
-  // Globals draw the 150 mi Pacific Northwest frame. HRRR and RRFS stay on the
-  // frame that still fits the CONUS grid (pnwhr). NBM is a different Lambert and
-  // keeps its static lookup.
+  // Globals and NBM draw the 150 mi Pacific Northwest frame. HRRR and RRFS stay
+  // on the frame that still fits the CONUS grid (pnwhr). NBM data is sampled on
+  // its own Lambert; the coast, states and labels are this same camera.
   let C = views[vid];
   if (vid === "pnwhr" && m !== "hrrr" && m !== "rrfs" && views.pnwhr150) C = views.pnwhr150;
   if (!C) return null;
-  if (md.grid === "lcc" && m !== "hrrr" && m !== "rrfs") return null;
+  if (md.grid === "lcc" && m !== "hrrr" && m !== "rrfs" && m !== "nbm") return null;
   return C;
 }
 function VIEWS() {
@@ -582,7 +582,7 @@ async function viewStatic(vid) {
       idx[k] = r0 * gnx + c0; wy[k] = fi - r0; wx[k] = fj - c0;
     };
     if (C) {
-      const md = MD();
+      const md = Object.assign({ id: (S.run || "").split("/")[0] }, MD());
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         const [lon, lat] = camLonLat(C, x0 + x + 0.5, y0 + y + 0.5);
         const ij = WXSelect.latLonIndex(md, lat, lon);
@@ -1990,7 +1990,7 @@ function gridFwd(V, lut, x, y) {   // panel px (relative to panel) -> [fi, fj], 
     const C = camFor(V._id);
     if (C) {
       const [lon, lat] = camLonLat(C, V.panel[0] + x, V.panel[1] + y);
-      return WXSelect.latLonIndex(MD(), lat, lon) || [NaN, NaN];
+      return WXSelect.latLonIndex(Object.assign({ id: (S.run || "").split("/")[0] }, MD() || {}), lat, lon) || [NaN, NaN];
     }
   }
   if (!lut) return [NaN, NaN];
