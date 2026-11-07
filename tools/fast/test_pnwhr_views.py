@@ -59,8 +59,9 @@ class PnwhrViews(unittest.TestCase):
         self.assertIn('FE.MODELS[m]["views"] = tuple(vs)', apply)
         static = inspect.getsource(fe.static)
         self.assertLess(static.index("extra_views(TM, ccrs)"), static.index('vids = MD["views"]'))
-        self.assertIn('fn = f"static/key_{m}_{pid}{kv}_{vid}.png"', static)
+        self.assertIn("fn = product_key(m, pid, vid, kv)", static)
         self.assertIn('P["keys"][vid] = fn', static)
+        self.assertIn("_{vid}.png", inspect.getsource(fe.product_key))
 
 
 if __name__ == "__main__":
