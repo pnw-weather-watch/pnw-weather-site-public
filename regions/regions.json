@@ -290,33 +290,39 @@
   "capasses": {
    "label": "California Passes",
    "size": [
-    9.5,
-    18
+    16,
+    7.62
    ],
    "proj": [
     "lcc",
-    -120.2,
+    -120.6,
     38.1,
     [
      35,
      41
     ]
    ],
+   "extent": [
+    -890594.2,
+    971949.3,
+    -444246.9,
+    442401.4
+   ],
    "ll": [
-    -123.0,
-    -117.4,
-    34.4,
-    41.75
+    -131.3,
+    -108.93,
+    33.6,
+    41.62
    ],
    "box": [
-    -130.8017,
-    -109.5983,
-    33.6684,
-    42.35
+    -132.2,
+    -108.0,
+    33.0,
+    42.4
    ],
    "models": "hires+global",
    "passes": "CA_PASSES",
-   "from": "11-06 Benjamin: renamed California Passes. North edge 41.75 so Black Butte Summit and the Redding to Mount Shasta corridor fit, with Tejon still inside the south edge. Size [9.5, 18] matches the taller aspect."
+   "from": "11-07 Benjamin: rebuilt on a Lambert conformal window whose projected width/height is the map slot, so the state is not squished. Black Butte (I-5) through Tejon stay inside with room for labels."
   },
   "hiw": {
    "label": "Hawaii (wide)",
@@ -374,34 +380,40 @@
    "from": "NEW 11-05 Benjamin: Bay Area frame (Monterey Bay to Santa Rosa, Farallones to Livermore)"
   },
   "orco": {
-   "label": "Oregon coast",
+   "label": "Oregon & Coast",
    "size": [
     16,
-    11.1
+    7.62
    ],
    "proj": [
     "lcc",
-    -126.9,
-    44.15,
+    -124.2,
+    44.2,
     [
      42.5,
      45.5
     ]
    ],
+   "extent": [
+    -697077.9,
+    697077.9,
+    -328665.5,
+    335010.8
+   ],
    "ll": [
-    -132.5,
-    -121.3,
-    41.95,
-    46.35
+    -133.35,
+    -115.05,
+    40.93,
+    46.87
    ],
    "box": [
-    -133.9938,
-    -119.8062,
-    40.9,
-    47.2
+    -134.2,
+    -114.2,
+    40.3,
+    47.5
    ],
    "models": "hires+global",
-   "from": "11-06 Benjamin: 4x wider, mostly ocean. East -121.3, west -132.5 (11.2 deg). Coast near -124.1 is about 1/4 of the width in from the right. Same N-S, Astoria to Brookings. Size [16, 11.1] matches that aspect."
+   "from": "11-07 Benjamin: Oregon & Coast. Lambert conformal, coast near the middle, left half ocean, the whole state east to the Idaho border (-116.4) inside. Projected aspect matches the map slot."
   },
   "bigi": {
    "label": "Big Island",

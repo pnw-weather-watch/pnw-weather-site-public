@@ -489,15 +489,13 @@ async function viewStatic(vid) {
   if (S.statics[sk]) return S.statics[sk];
   const V = VIEWS()[vid];
   const p = (async () => {
-    const [lut, base] = await Promise.all([fetch(DATA + V.lut + SV()).then(r => r.arrayBuffer()).then(b => new Float32Array(b)),
-                                           img(DATA + `static/base_${vid}.png` + SV())]);
-    // towns layer is not needed for the first paint: draw without it, redraw when it lands (10-29 first-map speedup)
     const tP = V.towns_png || `static/towns_${vid}.png`, tU = (tP[0] === "@" ? tP.slice(1) : DATA + tP) + SV();
-    // 11-05: declare obj before townsP callback (was TDZ: "Cannot access 'obj' before initialization")
-    const landU = DATA + `static/land_${vid}.png` + SV();
-    const obj = { lut, base, land: null, towns: null, townsP: null, x0: 0, y0: 0, W: 0, H: 0, idx: null, wx: null, wy: null, gnx: 0,
-                  baseU: DATA + `static/base_${vid}.png` + SV(), landU, townsU: tU };
-    img(landU).then(im => { obj.land = im; if (VSRC(S.view) === vid && window.__drawn) draw(); }, () => null);
+    const landU = DATA + `static/land_${vid}.png` + SV(), baseU = DATA + `static/base_${vid}.png` + SV();
+    // Land fill is part of the first paint. It is the same full-canvas figure as the coast, so it is not drawn into a smaller rectangle.
+    const [lut, base, land] = await Promise.all([fetch(DATA + V.lut + SV()).then(r => r.arrayBuffer()).then(b => new Float32Array(b)),
+                                           img(baseU), img(landU).catch(() => null)]);
+    const obj = { lut, base, land, towns: null, townsP: null, x0: 0, y0: 0, W: 0, H: 0, idx: null, wx: null, wy: null, gnx: 0,
+                  baseU, landU, townsU: tU };
     obj.townsP = img(tU).then(im => { obj.towns = im; if (VSRC(S.view) === vid && window.__drawn) draw(); return im; }, () => null);
     // per-pixel source index + weights, made once per view from the coarse LUT (bilinear in panel px)
     // 11-05: run.json may still be loading when the first viewStatic fires — wait briefly instead of throwing
@@ -841,23 +839,27 @@ async function render(lite) {
   const V = VIEWS()[vid], P = PRODS()[pid], cv = $("map");
   const ctx = sizeMap(cv, V, lite), [LW, LH] = V.fig, rs = cv._rs; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH);
   // 1. color fill: value -> bin color, exactly the site's bins (contourf + BoundaryNorm)
-  const smp = P.fill === "prt" ? (/^(ifs|ifs9)$/.test(run.split("/")[0]) ? sampleType : sampleNN) : (P.mask_edge || pid === "ssta") && P.min_show !== undefined ? (st_, F_, k_) => sampleMask(st_, F_, k_, P.min_show) : sample;
+  const maskSea = (P.mask_edge || pid === "ssta" || WAVE_PIDS.test(pid)) && P.min_show !== undefined;
+  const smp = P.fill === "prt" ? (/^(ifs|ifs9)$/.test(run.split("/")[0]) ? sampleType : sampleNN) : maskSea ? (st_, F_, k_) => sampleMask(st_, F_, k_, P.min_show) : sample;
   const pal = palette(pid), mins = P.min_show, im = ctx.createImageData(st.W, st.H), o = im.data, F = D.fill, n = st.W * st.H;
-  // White GSHHG land under the data on every product, including snow. Ocean stays transparent in that layer so the field shows.
-  ctx.fillStyle = landHex(pid, P); ctx.fillRect(st.x0, st.y0, st.W, st.H);
+  // Land NaN, below-threshold, and the wave land sentinel (-0.5) stay transparent. The white GSHHG
+  // polygon (same full-canvas rectangle as the coast) shows through. They are not painted with the
+  // white end of the color scale, and a missing land image falls back to a white panel.
+  const sea = v => (v !== v || (mins !== undefined && v < mins) || (WAVE_PIDS.test(pid) && v < 0)) ? NaN : v;
   if (st.land) ctx.drawImage(st.land, 0, 0, LW, LH);
+  else { ctx.fillStyle = landHex(pid, P); ctx.fillRect(st.x0, st.y0, st.W, st.H); }
   const vals = new Float32Array(n);
   if (lite) {   // half resolution: one sample per 2x2 block
     const W = st.W, H = st.H;
     for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) {
-      const k = y * W + x, v = smp(st, F, k); let c = null;
-      if (!(v !== v || (mins !== undefined && v < mins))) c = v < pal.L0 ? pal.under : v >= pal.Lend ? pal.over : pal.cols[bin(pal, v)];
+      const k = y * W + x, v = sea(smp(st, F, k)); let c = null;
+      if (v === v) c = v < pal.L0 ? pal.under : v >= pal.Lend ? pal.over : pal.cols[bin(pal, v)];
       for (let dy = 0; dy < 2 && y + dy < H; dy++) for (let dx = 0; dx < 2 && x + dx < W; dx++) {
         const kk = k + dy * W + dx; vals[kk] = v; if (!c) continue; const q = kk * 4; o[q] = c[0]; o[q + 1] = c[1]; o[q + 2] = c[2]; o[q + 3] = 255; }
     }
-  } else if (rs > 1 && !S.timer) for (let k = 0; k < n; k++) vals[k] = smp(st, F, k);
+  }   else if (rs > 1 && !S.timer) for (let k = 0; k < n; k++) vals[k] = sea(smp(st, F, k));
   else for (let k = 0; k < n; k++) {
-    const v = smp(st, F, k); vals[k] = v; if (v !== v || (mins !== undefined && v < mins)) continue;
+    const v = sea(smp(st, F, k)); vals[k] = v; if (v !== v) continue;
     let c; if (v < pal.L0) c = pal.under; else if (v >= pal.Lend) c = pal.over; else c = pal.cols[bin(pal, v)];
     if (!c) continue; const q = k * 4; o[q] = c[0]; o[q + 1] = c[1]; o[q + 2] = c[2]; o[q + 3] = 255;
   }

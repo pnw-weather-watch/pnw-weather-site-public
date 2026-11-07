@@ -1,42 +1,62 @@
-"""Oregon coast is a wide ocean frame, and every encoded model still lists it."""
-import json
+"""Oregon & Coast: the whole state, coast near the middle, true Lambert shape."""
+import math
 import os
+import sys
 import unittest
 
+sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "forecast"))
+os.environ.setdefault("MPLBACKEND", "Agg")
+
+import camera as CAM
+import house_style as HS
+from test_browser_layers import view_of
+
 REGIONS = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "regions", "regions.json"))
-# Coast near 124.1 W should sit about a quarter of the width in from the right edge.
-COAST = -124.1
 
 
 class OrcoView(unittest.TestCase):
     def setUp(self):
+        import json
         with open(REGIONS) as f:
             self.R = json.load(f)
         self.v = self.R["views"]["orco"]
 
-    def test_window_is_four_times_wider_and_land_is_the_right_quarter(self):
+    def test_label_and_lambert_window_cover_oregon(self):
+        self.assertEqual(self.v["label"], "Oregon & Coast")
+        self.assertEqual(self.v["proj"][0], "lcc")
+        self.assertEqual(self.v["proj"][1], -124.2)
         w, e, s, n = self.v["ll"]
-        self.assertEqual([w, e, s, n], [-132.5, -121.3, 41.95, 46.35])
-        width = e - w
-        self.assertAlmostEqual(width, 11.2, places=5)
-        self.assertAlmostEqual(n - s, 4.4, places=5)  # Astoria to Brookings, unchanged
-        # fraction of the width to the right of the coast
-        self.assertAlmostEqual((e - COAST) / width, 0.25, places=2)
-        self.assertEqual(self.v["proj"][:3], ["lcc", -126.9, 44.15])
-        self.assertEqual(self.v["size"], [16, 11.1])
-        bw, be, bs, bn = self.v["box"]
-        self.assertLess(bw, w)
-        self.assertGreater(be, e)
-        self.assertLess(bs, s)
-        self.assertGreater(bn, n)
-
-    def test_wider_frame_tuning(self):
-        self.assertEqual(self.R["smooth"]["orco"], 0.4)
-        self.assertEqual(self.R["barbs_across"]["orco"], 22)
-        self.assertEqual(self.R["hl"]["radius_km"]["orco"], 300)
-        self.assertEqual(self.R["hl"]["prominence_mb"]["orco"], 1.5)
-        self.assertEqual(self.R["hl"]["edge_km"]["orco"], 300)
-        self.assertEqual(self.R["region_towns"]["orco"], [[120000, 40000, 10000], 32])
+        self.assertGreater(e, -116.4)       # the east edge is past the Idaho border
+        self.assertLess(w, -128)            # open ocean on the west
+        self.assertLess(s, 42.0)
+        self.assertGreater(n, 46.3)
+        cam = CAM.Camera(view_of("orco"))
+        try:
+            px, py, pw, ph = cam.panel()
+            x, y = cam.pixel(-124.2, 44.2)
+            self.assertAlmostEqual(x, px + pw / 2, delta=pw * 0.04)
+            for name, lat, lon in (
+                ("Astoria", 46.19, -123.83),
+                ("Brookings", 42.05, -124.28),
+                ("Ontario", 44.03, -116.96),
+                ("Bend", 44.06, -121.31),
+            ):
+                xx, yy = cam.pixel(lon, lat)
+                self.assertTrue(px + 30 < xx < px + pw - 30 and py + 30 < yy < py + ph - 30, name)
+            x0, y0 = cam.pixel(-121.3, 44.0)
+            x1, y1 = cam.pixel(-121.3, 45.0)
+            x2, y2 = cam.pixel(-120.3, 44.0)
+            dlat = math.hypot(x1 - x0, y1 - y0)
+            dlon = math.hypot(x2 - x0, y2 - y0)
+            self.assertAlmostEqual(dlon / (dlat * math.cos(math.radians(44.0))), 1.0, delta=0.02)
+            dx = abs(cam.xlim[1] - cam.xlim[0])
+            dy = abs(cam.ylim[1] - cam.ylim[0])
+            slot = HS.screen_layout(cam.fig)["axes"]
+            aspect = (slot[2] * HS.SCREEN_IN[0]) / (slot[3] * HS.SCREEN_IN[1])
+            self.assertAlmostEqual(dx / dy, aspect, delta=0.02)
+        finally:
+            cam.close()
 
     def test_every_model_that_lists_views_includes_orco(self):
         missing = [m for m, vs in self.R["model_views"].items() if "orco" not in vs]

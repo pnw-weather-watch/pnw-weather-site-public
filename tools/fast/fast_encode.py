@@ -14,6 +14,7 @@ for p in (os.environ.get("WX_FORECAST_TOOLS"), os.path.join(HERE, "..", "forecas
     if p and os.path.exists(os.path.join(p, "menu_maps.py")): sys.path.insert(0, os.path.abspath(p)); break
 
 DPI = 100; STRIDE = 8; X2 = 2   # X2: hi-res copies of the fixed layers (static/x2/)
+STATIC_V = "20261107panel"   # viewer cache-buster; bump when coast/land/town PNGs change
 HRRR_LCC = dict(central_longitude=-97.5, central_latitude=38.5, standard_parallels=(38.5, 38.5))
 GLOBAL_VIEWS = ("puget", "wa", "wwa", "ewa", "passes", "newa", "lm", "bc", "pnwt", "pnw", "na")  # regions.apply() replaces every model's views from regions/regions.json (pnwhr on each)
 MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lon rolled to 0..360)
@@ -953,7 +954,7 @@ def static(m, out, views_only=None, x2_only=False):
         rs_ = MD.get("res", 0.25)
         def to_ij(LO_, LA_): return (90.0 - LA_) / rs_, np.mod(LO_, 360.0) / rs_
     import camera as CAM
-    views, luts = {}, {}
+    views, luts, held = {}, {}, {}
     for vid in vids:
         V = TM.VIEWS[vid]
         fig, ax, ky = TM.frame(vid)   # the one camera: panel, coast and labels share it
@@ -968,6 +969,7 @@ def static(m, out, views_only=None, x2_only=False):
         views[vid] = dict(label=V["label"], fig=[int(round(W)), int(round(H))], size_in=[float(x) for x in fig.get_size_inches()],
                           panel=[px, py, pw, ph], stride=STRIDE, nx=g["nx"], ny=g["ny"], barbs_across=HS.BARBS_ACROSS.get(vid, 20),
                           bounds=list(cam.bounds()), anchors=cam.anchors())
+        held[vid] = tuple(cam.bounds())
         b_ = V["box"]; lob = np.mod(lo, 360) if MD["grid"] == "ll" else lo; bl0, bl1 = (np.mod(b_[0], 360), np.mod(b_[1], 360)) if MD["grid"] == "ll" else (b_[0], b_[1])
         inlon = ((lob >= bl0) & (lob <= bl1)) if bl0 <= bl1 else ((lob >= bl0) | (lob <= bl1))
         mm = (la >= b_[2]) & (la <= b_[3]) & inlon
@@ -988,16 +990,26 @@ def static(m, out, views_only=None, x2_only=False):
         np.stack([fi - i0, fj - j0, ang], -1).astype("<f4").tofile(f"{out}/static/lut_{m}_{vid}.bin")
         views[vid]["lut"] = f"static/lut_{m}_{vid}.bin"
     def layer_fig(vid):
-        fig, ax, ky = TM.frame(vid); fig.patch.set_alpha(0); ax.patch.set_alpha(0); return fig, ax, ky
+        # A new figure, locked to the bounds recorded from this view's camera above.
+        # Land, coast, towns and the data LUT all read that one (xlim, ylim) pair.
+        fig, ax, ky = TM.frame(vid)
+        cam = fig._cam
+        x0, x1, y0, y1 = held[vid]
+        cam.xlim, cam.ylim = (x0, x1), (y0, y1)
+        cam.snap(); HS.frame(ax)
+        fig.patch.set_alpha(0); ax.patch.set_alpha(0)
+        fig.patches.clear()   # header chrome is not part of the basemap; it was the line near the top
+        return fig, ax, ky
     # 10-30 7:30 PM (Benjamin: "images are still blurry on the phone view"): every fixed layer (base, towns, key) is also saved
-    # at 2x (static/x2/<same name>, e.g. 3200 px wide) from the same figure, so placement is identical; the viewer uses the x2
-    # file only when its map bitmap is drawn above 1x (zoomed phone, retina desktop). 1x files are unchanged.
+    # at 2x (static/x2/<same name>) from the same snapped panel, so placement is identical.
     os.makedirs(f"{out}/static/x2", exist_ok=True)
     def save(fig, path):
-        if getattr(fig, "_cam", None): fig._cam.snap()
+        cam = getattr(fig, "_cam", None)
+        if cam: cam.snap(); HS.frame(cam.ax)
         fig.savefig(path, dpi=DPI, transparent=True)
-        if getattr(fig, "_cam", None): fig._cam.snap()
-        fig.savefig(path.replace("/static/", "/static/x2/"), dpi=DPI * X2, transparent=True)
+        if cam: cam.snap(); HS.frame(cam.ax)
+        x2 = path.replace("/static/", "/static/x2/")
+        fig.savefig(x2, dpi=DPI * X2, transparent=True)
         plt.close(fig); return os.path.getsize(path)
     def town_call(ax, vid, field):
         if vid == "capasses":   # [KIT] California Passes: same drawing path as the Cascade Passes view, CA passes + CA towns (regions.json)
@@ -1022,18 +1034,15 @@ def static(m, out, views_only=None, x2_only=False):
     else: tw_la, tw_lo = crop_la, crop_lo; tw_la1, tw_lo1 = crop_la, crop_lo
     sizes = {}
     for vid in vids:
-        if not os.path.exists(f"{out}/static/base_{vid}.png") or views_only:
-            fig, ax, ky = layer_fig(vid)
-            HS.land(ax, cf); HS.frame(ax)
-            nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
-            for t in fig.texts[nt:]: t.set_visible(False)
-            sizes[f"land_{vid}"] = save(fig, f"{out}/static/land_{vid}.png")
-            fig, ax, ky = layer_fig(vid)
-            HS.outlines(ax, cf, res=HS.COAST_RES); HS.frame(ax)
-            if vid == "capasses": major_roads(ax)   # 11-04 (Benjamin 3:10 PM): interstates + major US highways on California Passes
-            nt = len(fig.texts); HS.header(fig, "X", "X", "X", "X", "X")
-            for t in fig.texts[nt:]: t.set_visible(False)
-            sizes[f"base_{vid}"] = save(fig, f"{out}/static/base_{vid}.png")
+        # Always rewrite land and coast with this camera. Skipping an existing PNG left the old
+        # letterboxed shoreline in the file while the LUT and labels moved to the full-bleed panel.
+        fig, ax, ky = layer_fig(vid)
+        HS.land(ax, cf); HS.frame(ax)
+        sizes[f"land_{vid}"] = save(fig, f"{out}/static/land_{vid}.png")
+        fig, ax, ky = layer_fig(vid)
+        HS.outlines(ax, cf, res=HS.COAST_RES); HS.frame(ax)
+        if vid == "capasses": major_roads(ax)   # 11-04 (Benjamin 3:10 PM): interstates + major US highways on California Passes
+        sizes[f"base_{vid}"] = save(fig, f"{out}/static/base_{vid}.png")
         # towns: placement by the site's own code with "88" numbers; the grid point each number reads comes from sampling
         # lat and lon grids at the same pins (exact for both grid kinds), then mapped to fractional row/col
         fig, ax, ky = layer_fig(vid)
@@ -1062,8 +1071,7 @@ def static(m, out, views_only=None, x2_only=False):
             slots.append(slot); t.set_visible(False)
         a_ = views[vid]["cut_abs"]; views[vid]["cut"] = [a_[0] - i0, a_[1] - i0, a_[2] - j0, a_[3] - j0]; del views[vid]["cut_abs"]
         views[vid]["towns"] = slots
-        if not os.path.exists(f"{out}/static/towns_{vid}.png") or views_only: sizes[f"towns_{vid}"] = save(fig, f"{out}/static/towns_{vid}.png")
-        else: plt.close(fig)
+        sizes[f"towns_{vid}"] = save(fig, f"{out}/static/towns_{vid}.png")
         print(f"{m} {vid}: {len(slots)} town numbers", flush=True)
     # products
     def table(L, cm, ext):
@@ -1698,6 +1706,9 @@ def static(m, out, views_only=None, x2_only=False):
         if os.environ.get("WX_X2_CLIM"):   # also build the named climatologies (comma list) for a targeted manifest clim merge
             clim = {var: clim_static(m, out, crop_la, crop_lo, var, None if oro is None else oro[i0:i1, j0:j1] / 3.28084) for var in os.environ["WX_X2_CLIM"].split(",")}
             json.dump(clim, open(f"{out}/clim_{m}.json", "w"), indent=1)
+        mp = f"{out}/manifest.json"
+        if os.path.exists(mp):
+            man = json.load(open(mp)); man["static_v"] = STATIC_V; json.dump(man, open(mp, "w"), indent=1)
         print(f"{m} x2 layers done (no clim / manifest)", flush=True); return
     clim = {}; mp = f"{out}/manifest.json"; man = json.load(open(mp)) if os.path.exists(mp) else {}
     old_clim = ((man.get("models") or {}).get(m) or {}).get("clim") or {}
@@ -1710,7 +1721,7 @@ def static(m, out, views_only=None, x2_only=False):
             else: print(f"clim {var}: no source in clim/ (skipped)", flush=True)
     for k in [k for k, P in prods.items() if P.get("clim") and P["clim"] not in clim]:   # 11-04: a product whose normals are not in this kit's clim/ is not offered (no blank anomaly maps)
         print(f"{m}: product {k} dropped (no {prods[k]['clim']} normals)", flush=True); del prods[k]
-    man.update(dpi=DPI, style=dict(BG=HS.BG, INK=HS.INK, MUTED=HS.MUTED, ACCENT=HS.ACCENT, LAND=HS.land_hex()))
+    man.update(dpi=DPI, static_v=STATIC_V, style=dict(BG=HS.BG, INK=HS.INK, MUTED=HS.MUTED, ACCENT=HS.ACCENT, LAND=HS.land_hex()))
     MI = minfo(m)
     man.setdefault("models", {})[m] = dict(name=MI["name"], site=MI["site"], res=MI["res"], grid=MD["grid"],
                                           crop=[i0, i1, j0, j1], views=views, products=prods, clim=clim, **({"products_x": prods_x} if prods_x else {}))

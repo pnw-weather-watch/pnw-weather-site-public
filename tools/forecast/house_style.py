@@ -73,11 +73,19 @@ def header(fig, title, valid, sub, badge_top, badge_bottom, top=0.985, h=0.095):
 
 
 def frame(ax):
-    """No inset rectangle. The map meets the color bar and the timestamp."""
+    """No inset rectangle and no panel edge. The map meets the color bar and the timestamp."""
+    ax.set_frame_on(False)
     for s in ax.spines.values():
         s.set_visible(False)
+        s.set_linewidth(0)
+        s.set_edgecolor("none")
     if hasattr(ax, "outline_patch"):
         ax.outline_patch.set_visible(False)
+        ax.outline_patch.set_linewidth(0)
+    geo = ax.spines.get("geo") if hasattr(ax, "spines") else None
+    if geo is not None:
+        geo.set_visible(False)
+        geo.set_linewidth(0)
 
 
 # State / province line width (Benjamin 10-25-26 10:28 PM: "we gotta make the state lines thicker"): 0.5 -> 0.75 pt (+50%).

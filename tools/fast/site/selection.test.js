@@ -10,7 +10,7 @@ const ensViews = [
   ["na", "North America"], ["pac", "Pacific"], ["pnw", "Pacific Northwest"],
   ["pnwt", "Pacific NW tight"], ["ca", "California"], ["socal", "Southern California"],
   ["cenca", "Central California"], ["norca", "Northern California"], ["bay", "SF Bay"],
-  ["orco", "Oregon Coast"], ["hiw", "Hawaii"], ["bigi", "Big Island"],
+  ["orco", "Oregon & Coast"], ["hiw", "Hawaii"], ["bigi", "Big Island"],
 ].map(([id, label]) => ({ id, label, waveOnly: false }));
 const ensProducts = [
   { id: "t2m", title: "2 m Temperature (ens. mean)", tab: "sfc" },

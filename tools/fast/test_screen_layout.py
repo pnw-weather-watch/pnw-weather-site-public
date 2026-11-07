@@ -46,10 +46,13 @@ class ScreenLayout(unittest.TestCase):
         p = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "regions", "regions.json"))
         with open(p) as f:
             R = json.load(f)
-        self.assertEqual(R["views"]["orco"]["ll"], [-132.5, -121.3, 41.95, 46.35])
-        self.assertEqual(R["views"]["capasses"]["ll"], [-123.0, -117.4, 34.4, 41.75])
+        self.assertEqual(R["views"]["orco"]["label"], "Oregon & Coast")
+        self.assertGreater(R["views"]["orco"]["ll"][1], -116.4)
+        self.assertEqual(R["views"]["capasses"]["proj"][0], "lcc")
         self.assertEqual(R["views"]["hiw"]["ll"], [-168.0, -148.0, 16.08, 24.42])
         self.assertEqual(R["views"]["pnwhr"]["ll"], [-128.4, -112.6, 41.6, 50.4])
+        for vid, v in R["views"].items():
+            self.assertIn(v["proj"][0], ("lcc", "merc"), vid)
 
 
 if __name__ == "__main__":
