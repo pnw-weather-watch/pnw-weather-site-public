@@ -43,10 +43,10 @@ export async function onRequest({ request, params, env }) {
   const status = request.headers.has("range") && obj.range ? 206 : 200;
   if (!("body" in obj) || !obj.body) return new Response(null, { status: 304, headers: h });
   if (request.method === "HEAD") return new Response(null, { headers: h });
-  const accept = request.headers.get("accept-encoding") || "";
-  if (meta && status === 200 && accept.includes("gzip") && typeof CompressionStream === "function") {
-    h.set("content-encoding", "gzip"); h.set("vary", "accept-encoding"); h.delete("content-length");
-    return new Response(obj.body.pipeThrough(new CompressionStream("gzip")), { status, headers: h });
-  }
+  // Leave the bytes plain. The edge already negotiates gzip and brotli, and the browser
+  // undoes that before response.json(). A Content-Encoding set here was decoded again
+  // (or not at all) on the preview host, so both the index and manifest.json failed to
+  // parse and the page never reached the menus.
+  if (meta && !(h.get("content-type") || "").includes("json")) h.set("content-type", "application/json");
   return new Response(obj.body, { status, headers: h });
 }

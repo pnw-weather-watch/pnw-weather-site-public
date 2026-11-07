@@ -40,7 +40,10 @@ class Frames(unittest.TestCase):
         self.assertNotIn("products", slim["models"]["hrrr"])
         self.assertEqual(slim["models"]["hrrr"]["catalog"], "models/hrrr.json")
         self.assertIn("products", cats["hrrr"])
+        self.assertEqual(cats["hrrr"], man["models"]["hrrr"])
         self.assertEqual(cats["hrrr"]["crop"], [0, 10, 0, 10])
+        self.assertIn("name", cats["hrrr"])
+        self.assertIn("views", cats["hrrr"])
         one = json.dumps(slim).encode() + json.dumps(cats["hrrr"]).encode()
         self.assertLess(len(one), len(raw))
         gz = gzip.compress(raw, 6)
@@ -51,13 +54,48 @@ class Frames(unittest.TestCase):
         self.assertEqual(fe.contiguous_prefix([3, 6, 9], {3, 6}), [3, 6])
         self.assertEqual(fe.contiguous_prefix([1, 2], set()), [])
 
+    def test_catalogs_command_writes_complete_files_from_a_manifest(self):
+        import subprocess
+        import sys
+        import tempfile
+        man = {"static_v": "t", "runs": {"hrrr": ["2026110718"], "gfs": ["2026110712"]}, "models": {
+            "hrrr": {"name": "NOAA HRRR", "site": "HRRR", "res": "3 km", "grid": "lcc", "note": "",
+                     "crop": [1, 2, 3, 4], "views": {"box": {"label": "Box"}}, "products": {"t2m": {"title": "2 m Temperature", "fields": ["t2m"]}}},
+            "gfs": {"name": "NOAA GFS", "site": "GFS", "res": "0.25", "grid": "ll", "views": {"na": {"label": "North America"}},
+                    "products": {"t2m": {"title": "2 m Temperature", "fields": ["t2m"]}}},
+        }}
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(d, "manifest.json")
+            with open(src, "w", encoding="utf-8") as f:
+                json.dump(man, f)
+            out = os.path.join(d, "pub")
+            os.makedirs(out)
+            subprocess.check_call([sys.executable, os.path.join(os.path.dirname(__file__), "fast_encode.py"),
+                                   "catalogs", "--manifest", src, "--out", out])
+            with open(os.path.join(out, "manifest.index.json"), encoding="utf-8") as f:
+                idx = json.load(f)
+            with open(os.path.join(out, "models", "hrrr.json"), encoding="utf-8") as f:
+                hrrr = json.load(f)
+            with open(os.path.join(out, "models", "gfs.json"), encoding="utf-8") as f:
+                gfs = json.load(f)
+        self.assertEqual(idx["catalog_v"], 1)
+        self.assertEqual(idx["runs"]["hrrr"], ["2026110718"])
+        self.assertNotIn("products", idx["models"]["hrrr"])
+        self.assertEqual(idx["models"]["hrrr"]["catalog"], "models/hrrr.json")
+        self.assertEqual(hrrr, man["models"]["hrrr"])
+        self.assertEqual(gfs, man["models"]["gfs"])
+        self.assertEqual(hrrr["crop"], [1, 2, 3, 4])
+
 
 class CachePolicy(unittest.TestCase):
     def test_function_keeps_the_immutable_frame_cache_and_the_short_manifest_cache(self):
-        src = open(os.path.join(os.path.dirname(__file__), "functions", "d", "[[path]].js"), encoding="utf-8").read()
+        with open(os.path.join(os.path.dirname(__file__), "functions", "d", "[[path]].js"), encoding="utf-8") as f:
+            src = f.read()
         self.assertIn("private, max-age=30", src)
         self.assertIn("private, max-age=31536000, immutable", src)
-        self.assertIn("content-encoding", src)
+        self.assertIn("application/json", src)
+        self.assertNotIn("content-encoding", src)
+        self.assertNotIn("CompressionStream", src)
         self.assertIn("100,000", src)
 
 

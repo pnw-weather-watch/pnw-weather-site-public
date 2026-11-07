@@ -102,7 +102,7 @@ def update_manifest(s3, fn, tries=8):
     raise SystemExit("manifest.json kept changing; gave up")
 
 def publish_catalogs(s3, man):
-    """Slim index plus one catalog per model, next to the full manifest the encoder still reads."""
+    """Slim index plus one complete catalog per model, from the manifest just written. No extra ingest."""
     slim, cats = FE.split_manifest(man)
     s3.put_object(Bucket=BUCKET, Key="manifest.index.json", Body=json.dumps(slim, separators=(",", ":")).encode(), ContentType="application/json")
     for mid, cat in cats.items():

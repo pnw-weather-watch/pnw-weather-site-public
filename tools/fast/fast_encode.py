@@ -869,18 +869,36 @@ def contiguous_prefix(order, ready):
     return out
 _SLIM = ("name", "site", "res", "grid", "note")
 def split_manifest(man):
-    """Slim index plus one catalog per model. The index is what the browser fetches first."""
+    """Slim index plus one complete catalog per model.
+
+    Each catalog is the whole model record (name, grid, crop, views, products, and
+    every other field). The index keeps the Runs-menu fields and a path to that
+    file. Pass the existing full manifest: nothing is read from model files and
+    no frame is encoded.
+    """
+    if not isinstance(man, dict) or not isinstance(man.get("models"), dict):
+        raise ValueError("manifest has no models")
     slim = {k: v for k, v in man.items() if k != "models"}
     slim["catalog_v"] = 1
     slim["models"] = {}
     catalogs = {}
-    for mid, M in (man.get("models") or {}).items():
+    for mid, M in man["models"].items():
         if not isinstance(M, dict): continue
         head = {k: M[k] for k in _SLIM if k in M}
         head["catalog"] = f"models/{mid}.json"
         slim["models"][mid] = head
-        catalogs[mid] = {k: v for k, v in M.items() if k not in _SLIM}
+        catalogs[mid] = json.loads(json.dumps(M))
     return slim, catalogs
+def write_catalogs(man, out):
+    """Write manifest.index.json and models/<id>.json from a full manifest."""
+    slim, cats = split_manifest(man)
+    os.makedirs(os.path.join(out, "models"), exist_ok=True)
+    with open(os.path.join(out, "manifest.index.json"), "w", encoding="utf-8") as f:
+        json.dump(slim, f, separators=(",", ":"))
+    for mid, cat in cats.items():
+        with open(os.path.join(out, "models", f"{mid}.json"), "w", encoding="utf-8") as f:
+            json.dump(cat, f, separators=(",", ":"))
+    return slim, cats
 def rng(a):
     lo, hi = float(np.floor(np.nanmin(a))), float(np.ceil(np.nanmax(a))); return lo, max(hi, lo + 1)
 
@@ -2280,12 +2298,19 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None, on_pre
     return assemble(), new
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("cmd", choices=["static", "steps"]); ap.add_argument("--model", required=True)
+    ap = argparse.ArgumentParser(); ap.add_argument("cmd", choices=["static", "steps", "catalogs"]); ap.add_argument("--model")
     ap.add_argument("--cycle"); ap.add_argument("--steps"); ap.add_argument("--out", default=os.path.join(HERE, "data"))
+    ap.add_argument("--manifest", help="catalogs: full manifest.json to split (default: <out>/manifest.json)")
     ap.add_argument("--workers", type=int, default=4); ap.add_argument("--all", action="store_true")
     ap.add_argument("--x2-only", action="store_true", help="static: layers (1x + x2) only, no climatology, manifest untouched (use a scratch --out)")
     a = ap.parse_args()
-    if a.cmd == "static": static(a.model, a.out, views_only=a.all or a.x2_only, x2_only=a.x2_only)
+    if a.cmd == "catalogs":
+        src = a.manifest or os.path.join(a.out, "manifest.json")
+        slim, cats = write_catalogs(json.load(open(src, encoding="utf-8")), a.out)
+        print(f"index + {len(cats)} catalogs from {src}", flush=True)
+    elif not a.model:
+        ap.error("--model is required")
+    elif a.cmd == "static": static(a.model, a.out, views_only=a.all or a.x2_only, x2_only=a.x2_only)
     else:
         full = steps_for(a.model, int(a.cycle[8:10]))
         want = full if not a.steps else (lambda x, y: [s for s in full if x <= s <= y])(*map(int, a.steps.split("-")))
