@@ -114,7 +114,7 @@
    ],
    "proj": [
     "lcc",
-    -116.4,
+    -116.69,
     45.7,
     [
      42,
@@ -128,19 +128,19 @@
     444396.4
    ],
    "ll": [
-    -128.31,
-    -104.49,
+    -128.6,
+    -104.78,
     41.7,
     49.7
    ],
    "box": [
-    -130.0,
-    -103.0,
-    40.7,
+    -130.2,
+    -103.2,
+    40.6,
     50.2
    ],
    "models": "hires+global",
-   "from": "11-07: Lambert window covers all of Washington past 49N (Vancouver and Victoria) and all of Oregon to 42N. Longitude is widened so the 16:9 slot keeps true shape. The rectangle stays inside the HRRR grid."
+   "from": "11-07: center scooted west until the NW corner sits on the last HRRR row. 150 mi (to -119.5) puts that corner off the grid. This is 14 mi west of -116.4, central longitude -116.69. Same size, same 41.7 to 49.7 latitudes."
   },
   "pnwwide": {
    "label": "Pacific Northwest (Wide)",

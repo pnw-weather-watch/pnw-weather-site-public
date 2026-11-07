@@ -21,8 +21,8 @@ REGIONS = os.path.normpath(os.path.join(HERE, "..", "..", "regions", "regions.js
 # The tight frame. Longitude is wide enough for 16:9; the north edge clears 49N.
 PNWHR = {
     "label": "Pacific NW (high-res)",
-    "proj": ["lcc", -116.4, 45.7, [42, 49]],
-    "ll": [-128.31, -104.49, 41.7, 49.7],
+    "proj": ["lcc", -116.69, 45.7, [42, 49]],
+    "ll": [-128.6, -104.78, 41.7, 49.7],
 }
 
 
