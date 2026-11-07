@@ -170,19 +170,19 @@
 
   // regions/regions.json CA_PASSES. Short label is what the map draws; Sonora collides with the town of Sonora.
   const CA_PASSES = [
-    { id: "Black Butte Summit", label: "Black Butte", lat: 41.3546, lon: -122.3539, elev: 3912 },
-    { id: "Yuba Pass", label: "Yuba", lat: 39.61741, lon: -120.48995, elev: 6710 },
-    { id: "Donner Pass", label: "Donner", lat: 39.33987, lon: -120.34396, elev: 7239 },
-    { id: "Mount Rose Summit", label: "Mount Rose", lat: 39.31325, lon: -119.89659, elev: 8911 },
-    { id: "Echo Summit", label: "Echo", lat: 38.81297, lon: -120.0302, elev: 7382 },
-    { id: "Luther Pass", label: "Luther", lat: 38.78686, lon: -119.94686, elev: 7740 },
-    { id: "Carson Pass", label: "Carson", lat: 38.6938, lon: -119.98853, elev: 8574 },
-    { id: "Ebbetts Pass", label: "Ebbetts", lat: 38.54436, lon: -119.81186, elev: 8736 },
-    { id: "Sonora Pass", label: "Sonora", lat: 38.3277, lon: -119.63685, elev: 9624 },
-    { id: "Tioga Pass", label: "Tioga", lat: 37.91104, lon: -119.25794, elev: 9945 },
-    { id: "Walker Pass", label: "Walker", lat: 35.66246, lon: -118.02675, elev: 5250 },
-    { id: "Tehachapi Pass", label: "Tehachapi", lat: 35.10219, lon: -118.2837, elev: 3771 },
-    { id: "Tejon Pass", label: "Tejon", lat: 34.80137, lon: -118.87539, elev: 4144 },
+    { id: "Black Butte Summit", label: "Black Butte", route: "I-5", lat: 41.3546, lon: -122.3539, elev: 3912 },
+    { id: "Yuba Pass", label: "Yuba", route: "SR-49", lat: 39.61741, lon: -120.48995, elev: 6710 },
+    { id: "Donner Pass", label: "Donner", route: "I-80", lat: 39.33987, lon: -120.34396, elev: 7239 },
+    { id: "Mount Rose Summit", label: "Mount Rose", route: "NV-431", lat: 39.31325, lon: -119.89659, elev: 8911 },
+    { id: "Echo Summit", label: "Echo", route: "US-50", lat: 38.81297, lon: -120.0302, elev: 7382 },
+    { id: "Luther Pass", label: "Luther", route: "SR-89", lat: 38.78686, lon: -119.94686, elev: 7740 },
+    { id: "Carson Pass", label: "Carson", route: "SR-88", lat: 38.6938, lon: -119.98853, elev: 8574 },
+    { id: "Ebbetts Pass", label: "Ebbetts", route: "SR-4", lat: 38.54436, lon: -119.81186, elev: 8736 },
+    { id: "Sonora Pass", label: "Sonora", route: "SR-108", lat: 38.3277, lon: -119.63685, elev: 9624 },
+    { id: "Tioga Pass", label: "Tioga", route: "SR-120", lat: 37.91104, lon: -119.25794, elev: 9945 },
+    { id: "Walker Pass", label: "Walker", route: "SR-178", lat: 35.66246, lon: -118.02675, elev: 5250 },
+    { id: "Tehachapi Pass", label: "Tehachapi", route: "SR-58", lat: 35.10219, lon: -118.2837, elev: 3771 },
+    { id: "Tejon Pass", label: "Tejon", route: "I-5", lat: 34.80137, lon: -118.87539, elev: 4144 },
   ];
 
   function passesForView(view, caPasses) {

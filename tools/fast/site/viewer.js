@@ -139,6 +139,7 @@ function schedSharp() {
 }
 const FINE_PTR = !!(window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches);
 function sizeMap(cv, V, keepRS) {   // bitmap = figure px x RS; context transform = RS, so all drawing stays in figure px
+  if (!V || !V.fig) return null;
   const [LW, LH] = V.fig, rs = keepRS && cv._lw === LW && cv._lh === LH ? (cv._rs || 1) : wantRS(LW, LH);
   const bw = Math.round(LW * rs), bh = Math.round(LH * rs), relayout = cv._lw !== LW || cv._lh !== LH;
   if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
@@ -396,7 +397,62 @@ const allProds = md => md._allP || (md._allP = (() => {
   for (const [k, P] of Object.entries(A)) if (P && P.isobars && (P.isobars.field || "mslp") === "mslp")
     A[k] = Object.assign({}, P, { isobars: Object.assign({}, P.isobars, ISO_MSLP), extra: typeof P.extra === "string" ? P.extra.replace(/isobars every 4 mb/g, "isobars every 2 mb") : P.extra });
   return A; })());
-const PRODS = () => allProds(MD()), VIEWS = () => MD().views;
+const PRODS = () => allProds(MD());
+// Shipped cameras (cameras.js) replace a stale manifest view: the label, the full-bleed
+// panel, and — once run.json's grid is known — the Lambert/lat-lon sample. A manifest
+// without crop (local fixtures) keeps the published LUT.
+function camFor(vid) {
+  const C = window.WXCAM && WXCAM.views && WXCAM.views[vid];
+  if (!C || !S.man || !S.run) return null;
+  const md = MD();
+  if (!md || !md.crop) return null;
+  const m = S.run.split("/")[0];
+  if (md.grid === "lcc" && m !== "hrrr" && m !== "rrfs") return null;
+  return C;
+}
+function VIEWS() {
+  const raw = (MD() && MD().views) || {};
+  const out = {};
+  for (const [id, v] of Object.entries(raw)) {
+    const C = camFor(id);
+    out[id] = C ? Object.assign({}, v, { label: C.label, fig: C.fig, panel: C.panel, _cam: 1, _id: id }) : v;
+  }
+  return out;
+}
+function camSample(C, arr, x, y) {
+  const [px, py, pw, ph] = C.panel;
+  const u = Math.min(C.nx - 1.001, Math.max(0, (x - px) / pw * (C.nx - 1)));
+  const v = Math.min(C.ny - 1.001, Math.max(0, (y - py) / ph * (C.ny - 1)));
+  const i0 = u | 0, j0 = v | 0, tx = u - i0, ty = v - j0;
+  const at = (j, i) => arr[j * C.nx + i];
+  return (at(j0, i0) * (1 - tx) + at(j0, i0 + 1) * tx) * (1 - ty)
+    + (at(j0 + 1, i0) * (1 - tx) + at(j0 + 1, i0 + 1) * tx) * ty;
+}
+function camLonLat(C, x, y) {
+  return [camSample(C, C.lon, x, y), camSample(C, C.lat, x, y)];
+}
+function camPixel(C, lon, lat) {
+  const [px, py, pw, ph] = C.panel;
+  let best = 1e9, i = 0, j = 0;
+  for (let jj = 0; jj < C.ny; jj++) for (let ii = 0; ii < C.nx; ii++) {
+    const k = jj * C.nx + ii, d = (C.lon[k] - lon) ** 2 + (C.lat[k] - lat) ** 2;
+    if (d < best) { best = d; i = ii; j = jj; }
+  }
+  let x = px + (i / (C.nx - 1)) * pw, y = py + (j / (C.ny - 1)) * ph;
+  for (let it = 0; it < 6; it++) {
+    const [lo, la] = camLonLat(C, x, y);
+    const [lo2, la2] = camLonLat(C, x + 6, y), [lo3, la3] = camLonLat(C, x, y + 6);
+    const a = (lo2 - lo) / 6, b = (lo3 - lo) / 6, c = (la2 - la) / 6, d = (la3 - la) / 6, det = a * d - b * c;
+    if (!det) break;
+    const dx = (d * (lon - lo) - b * (lat - la)) / det, dy = (-c * (lon - lo) + a * (lat - la)) / det;
+    x += Math.max(-60, Math.min(60, dx)); y += Math.max(-60, Math.min(60, dy));
+    if (Math.abs(dx) + Math.abs(dy) < 0.4) break;
+  }
+  return [x, y];
+}
+function camURL(kind, vid) {
+  return `cam/${kind}_${vid}.png?v=${(window.WXCAM && WXCAM.v) || "1"}`;
+}
 // Product tabs (Benjamin 10-30 8:04 PM: "upper air tab, surface tab, precipitation tab, snow tab", Pivotal Weather style).
 // The Product menu lists only the open tab's products, in the order below (Pivotal: winds by level, 250 -> 850 mb);
 // product ids / URLs are unchanged (?prod= picks its tab). Products not listed here land in an "Other" tab.
@@ -488,12 +544,16 @@ async function viewStatic(vid) {
   vid = VSRC(vid); const m = S.run.split("/")[0], sk = m + "/" + vid;
   if (S.statics[sk]) return S.statics[sk];
   const V = VIEWS()[vid];
+  if (!V || !V.fig) return null;
+  const C = V._cam ? camFor(vid) : null;
   const p = (async () => {
-    const tP = V.towns_png || `static/towns_${vid}.png`, tU = (tP[0] === "@" ? tP.slice(1) : DATA + tP) + SV();
-    const landU = DATA + `static/land_${vid}.png` + SV(), baseU = DATA + `static/base_${vid}.png` + SV();
+    const tP = C ? camURL("towns", vid) : (V.towns_png || `static/towns_${vid}.png`);
+    const tU = C ? tP : (tP[0] === "@" ? tP.slice(1) : DATA + tP) + SV();
+    const landU = C ? camURL("land", vid) : DATA + `static/land_${vid}.png` + SV();
+    const baseU = C ? camURL("base", vid) : DATA + `static/base_${vid}.png` + SV();
     // Land fill is part of the first paint. It is the same full-canvas figure as the coast, so it is not drawn into a smaller rectangle.
-    const [lut, base, land] = await Promise.all([fetch(DATA + V.lut + SV()).then(r => r.arrayBuffer()).then(b => new Float32Array(b)),
-                                           img(baseU), img(landU).catch(() => null)]);
+    const lutP = C ? Promise.resolve(null) : fetch(DATA + V.lut + SV()).then(r => r.arrayBuffer()).then(b => new Float32Array(b));
+    const [lut, base, land] = await Promise.all([lutP, img(baseU), img(landU).catch(() => null)]);
     const obj = { lut, base, land, towns: null, townsP: null, x0: 0, y0: 0, W: 0, H: 0, idx: null, wx: null, wy: null, gnx: 0,
                   baseU, landU, townsU: tU };
     obj.townsP = img(tU).then(im => { obj.towns = im; if (VSRC(S.view) === vid && window.__drawn) draw(); return im; }, () => null);
@@ -503,20 +563,35 @@ async function viewStatic(vid) {
     for (let i = 0; i < 80 && !(run && run.grid); i++) { await new Promise(r => setTimeout(r, 25)); run = S.runs[S.run]; }
     if (!run || !run.grid) { delete S.statics[sk]; return null; }
     const [px, py, pw, ph] = V.panel, x0 = Math.round(px), y0 = Math.round(py), W = Math.round(px + pw) - x0, H = Math.round(py + ph) - y0;
-    const { nx, ny, stride } = V, G = run.grid, gnx = G.nx, gny = G.ny;
+    const G = run.grid, gnx = G.nx, gny = G.ny;
     const idx = new Int32Array(W * H), wx = new Float32Array(W * H), wy = new Float32Array(W * H);
-    for (let y = 0; y < H; y++) {
-      const gy = (y + 0.5) / stride, j0 = Math.min(ny - 2, gy | 0), ty = gy - j0;
-      for (let x = 0; x < W; x++) {
-        const gx = (x + 0.5) / stride, i0 = Math.min(nx - 2, gx | 0), tx = gx - i0;
-        const a = (j0 * nx + i0) * 3, b = a + 3, c = a + nx * 3, d = c + 3;
-        const fi = (lut[a] * (1 - tx) + lut[b] * tx) * (1 - ty) + (lut[c] * (1 - tx) + lut[d] * tx) * ty;
-        const fj = (lut[a + 1] * (1 - tx) + lut[b + 1] * tx) * (1 - ty) + (lut[c + 1] * (1 - tx) + lut[d + 1] * tx) * ty;
-        const k = y * W + x;
-        // HRRR rows run south -> north; grid index fi = row, fj = column
-        if (!(fi >= 0 && fj >= 0 && fi <= gny - 1 && fj <= gnx - 1)) { idx[k] = -1; continue; }
-        const r0 = Math.min(gny - 2, fi | 0), c0 = Math.min(gnx - 2, fj | 0);
-        idx[k] = r0 * gnx + c0; wy[k] = fi - r0; wx[k] = fj - c0;
+    const put = (k, fi, fj) => {
+      // A sample a cell or two outside the stored grid is the edge cell, so a
+      // rounded corner does not leave a hole. Farther than that is really outside.
+      if (!(fi >= -2 && fj >= -2 && fi <= gny + 1 && fj <= gnx + 1)) { idx[k] = -1; return; }
+      fi = Math.min(gny - 1.001, Math.max(0, fi));
+      fj = Math.min(gnx - 1.001, Math.max(0, fj));
+      const r0 = Math.min(gny - 2, fi | 0), c0 = Math.min(gnx - 2, fj | 0);
+      idx[k] = r0 * gnx + c0; wy[k] = fi - r0; wx[k] = fj - c0;
+    };
+    if (C) {
+      const md = MD();
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const [lon, lat] = camLonLat(C, x0 + x + 0.5, y0 + y + 0.5);
+        const ij = WXSelect.latLonIndex(md, lat, lon);
+        put(y * W + x, ij ? ij[0] : NaN, ij ? ij[1] : NaN);
+      }
+    } else {
+      const { nx, ny, stride } = V;
+      for (let y = 0; y < H; y++) {
+        const gy = (y + 0.5) / stride, j0 = Math.min(ny - 2, gy | 0), ty = gy - j0;
+        for (let x = 0; x < W; x++) {
+          const gx = (x + 0.5) / stride, i0 = Math.min(nx - 2, gx | 0), tx = gx - i0;
+          const a = (j0 * nx + i0) * 3, b = a + 3, c = a + nx * 3, d = c + 3;
+          const fi = (lut[a] * (1 - tx) + lut[b] * tx) * (1 - ty) + (lut[c] * (1 - tx) + lut[d] * tx) * ty;
+          const fj = (lut[a + 1] * (1 - tx) + lut[b + 1] * tx) * (1 - ty) + (lut[c + 1] * (1 - tx) + lut[d + 1] * tx) * ty;
+          put(y * W + x, fi, fj);
+        }
       }
     }
     Object.assign(obj, { x0, y0, W, H, idx, wx, wy, gnx }); return obj;
@@ -824,8 +899,9 @@ async function render(lite) {
         const b = n.querySelector("#jumprun"); if (b) b.onclick = async () => { await loadRun(r2); S.run = r2; $("run").value = r2; n.hidden = true; setLists(); draw(); }; });
     }
     const V = VIEWS()[vid], cv = $("map"), st2 = await viewStatic(vid);
-    if (!st2) return;
-    const ctx = sizeMap(cv, V, lite), [LW, LH] = V.fig; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH); ctx.drawImage(layer(st2.base, st2.baseU, cv._rs), 0, 0, LW, LH);
+    if (!st2 || !V || !V.fig) return;
+    const ctx = sizeMap(cv, V, lite); if (!ctx) return;
+    const [LW, LH] = V.fig; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH); ctx.drawImage(layer(st2.base, st2.baseU, cv._rs), 0, 0, LW, LH);
     const why = String(e && e.message) === "nodata:clim" ? "climatology normals aren't available" : (window.__vjNoJump || S.dragging ? "no map at this hour" : "not in this model run");
     header(ctx, V, PRODS()[pid].title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${why}`, step.badge);
     drawStamp(ctx, V, step);
@@ -837,7 +913,9 @@ async function render(lite) {
   if (!st) return;   // 11-05 viewStatic soft-miss (run.grid still loading)
   const t1 = performance.now();
   const V = VIEWS()[vid], P = PRODS()[pid], cv = $("map");
-  const ctx = sizeMap(cv, V, lite), [LW, LH] = V.fig, rs = cv._rs; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH);
+  if (!V || !V.fig) return;
+  const ctx = sizeMap(cv, V, lite); if (!ctx) return;
+  const [LW, LH] = V.fig, rs = cv._rs; ctx.fillStyle = S.man.style.BG; ctx.fillRect(0, 0, LW, LH);
   // 1. color fill: value -> bin color, exactly the site's bins (contourf + BoundaryNorm)
   const maskSea = (P.mask_edge || pid === "ssta" || WAVE_PIDS.test(pid)) && P.min_show !== undefined;
   const smp = P.fill === "prt" ? (/^(ifs|ifs9)$/.test(run.split("/")[0]) ? sampleType : sampleNN) : maskSea ? (st_, F_, k_) => sampleMask(st_, F_, k_, P.min_show) : sample;
@@ -903,6 +981,8 @@ async function render(lite) {
   const passView = VSRC(S.view) === "passes" || VSRC(S.view) === "capasses";
   const WT = wave ? coastPlan(ctx, st, V, LW, LH) : null;   // wave maps: coast towns (11-01 t1990u)
   // Wave maps never paint the static town layer: it includes inland cities. Coastal names are drawn by drawCoast.
+  if (V._cam && !wave) drawCamLabels(ctx, st, D, P, pid, V, LW, LH);
+  else {
   if (st.towns && tmode !== "none" && WXSelect.showStaticTowns(pid, MD().grid) && !(WT && WT.own)) ctx.drawImage(WT && WT.erase.length ? erasedTowns(L2.towns, `${st.townsU}#${WT.vid}`, WT.erase, LW) : L2.towns, 0, 0, LW, LH);
   if (!wave && st.towns && tmode === "numbers") for (const t of V.towns) {
     if (passView && t.kind === "pass") continue;   // pass name + readout is drawn together
@@ -913,6 +993,7 @@ async function render(lite) {
     haloText(ctx, fmtVal(P, v), t.x * LW, t.y * LH, `800 ${pt(t.size)}px WXTheme`, t.color, pt(3.0), "left", "middle");
   }
   if (passView) drawPassLabels(ctx, st, D, P, pid, V, LW, LH);
+  }
   if (wave && WT) { addCoastalTowns(WT, V); drawCoast(ctx, st, D, P, V, LW, LH, WT); }
   // 11-01 8:32 AM (Benjamin t1987u: "Include known buoy locations off the coast, and have them show the wave height numbers, do the same for
   // significant wave height"; t1988u: "Just make them look like the other locations in the map"): NDBC buoys on every wave map
@@ -920,13 +1001,22 @@ async function render(lite) {
   // 5. key + header text
   if (L2.key) ctx.drawImage(L2.key, 0, 0, LW, LH);
   drawCredit(ctx, st, pid, P, LW, LH, st.towns && tmode !== "none", (step && step.valid_line) || (step && WXSelect.formatValidPT(step.valid)) || "");   // credit stays left of the Valid line
-  const [r0, r1, c0, c1] = V.cut;                                            // same rows/cols temp_maps.cut() keeps
+  const [r0, r1, c0, c1] = V.cut || [0, D.h, 0, D.w];                       // same rows/cols temp_maps.cut() keeps
   if (!D.pct) D.pct = {};
-  if (!D.pct[vid]) { const a = new Float32Array(Math.ceil((r1 - r0) / 2) * Math.ceil((c1 - c0) / 2)); let n = 0;   // every 2nd cell
-    for (let r = r0; r < r1; r += 2) for (let c = c0; c < c1; c += 2) a[n++] = D.fill[r * D.w + c]; D.pct[vid] = a.subarray(0, n).sort(); }
+  if (!D.pct[vid]) {
+    const a = [];
+    const rr1 = Math.min(r1, D.h), cc1 = Math.min(c1, D.w);
+    for (let r = Math.max(0, r0); r < rr1; r += 2) for (let c = Math.max(0, c0); c < cc1; c += 2) {
+      const v = D.fill[r * D.w + c]; if (v === v) a.push(v);
+    }
+    // Camera views: the subtitle is the temperatures actually on this map.
+    if (V._cam && vals) for (let i = 0; i < vals.length; i += 16) if (vals[i] === vals[i]) a.push(vals[i]);
+    a.sort((x, y) => x - y); D.pct[vid] = a;
+  }
   const fin = D.pct[vid];
-  const pc = p => fin[Math.min(fin.length - 1, Math.max(0, Math.round(p / 100 * (fin.length - 1))))];
-  let extra = (P.isobars && !D.iso && P.extra_noh ? P.extra_noh : P.extra).replace("{lo}", pc(P.pct[0]).toFixed(P.dec || 0)).replace("{hi}", pc(P.pct[1]).toFixed(P.dec || 0));
+  const pc = p => fin.length ? fin[Math.min(fin.length - 1, Math.max(0, Math.round(p / 100 * (fin.length - 1))))] : NaN;
+  const num = p => { const v = pc(p); return v === v ? v.toFixed(P.dec || 0) : "–"; };
+  let extra = (P.isobars && !D.iso && P.extra_noh ? P.extra_noh : P.extra).replace("{lo}", num(P.pct[0])).replace("{hi}", num(P.pct[1]));
   if (pid === "gust10" && run.startsWith("eps/") && f <= 144 && f % 3 === 0) extra = extra.replace("in the 6 h ending", "in the 3 h ending");   // 10-31 EPS 3-hourly to F+144
   header(ctx, V, P.title, step.valid_line, `${S.runs[run].runline}  \u00b7  ${V.label}  \u00b7  ${extra}`, step.badge);
   drawStamp(ctx, V, step);
@@ -1097,6 +1187,11 @@ const COAST_TOWNS = { "Neah Bay": [48.37, -124.62, "a"], "La Push": [47.908, -12
   "Point Conception": [34.449, -120.471, "r"], "Oceanside": [33.196, -117.38, "r"],
   "Hanalei": [22.205, -159.5, "r"], "Haleiwa": [21.593, -158.103, "r"], "Honolulu": [21.28, -157.84, "r"], "Makapuu": [21.31, -157.65, "r"],
   "Kahului": [20.895, -156.47, "r"], "Lahaina": [20.878, -156.683, "r"], "Hilo": [19.725, -155.07, "r"], "Kailua-Kona": [19.64, -155.996, "r"] };   // BC (the lm / bc town pins for "Vancouver" sit at Vancouver WA)
+// Same three sizes as house_style.TOWN_PT. Dots stay on the camera pixel; only the type grows.
+const TOWN_PT = { 1: 24, 2: 17, 3: 13.5 }, TOWN_HALO = { 1: 4.8, 2: 3.8, 3: 3.2 };
+const MAJOR_CITIES = new Set(["Seattle", "Portland", "Honolulu", "Los Angeles", "San Francisco", "Sacramento"]);
+const MID_CITIES = new Set(["Spokane", "Tacoma", "San Diego", "San Jose", "Oakland", "Fresno", "Eugene", "Boise", "Vancouver", "Salem", "Bellevue", "Everett", "Bend", "Medford", "Hilo", "Bakersfield", "Reno", "Olympia", "Yakima", "Santa Rosa", "Modesto"]);
+function townTier(name) { return MAJOR_CITIES.has(name) ? 1 : MID_CITIES.has(name) ? 2 : 3; }
 const COAST_VIEWS = {   // order = priority; buoys: "first" = WA buoys placed before the added towns (Pacific NW views), else after
   // 11-01 9:31 AM (Benjamin t1998u "Remove any towns that aren't right on the water from this map. Replace oak harbor with smith island ... Don't
   // really want wave heights for seattle, everett, Tacoma, Olympia"): the Washington wave view drops the static town layer ("own") and draws only
@@ -1164,7 +1259,8 @@ function coastPlan(ctx, st, V, LW, LH) {
   const px = coastPx(st, V);
   ctx.save();
   for (const t of V.towns || []) {   // static city labels: number at t.x / t.y, name just to its left
-    ctx.font = wa ? `600 ${pt(9.5)}px WXTheme` : `700 ${pt(9.5)}px WXTheme`;
+    const tier = townTier(t.name);
+    ctx.font = `${tier === 1 ? 700 : 600} ${pt(TOWN_PT[tier])}px WXTheme`;
     const nx = t.x * LW, ny = t.y * LH, nw = ctx.measureText(t.name || "").width, b = [nx - nw - gap - pt(1), ny - hh, nx + pt(14), ny + hh];
     if (C.re.includes(t.name) && COAST_TOWNS[t.name]) { const T = COAST_TOWNS[t.name], d = px(T[0], T[1]); if (!d) { boxes.push(b); continue; }
       re.add(t.name); erase.push([b[0] - pt(2), ny - pt(8), nx + pt(1), ny + pt(8)], [d[0] - pt(3.5), d[1] - pt(3.5), d[0] + pt(3.5), d[1] + pt(3.5)]);
@@ -1257,6 +1353,81 @@ function addCoastalTowns(WT, V) {
   if (WT.own) WT.post = (WT.post || []).concat(extra);
   else WT.C = Object.assign({}, WT.C, { add: (WT.C.add || []).concat(extra) });
 }
+function drawCamLabels(ctx, st, D, P, pid, V, LW, LH) {
+  const C = camFor(V._id); if (!C || !D || !D.fill) return;
+  const model = Object.assign({ id: (S.run || "").split("/")[0] }, MD());
+  const X0 = st.x0, Y0 = st.y0, X1 = st.x0 + st.W, Y1 = st.y0 + st.H, taken = [], gap = pt(5);
+  const hit = b => b[0] < X0 + 6 || b[1] < Y0 + 6 || b[2] > X1 - 6 || b[3] > Y1 - 6
+    || taken.some(a => b[0] < a[2] + gap && b[2] > a[0] - gap && b[1] < a[3] + gap && b[3] > a[1] - gap);
+  const valueAt = (lat, lon) => {
+    const ij = WXSelect.latLonIndex(model, lat, lon);
+    if (!ij || !(ij[0] >= 0 && ij[1] >= 0 && ij[0] < D.h - 1 && ij[1] < D.w - 1)) return NaN;
+    return sampleRC(D.fill, D.w, ij[0], ij[1]);
+  };
+  const dot = (x, y, r) => {
+    ctx.beginPath(); ctx.arc(x, y, r + pt(0.7), 0, 2 * Math.PI); ctx.fillStyle = "#ffffff"; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fillStyle = "#1b1d22"; ctx.fill();
+  };
+  const leader = (x, y, b) => {
+    const cx = Math.min(Math.max(x, b[0]), b[2]), cy = Math.min(Math.max(y, b[1]), b[3]);
+    if ((cx - x) ** 2 + (cy - y) ** 2 < pt(12) ** 2) return;
+    ctx.save(); ctx.strokeStyle = "rgba(27,29,34,0.8)"; ctx.lineWidth = pt(1.15);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(cx, cy); ctx.stroke(); ctx.restore();
+  };
+  ctx.save();
+  const fPass = `italic 700 ${pt(16)}px WXTheme`, fPVal = `800 ${pt(16)}px WXTheme`;
+  for (const p of (WXSelect.passesForView(V._id) || [])) {
+    const [x, y] = camPixel(C, p.lon, p.lat);
+    if (x < X0 - 8 || x > X1 + 8 || y < Y0 - 8 || y > Y1 + 8) continue;
+    const name = p.route ? `${p.label} · ${p.route}` : p.label;
+    let v = valueAt(p.lat, p.lon);
+    const slot = (V.towns || []).find(t => t.kind === "pass" && (t.name === p.label || t.name === p.id));
+    if (pid === "t2m" && slot && slot.t2m_corr !== undefined && v === v) v += slot.t2m_corr;
+    const vs = WXSelect.formatPassValue(pid, P, v) || "";
+    ctx.font = fPass; const nw = ctx.measureText(name).width;
+    ctx.font = fPVal; const vw = vs ? ctx.measureText(vs).width : 0;
+    const W_ = nw + (vs ? pt(5) + vw : 0), hh = pt(11);
+    const cands = [[pt(16), -pt(18)], [pt(16), pt(18)], [-pt(16) - W_, -pt(18)], [-pt(16) - W_, pt(18)],
+      [pt(20), -pt(40)], [pt(20), pt(40)], [-pt(20) - W_, -pt(40)], [-pt(20) - W_, pt(40)],
+      [pt(12), -pt(62)], [-pt(12) - W_, -pt(62)], [pt(34), 0], [-pt(34) - W_, 0],
+      [pt(40), -pt(56)], [-pt(40) - W_, pt(56)], [pt(8), -pt(84)], [-pt(8) - W_, pt(84)]];
+    let at = null;
+    for (const [gx, gy] of cands) {
+      const b = [x + gx, y + gy - hh, x + gx + W_, y + gy + hh];
+      if (!hit(b)) { at = [gx, gy, b]; break; }
+    }
+    if (!at) { const b = [x + pt(18), y - pt(96) - hh, x + pt(18) + W_, y - pt(96) + hh]; at = [pt(18), -pt(96), b]; }
+    taken.push(at[2]);
+    dot(x, y, pt(2.4)); leader(x, y, at[2]);
+    haloText(ctx, name, x + at[0], y + at[1], fPass, "#3b2a5c", pt(3.4), "left", "middle");
+    if (vs) haloText(ctx, vs, x + at[0] + nw + pt(5), y + at[1], fPVal, "#0d0f13", pt(3.4), "left", "middle");
+  }
+  const showNum = (P.towns || "numbers") !== "none";
+  for (const t of (C.towns || []).slice().sort((a, b) => (a.t || 3) - (b.t || 3))) {
+    const [x, y] = camPixel(C, t.lo, t.la);
+    if (x < X0 + 8 || x > X1 - 8 || y < Y0 + 8 || y > Y1 - 8) continue;
+    const tier = t.t || townTier(t.n), fN = `${tier === 1 ? 700 : 600} ${pt(TOWN_PT[tier])}px WXTheme`;
+    const fNum = `800 ${pt(Math.max(15, TOWN_PT[tier] - 1))}px WXTheme`;
+    const v = valueAt(t.la, t.lo), vs = showNum && v === v ? fmtVal(P, v) : "";
+    ctx.font = fN; const nw = ctx.measureText(t.n).width;
+    ctx.font = fNum; const vw = vs ? ctx.measureText(vs).width : 0;
+    const W_ = nw + (vs ? pt(5) + vw : 0), hh = pt(TOWN_PT[tier] * 0.52);
+    const db = [x - pt(4), y - pt(4), x + pt(4), y + pt(4)];
+    if (hit(db)) continue;
+    const cands = [[pt(10), 0], [-pt(10) - W_, 0], [pt(10), -pt(18)], [pt(10), pt(18)], [-pt(10) - W_, -pt(18)], [-pt(10) - W_, pt(18)]];
+    let at = null;
+    for (const [gx, gy] of cands) {
+      const b = [x + gx, y + gy - hh, x + gx + W_, y + gy + hh];
+      if (!hit(b)) { at = [gx, gy, b]; break; }
+    }
+    if (!at) continue;
+    taken.push(db, at[2]);
+    dot(x, y, pt(tier === 1 ? 3 : 2.2));
+    haloText(ctx, t.n, x + at[0], y + at[1], fN, "#1b1d22", pt(TOWN_HALO[tier]), "left", "middle");
+    if (vs) haloText(ctx, vs, x + at[0] + nw + pt(5), y + at[1], fNum, "#0d0f13", pt(3.2), "left", "middle");
+  }
+  ctx.restore();
+}
 function drawPassLabels(ctx, st, D, P, pid, V, LW, LH) {
   if (!D || !D.fill) return;
   const list = WXSelect.passesForView(VSRC(S.view)); if (!list.length) return;
@@ -1297,7 +1468,7 @@ function drawPassLabels(ctx, st, D, P, pid, V, LW, LH) {
 }
 function drawCoast(ctx, st, D, P, V, LW, LH, WT) {
   const C = WT.C; if (!C) { WT.taken = WT.boxes = WT.boxes || []; drawBuoys(ctx, st, D, P, V, LW, LH, WT.taken); return; }
-  const wa = C.style === "wa", fName = `600 ${pt(wa ? 9.5 : 8.5)}px WXTheme`, fNum = `800 ${pt(wa ? 10.5 : 9.5)}px WXTheme`, gap = pt(wa ? 3.5 : 3.0), hh = pt(6.5);
+  const wa = C.style === "wa", gap = pt(wa ? 3.5 : 3.0), hh = pt(6.5);
   const X0 = st.x0, Y0 = st.y0, X1 = st.x0 + st.W, Y1 = st.y0 + st.H, taken = WT.boxes.slice(), dots = [], resv = []; WT.taken = taken;
   const hit = (b, g = pt(2.5)) => b[0] < X0 + 2 || b[1] < Y0 + 2 || b[2] > X1 - 2 || b[3] > Y1 - 2 || taken.concat(resv).some(a => b[0] < a[2] + g && b[2] > a[0] - g && b[1] < a[3] + g && b[3] > a[1] - g);
   // the WA buoys' dots are kept free of town labels (Benjamin: those buoys matter most); the buoys themselves don't see this reserve
@@ -1309,13 +1480,14 @@ function drawCoast(ctx, st, D, P, V, LW, LH, WT) {
     const T = COAST_TOWNS[name] || (WT.xt && WT.xt[name]), d = T && WT.px(T[0], T[1]); if (!d) { WT.log.push(`${name}: off map`); return; }
     const coast = WXSelect.coastPoints();
     if (coast.length && !WXSelect.isCoastal(T[0], T[1], coast)) { WT.log.push(`${name}: inland`); return; }
-    const [x, y] = d, dot = [x - pt(2.5), y - pt(2.5), x + pt(2.5), y + pt(2.5)], big = (C.big || []).includes(name);
+    const [x, y] = d, dot = [x - pt(2.5), y - pt(2.5), x + pt(2.5), y + pt(2.5)];
     if (must) { const k = resv.findIndex(b => Math.abs(b[0] + pt(2.5) - x) < 0.01 && Math.abs(b[1] + pt(2.5) - y) < 0.01); if (k >= 0) resv.splice(k, 1); }   // its own dot reserve
     if (!must && (hit(dot, pt(1)) || dots.some(([a, b]) => (a - x) ** 2 + (b - y) ** 2 < pt(wa ? 9 : 11) ** 2))) { WT.log.push(`${name}: dot blocked`); return; }
     const t0 = must && (V.towns || []).find(t => t.name === name);   // a re-placed city keeps its usual number (read at its pin, as before)
-    const fN = big ? `700 ${pt(9.5)}px WXTheme` : fName;
+    const tier = townTier(name), fN = `${tier === 1 ? 700 : 600} ${pt(TOWN_PT[tier])}px WXTheme`;
+    const fNumHere = `800 ${pt(Math.max(wa ? 10.5 : 9.5, TOWN_PT[tier]))}px WXTheme`;
     const v = t0 && t0.fi >= 0 && t0.fj >= 0 && t0.fi < D.h - 1 && t0.fj < D.w - 1 ? sampleRC(D.fill, D.w, t0.fi, t0.fj) : offVal(D, name, T, WT), s_ = isFinite(v) && !(WT.own && WAVE_KEEP[name] === "p") ? fmtVal(P, v) : "";
-    ctx.font = fN; const nw = ctx.measureText(name).width; ctx.font = fNum; const vw = s_ ? ctx.measureText(s_).width : 0, W_ = nw + (s_ ? gap + vw : 0);
+    ctx.font = fN; const nw = ctx.measureText(name).width; ctx.font = fNumHere; const vw = s_ ? ctx.measureText(s_).width : 0, W_ = nw + (s_ ? gap + vw : 0);
     const c = { r: [pt(5), 0], l: [-pt(5) - W_, 0], a: [-W_ / 2, -pt(9.5)], b: [-W_ / 2, pt(9.5)] };
     const sd = C.side || T[2], cands = [c[sd], ...["r", "l", "a", "b"].filter(k => k !== sd).map(k => c[k]), [pt(5), -pt(6)], [pt(5), pt(6)], [-pt(5) - W_, -pt(6)], [-pt(5) - W_, pt(6)]];
     let at = null; for (const [gx, gy] of cands) { const b = [x + gx, y + gy - hh, x + gx + W_, y + gy + hh]; if (!hit(b)) { at = [gx, gy, b]; break; } }
@@ -1324,8 +1496,8 @@ function drawCoast(ctx, st, D, P, V, LW, LH, WT) {
     taken.push(dot, at[2]); dots.push(d); WT.log.push(`${name}: placed`);
     ctx.beginPath(); ctx.arc(x, y, pt(wa ? 1.8 : 1.6) + pt(wa ? 0.5 : 0.45), 0, 2 * Math.PI); ctx.fillStyle = "#ffffff"; ctx.fill();
     ctx.beginPath(); ctx.arc(x, y, pt(wa ? 1.8 : 1.6), 0, 2 * Math.PI); ctx.fillStyle = TH.dot; ctx.fill();
-    haloText(ctx, name, x + at[0], y + at[1], fN, TH.dot, pt(wa ? 2.6 : 2.4), "left", "middle");
-    if (s_) haloText(ctx, s_, x + at[0] + nw + gap, y + at[1], fNum, "#0d0f13", pt(3.0), "left", "middle");
+    haloText(ctx, name, x + at[0], y + at[1], fN, TH.dot, pt(TOWN_HALO[tier]), "left", "middle");
+    if (s_) haloText(ctx, s_, x + at[0] + nw + gap, y + at[1], fNumHere, "#0d0f13", pt(3.0), "left", "middle");
   };
   ctx.save();
   if (WT.own) for (const n of WT.pre) place(n, false);
@@ -1763,11 +1935,12 @@ function drawBarbs(ctx, st, D, P, V) {   // matplotlib barbs (length 5.6 pt, 5 k
   const B = P.barbs, nx = V.barbs_across, ny = Math.max(4, Math.round(nx * st.H / st.W)), Lp = B.length * 3.21 * S.man.dpi / 72;   // matplotlib barb units: 5.6 -> 25 px at 100 dpi (measured)
   const u = D.raw[B.u || "u10"].v, v = D.raw[B.v || "v10"].v;
   ctx.strokeStyle = B.color; ctx.fillStyle = B.color; ctx.lineWidth = pt(B.lw); ctx.lineJoin = "miter";
-  const L = V, lutA = st.lut;
+  const L = V, lutA = st.lut, Cang = V._cam ? camFor(V._id) : null;
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const x = (st.W - 1) * i / (nx - 1), y = (st.H - 1) * (1 - j / (ny - 1)), k = Math.round(y) * st.W + Math.round(x);
     const uu = sample(st, u, k), vv = sample(st, v, k); if (!isFinite(uu)) continue;
-    const li = Math.min(L.nx - 1, Math.round(x / L.stride)), lj = Math.min(L.ny - 1, Math.round(y / L.stride)), a = lutA[(lj * L.nx + li) * 3 + 2];
+    const a = Cang ? camSample(Cang, Cang.ang, st.x0 + x, st.y0 + y)
+      : lutA[(Math.min(L.ny - 1, Math.round(y / L.stride)) * L.nx + Math.min(L.nx - 1, Math.round(x / L.stride))) * 3 + 2];
     const nX = Math.cos(a), nY = -Math.sin(a);           // north, y up
     const eX = nY, eY = -nX;                              // east = north turned clockwise
     const wx = uu * eX + vv * nX, wy = uu * eY + vv * nY, sp = Math.hypot(uu, vv);
@@ -1804,6 +1977,14 @@ function barb(ctx, X, Y, wx, wy, sp, L) {
 // ---- Stage 4 extras (10-30): ensemble member lines / low centres are shipped as cropped-grid (row, col) points; map them
 // to canvas pixels by inverting the view's LUT (panel px -> grid) with a few Newton steps from the previous point.
 function gridFwd(V, lut, x, y) {   // panel px (relative to panel) -> [fi, fj], same bilinear as viewStatic
+  if (V && V._cam) {
+    const C = camFor(V._id);
+    if (C) {
+      const [lon, lat] = camLonLat(C, V.panel[0] + x, V.panel[1] + y);
+      return WXSelect.latLonIndex(MD(), lat, lon) || [NaN, NaN];
+    }
+  }
+  if (!lut) return [NaN, NaN];
   const { nx, ny, stride } = V, gx = (x + 0.5) / stride, gy = (y + 0.5) / stride;
   const i0 = Math.max(0, Math.min(nx - 2, gx | 0)), j0 = Math.max(0, Math.min(ny - 2, gy | 0)), tx = gx - i0, ty = gy - j0;
   const a = (j0 * nx + i0) * 3, b = a + 3, c = a + nx * 3, d = c + 3;
@@ -1813,7 +1994,13 @@ function gridFwd(V, lut, x, y) {   // panel px (relative to panel) -> [fi, fj], 
 function gridInv(V, st, fi, fj, guess) {   // [fi, fj] -> panel px, or null when far outside the panel
   const lut = st.lut; let x, y;
   if (guess) [x, y] = guess;
-  else { let best = Infinity; for (let j = 0; j < V.ny; j++) for (let i = 0; i < V.nx; i++) { const q = (j * V.nx + i) * 3, d = (lut[q] - fi) ** 2 + (lut[q + 1] - fj) ** 2;
+  else if (V && V._cam) {
+    let best = Infinity;
+    for (let yy = 0; yy < st.H; yy += 40) for (let xx = 0; xx < st.W; xx += 40) {
+      const f = gridFwd(V, null, xx, yy), d = (f[0] - fi) ** 2 + (f[1] - fj) ** 2;
+      if (d < best) { best = d; x = xx; y = yy; }
+    }
+  } else { let best = Infinity; for (let j = 0; j < V.ny; j++) for (let i = 0; i < V.nx; i++) { const q = (j * V.nx + i) * 3, d = (lut[q] - fi) ** 2 + (lut[q + 1] - fj) ** 2;
            if (d < best) { best = d; x = i * V.stride; y = j * V.stride; } } }
   for (let it = 0; it < 6; it++) {
     const f0 = gridFwd(V, lut, x, y), fx = gridFwd(V, lut, x + 1, y), fy = gridFwd(V, lut, x, y + 1);

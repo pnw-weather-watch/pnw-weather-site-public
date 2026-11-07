@@ -44,7 +44,7 @@ class CapassesView(unittest.TestCase):
             for key in self.passes:
                 p = self.passes[key]
                 x, y = cam.pixel(p["lon"], p["lat"])
-                self.assertTrue(px + 40 < x < px + pw - 40 and py + 40 < y < py + ph - 40, p["label"])
+                self.assertTrue(px + 8 < x < px + pw - 8 and py + 8 < y < py + ph - 8, p["label"])
             x0, y0 = cam.pixel(-120.6, 38.0)
             x1, y1 = cam.pixel(-120.6, 39.0)
             x2, y2 = cam.pixel(-119.6, 38.0)

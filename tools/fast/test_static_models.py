@@ -90,6 +90,30 @@ class StaticModels(unittest.TestCase):
                 self.assertTrue(np.isfinite(g["lat"]).any(), f"{model} {vid}")
                 self.assertTrue(np.isfinite(g["lon"]).any(), f"{model} {vid}")
 
+    def test_hrrr_windows_fill_the_rectangle(self):
+        """pnwhr, Oregon & Coast and California Passes stay inside the HRRR grid.
+
+        A window that crosses the domain edge is what drew the diagonal wedge.
+        """
+        rad = 6371229.0
+        globe = ccrs.Globe(ellipse="sphere", semimajor_axis=rad, semiminor_axis=rad)
+        hp = ccrs.LambertConformal(globe=globe, **FE.HRRR_LCC)
+        pc = ccrs.PlateCarree()
+        sw = hp.transform_point(-122.719528, 21.138123, pc)
+        gx0, gy0, dx = sw[0], sw[1], 3000.0
+        ny, nx = 1059, 1799
+
+        def to_ij(lon, lat):
+            folded = np.where(np.asarray(lon) > 180.0, np.asarray(lon) - 360.0, lon)
+            hh = hp.transform_points(pc, folded, lat)
+            return (hh[..., 1] - gy0) / dx, (hh[..., 0] - gx0) / dx
+
+        for vid in ("pnwhr", "orco", "capasses"):
+            g = CAM.sample_grid(self.cams[vid], FE.STRIDE, 3.0, to_ij=to_ij)
+            fi, fj = g["fi"], g["fj"]
+            ok = np.isfinite(fi) & np.isfinite(fj) & (fi >= 0) & (fi <= ny - 1) & (fj >= 0) & (fj <= nx - 1)
+            self.assertGreater(float(ok.mean()), 0.98, vid)
+
     def test_static_source_uses_one_mesh_for_lambert(self):
         with open(os.path.join(os.path.dirname(__file__), "fast_encode.py"), encoding="utf-8") as f:
             src = f.read()

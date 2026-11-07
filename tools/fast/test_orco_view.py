@@ -34,8 +34,11 @@ class OrcoView(unittest.TestCase):
         cam = CAM.Camera(view_of("orco"))
         try:
             px, py, pw, ph = cam.panel()
+            # The coast stays in the left portion. The window is shifted east of a
+            # coast-centered frame so the west edge stays inside the HRRR grid.
             x, y = cam.pixel(-124.2, 44.2)
-            self.assertAlmostEqual(x, px + pw / 2, delta=pw * 0.04)
+            self.assertLess(x, px + pw * 0.45)
+            self.assertGreater(x, px + pw * 0.15)
             for name, lat, lon in (
                 ("Astoria", 46.19, -123.83),
                 ("Brookings", 42.05, -124.28),

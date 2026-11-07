@@ -22,6 +22,31 @@ MUTED = "#a7abb3"
 ACCENT = "#ffc970"    # valid time
 BADGE = "#262931"
 COAST_DARK, COAST_HALO = "#121317", (1, 1, 1, 0.55)
+# City names, by population tier. Was 9.5 / 8.5 / 8.0. Major cities are the largest;
+# small towns are only a little larger than before. Halo width scales with the type.
+# Small towns are about 40% larger than the previous 9.5 pt. Mid-size and major
+# cities step up further. Seattle, Portland, Sacramento and San Francisco are tier 1.
+TOWN_PT = {1: 24.0, 2: 17.0, 3: 13.5}
+TOWN_HALO_W = {1: 4.8, 2: 3.8, 3: 3.2}
+MAJOR_CITIES = frozenset({
+    "Seattle", "Portland", "Honolulu", "Los Angeles", "San Francisco", "Sacramento",
+})
+MID_CITIES = frozenset({
+    "Spokane", "Tacoma", "San Diego", "San Jose", "Oakland", "Fresno", "Eugene",
+    "Boise", "Vancouver", "Salem", "Bellevue", "Everett", "Bend", "Medford", "Hilo",
+    "Bakersfield", "Reno", "Olympia", "Yakima", "Santa Rosa", "Modesto",
+})
+
+
+def town_tier(name, tier=None):
+    """1 = major, 2 = mid-size, 3 = small. A named major city stays tier 1."""
+    if name in MAJOR_CITIES:
+        return 1
+    if tier in (1, 2, 3):
+        return int(tier)
+    if name in MID_CITIES:
+        return 2
+    return 3
 
 _fp = {}
 

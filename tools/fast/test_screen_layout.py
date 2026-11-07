@@ -50,7 +50,7 @@ class ScreenLayout(unittest.TestCase):
         self.assertGreater(R["views"]["orco"]["ll"][1], -116.4)
         self.assertEqual(R["views"]["capasses"]["proj"][0], "lcc")
         self.assertEqual(R["views"]["hiw"]["ll"], [-168.0, -148.0, 16.08, 24.42])
-        self.assertEqual(R["views"]["pnwhr"]["ll"], [-128.4, -112.6, 41.6, 50.4])
+        self.assertEqual(R["views"]["pnwhr"]["ll"], [-131.13, -113.16, 41.98, 48.08])
         for vid, v in R["views"].items():
             self.assertIn(v["proj"][0], ("lcc", "merc"), vid)
 

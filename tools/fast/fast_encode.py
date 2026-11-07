@@ -14,7 +14,7 @@ for p in (os.environ.get("WX_FORECAST_TOOLS"), os.path.join(HERE, "..", "forecas
     if p and os.path.exists(os.path.join(p, "menu_maps.py")): sys.path.insert(0, os.path.abspath(p)); break
 
 DPI = 100; STRIDE = 8; X2 = 2   # X2: hi-res copies of the fixed layers (static/x2/)
-STATIC_V = "20261107panel"   # viewer cache-buster; bump when coast/land/town PNGs change
+STATIC_V = "20261107warp"   # viewer cache-buster; bump when coast/land/town PNGs change
 HRRR_LCC = dict(central_longitude=-97.5, central_latitude=38.5, standard_parallels=(38.5, 38.5))
 GLOBAL_VIEWS = ("puget", "wa", "wwa", "ewa", "passes", "newa", "lm", "bc", "pnwt", "pnw", "na")  # regions.apply() replaces every model's views from regions/regions.json (pnwhr on each)
 MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lon rolled to 0..360)

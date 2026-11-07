@@ -425,11 +425,13 @@ def towns(ax, vid, field=None, fmt=fmt_int, pass_corr=None):
     if nums_on: ax.town_values = {t[0]: float(v) for t, v in zip(WA_TOWNS, vals)}
     for k, ((name, la, lo, side), v) in enumerate(zip(WA_TOWNS, vals)):
         x, y = xy[k]
+        t_ = HS.town_tier(name)
         nm = ax.annotate(name, (lo, la), xycoords=tr, xytext=(0, 0), textcoords="offset points", ha="left", va="center",
-                         color="#1b1d22", fontproperties=HS.font(600, 9.5), path_effects=HS.halo("white", 2.6), zorder=7)
+                         color="#1b1d22", fontproperties=HS.font(700 if t_ == 1 else 600, HS.TOWN_PT[t_]),
+                         path_effects=HS.halo("white", HS.TOWN_HALO_W[t_]), zorder=7)
         s_ = fmt(v) if nums_on else None
         n = None if s_ is None else ax.annotate(s_, (lo, la), xycoords=tr, xytext=(0, 0), textcoords="offset points", ha="left",
-                                               va="center", color=TOWN_NUM_COLOR, fontproperties=HS.font(800, TOWN_NUM_SIZE),
+                                               va="center", color=TOWN_NUM_COLOR, fontproperties=HS.font(800, max(TOWN_NUM_SIZE, HS.TOWN_PT[t_])),
                                                path_effects=HS.halo("white", TOWN_NUM_HALO), zorder=7.5)
         nw = nm.get_window_extent(r).width * pt; vw = 0 if n is None else n.get_window_extent(r).width * pt
         others = taken   # every dot (its own too: labels sit 5 pt off the dot) and every label placed so far
@@ -469,7 +471,7 @@ def region_towns(ax, vid, field=None, fmt=fmt_int):
     ax.apply_aspect()   # see towns()
     pc = ccrs.PlateCarree(); tr = pc._as_mpl_transform(ax); arts = []
     fig = ax.figure; r = fig.canvas.get_renderer(); pt = 72.0 / fig.dpi; axbb = ax.get_window_extent(r)
-    dots, labels, skipped, nonum, size = [], [], [], [], {1: 9.5, 2: 8.5, 3: 8.0}
+    dots, labels, skipped, nonum = [], [], [], []
     places = region_places(vid)
     nums_on = field is not None and os.environ.get("TOWN_NUMBERS", "1") != "0"   # TOWN_NUMBERS=0 turns the numbers off
     vals = town_values(*field, [(la, lo) for _, la, lo, _ in places]) if nums_on and places else [np.nan] * len(places)
@@ -481,12 +483,13 @@ def region_towns(ax, vid, field=None, fmt=fmt_int):
         dot = matplotlib.transforms.Bbox([[x - 3, y - 3], [x + 3, y + 3]])
         if _hits(dot, dots, pad=1.0) or any(b.x0 - 4 < x < b.x1 + 4 and b.y0 - 4 < y < b.y1 + 4 for b in labels):   # dot center
             skipped.append(name); continue   # inside (or within 4 px of, the halo) a label already placed
+        t_ = HS.town_tier(name, t)
         nm = ax.annotate(name, (lo, la), xycoords=tr, xytext=(0, 0), textcoords="offset points", ha="left", va="center",
-                         color="#1b1d22", fontproperties=HS.font(700 if t == 1 else 600, size.get(t, 8.0)),
-                         path_effects=HS.halo("white", 2.4), zorder=7)
+                         color="#1b1d22", fontproperties=HS.font(700 if t_ == 1 else 600, HS.TOWN_PT[t_]),
+                         path_effects=HS.halo("white", HS.TOWN_HALO_W[t_]), zorder=7)
         s_ = fmt(v) if nums_on else None
         n = None if s_ is None else ax.annotate(s_, (lo, la), xycoords=tr, xytext=(0, 0), textcoords="offset points", ha="left",
-                                               va="center", color=TOWN_NUM_COLOR, fontproperties=HS.font(800, REGION_NUM_SIZE),
+                                               va="center", color=TOWN_NUM_COLOR, fontproperties=HS.font(800, max(REGION_NUM_SIZE, HS.TOWN_PT[t_])),
                                                path_effects=HS.halo("white", TOWN_NUM_HALO), zorder=7.5)
         nw = nm.get_window_extent(r).width * pt; vw = 0 if n is None else n.get_window_extent(r).width * pt
         side = next((t_[3] for t_ in WA_TOWNS if t_[0] == name), "r")   # same preferred side as on the Washington view
