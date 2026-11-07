@@ -47,14 +47,44 @@ class DerivedFields(unittest.TestCase):
         z = fe.freezing_level_m(T, Z, sp_pa=np.full(shape, 98000.0))
         self.assertTrue(np.allclose(z, 1300.0))
 
+    def test_gfs_snowfall_is_ten_to_one_and_ignores_the_snow_depth_sentinel(self):
+        import numpy as np
+        swe = np.array([0.0, 25.4, 25.4, 9999.0])  # kg/m2: 0, 1 inch, 1 inch, nonsense
+        frac = np.array([1.0, 0.0, 0.5, 1.0])
+        out = fe.gfs_snowfall_in(swe, frac)
+        self.assertAlmostEqual(float(out[0]), 0.0)
+        self.assertAlmostEqual(float(out[1]), 0.0)
+        self.assertAlmostEqual(float(out[2]), 5.0, places=4)
+        self.assertEqual(float(out[3]), 0.0)
+        pct = fe.gfs_snowfall_in(np.array([25.4]), np.array([50.0]))
+        self.assertAlmostEqual(float(pct[0]), 5.0, places=4)
+
     def test_gfs_cloud_top_uses_the_coldest_layer_and_2m_when_clear(self):
         high = np.array([[220.0, np.nan]])
         mid = np.array([[250.0, np.nan]])
         low = np.array([[270.0, np.nan]])
         t2 = np.array([[280.0, 290.0]])
         c = fe.gfs_cloud_top_c([high, mid, low], t2)
+        # The coldest finite cloud top wins. A clear column (no finite top) uses 2 m temperature.
         self.assertAlmostEqual(float(c[0, 0]), 220.0 - 273.15, places=3)
         self.assertAlmostEqual(float(c[0, 1]), 290.0 - 273.15, places=3)
+
+    def test_color_key_is_written_for_a_north_america_view(self):
+        import os
+        import tempfile
+        spec = {"refc": {
+            "key": "Reflectivity (dBZ)", "tickfmt": True,
+            "levels": [5, 15, 25, 35], "ticks": [5, 15, 25],
+            "colors": ["#04e9e7", "#019ff4", "#0300f4"],
+            "under": None, "over": "#0300f4",
+            "keys": {"na": "static/key_gfs_refc_na.png"},
+        }}
+        with tempfile.TemporaryDirectory() as d:
+            paths = fe.write_product_keys("gfs", spec, d)
+            self.assertIn("static/key_gfs_refc_na.png", paths)
+            png = os.path.join(d, "static/key_gfs_refc_na.png")
+            self.assertGreater(os.path.getsize(png), 1000)
+            self.assertGreater(os.path.getsize(os.path.join(d, "static/x2/key_gfs_refc_na.png")), 1000)
 
 
 if __name__ == "__main__":
