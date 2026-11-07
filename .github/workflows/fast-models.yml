@@ -1,7 +1,9 @@
 # Fast-style model data -> R2 bucket pnw-models-data. This is the only model workflow in the repo:
 # HRRR, RRFS, NBM, GFS, IFS, AIFS, EPS, AIFS ENS, WW3, AIFS ENS members, EPS members, and OISST are jobs here.
-# Writes go to preview/ keys (WX_R2_PREFIX). Production keeps reading the live keys until someone runs this
+# Writes go to preview/ keys (WX_R2_PREFIX) unless a dispatch sets prefix to a deployment area
+# such as preview-pr16/. Production keeps reading the live keys until someone runs this
 # workflow by hand with promote=true, which copies preview/ onto the live keys and does not encode.
+# Promote does not copy preview-pr16/ or any other preview-<name>/ prefix.
 # Schedule is every 15 min. Each job also polls every 60 s (--watch) and uploads the hours that are out
 # (one frame at a time once the job is caught up). A job that still has hours left re-dispatches itself.
 # GitHub only runs this schedule from the default branch, and a private repo spends Actions minutes while it watches.
@@ -19,9 +21,12 @@ on:
         description: "time budget per model job"
         default: "40"
       promote:
-        description: "Copy preview/ onto the live keys and stop. Leave false to publish into preview/ only."
+        description: "Copy preview/ onto the live keys and stop. Leave false to publish into the prefix below."
         type: boolean
         default: false
+      prefix:
+        description: "R2 prefix for this encode. preview/ is the shared preview. preview-pr16/ is that deployment."
+        default: "preview/"
 concurrency:
   group: fast-models
   cancel-in-progress: false
@@ -79,7 +84,7 @@ jobs:
         env:
           PNW_R2_ACCESS_KEY_ID: ${{ secrets.PNW_R2_ACCESS_KEY_ID }}
           PNW_R2_SECRET_ACCESS_KEY: ${{ secrets.PNW_R2_SECRET_ACCESS_KEY }}
-          WX_R2_PREFIX: preview/
+          WX_R2_PREFIX: ${{ inputs.prefix || 'preview/' }}
         run: |
           # 11-03: aensm = AIFS ENS single members (tools/fast/aensm_cycle.py: newest 2 runs, one small file per member per hour)
           if [ "${{ matrix.model }}" = "oisst" ]; then python tools/fast/oisst_cycle.py; exit 0; fi   # 11-03: NOAA OISST SST anomaly (daily)

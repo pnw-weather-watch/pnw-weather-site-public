@@ -2,11 +2,13 @@
 """Sync a local data dir to R2 bucket pnw-models-data with the R2 S3 token (env PNW_R2_ACCESS_KEY_ID / PNW_R2_SECRET_ACCESS_KEY,
 CLOUDFLARE_ACCOUNT_ID). Keys = paths relative to the data dir (what /d/<key> serves). Skips objects with the same size and MD5.
 usage: python3 sync_r2_s3.py DATA_DIR [--prefix preview/]
---prefix: write under that key prefix only (preview data area); files identical to the live object are skipped (the preview /d/ falls back to it)."""
+--prefix: write under that key prefix only (preview/ or preview-<name>/, such as preview-pr16/).
+Files identical to the object already at that key, or to the live key, are skipped."""
 import os, sys, mimetypes, hashlib, boto3
 from concurrent.futures import ThreadPoolExecutor
-D = sys.argv[1].rstrip("/"); PFX = sys.argv[sys.argv.index("--prefix") + 1] if "--prefix" in sys.argv else ""
-assert PFX in ("", "preview/"), "only the preview/ prefix is allowed"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from upload_r2 import normalize_prefix
+D = sys.argv[1].rstrip("/"); PFX = normalize_prefix(sys.argv[sys.argv.index("--prefix") + 1] if "--prefix" in sys.argv else "")
 A = "b6dc205037fd8e8c37d5267ee61dc302"   # pinned: PNW account only (shared env CLOUDFLARE_ACCOUNT_ID is the other site)
 s3 = boto3.client("s3", endpoint_url=f"https://{A}.r2.cloudflarestorage.com", region_name="auto",
                   aws_access_key_id=os.environ["PNW_R2_ACCESS_KEY_ID"], aws_secret_access_key=os.environ["PNW_R2_SECRET_ACCESS_KEY"])

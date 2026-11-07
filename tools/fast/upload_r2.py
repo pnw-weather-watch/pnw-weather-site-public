@@ -2,12 +2,22 @@
 """Upload fast-style data to R2 bucket pnw-models-data (S3 API; PNW R2 keys from env PNW_R2_ACCESS_KEY_ID / PNW_R2_SECRET_ACCESS_KEY, account pinned).
   upload_r2.py --data <site/data> [--run 2026102918] [--static] [--keep 2] [--dry-run]
 Order: static (if asked) -> run files -> run.json -> manifest (lists only runs present in R2, newest --keep) -> prune older runs."""
-import os, sys, json, hashlib, argparse, urllib.request, mimetypes, time
+import os, sys, json, hashlib, argparse, urllib.request, mimetypes, time, re
 from concurrent.futures import ThreadPoolExecutor
 import boto3
 from botocore.config import Config
 BUCKET = os.environ.get("R2_BUCKET", "pnw-models-data")
 CT = {".png": "image/png", ".json": "application/json", ".bin": "application/octet-stream", ".webp": "image/webp"}
+_PREFIX = re.compile(r"preview(-[a-z0-9][a-z0-9-]*)?/")
+
+def normalize_prefix(raw):
+    """preview/ or preview-<name>/ (preview-pr16/). Empty means the live keys."""
+    pre = (raw or "").strip()
+    if not pre: return ""
+    if not pre.endswith("/"): pre += "/"
+    if not _PREFIX.fullmatch(pre):
+        raise SystemExit(f"WX_R2_PREFIX must be preview/ or preview-<name>/, not {raw!r}")
+    return pre
 
 def client():
     # 11-04 safety: pinned to the PNW account (b6dc...) and the PNW R2 S3 keys; the shared CF_PAGES_KEY / CLOUDFLARE_ACCOUNT_ID belong to the OTHER site and are never read.
@@ -18,8 +28,7 @@ def client():
     raw = boto3.client("s3", endpoint_url=f"https://{acc}.r2.cloudflarestorage.com", aws_access_key_id=os.environ["PNW_R2_ACCESS_KEY_ID"],
                        aws_secret_access_key=os.environ["PNW_R2_SECRET_ACCESS_KEY"], region_name="auto",
                        config=Config(max_pool_connections=32, retries={"max_attempts": 5, "mode": "standard"}))
-    pre = os.environ.get("WX_R2_PREFIX", "").strip()
-    if pre and not pre.endswith("/"): pre += "/"
+    pre = normalize_prefix(os.environ.get("WX_R2_PREFIX", ""))
     return Prefixed(raw, pre) if pre else raw
 
 

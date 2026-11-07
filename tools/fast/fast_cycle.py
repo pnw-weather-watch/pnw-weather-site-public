@@ -2,9 +2,9 @@
 """One pass of the fast-style publisher (GitHub Actions, every 15 min; also runnable on the box).
 For each model: newest cycle whose first step is out -> encode the steps that are out and not yet in R2 -> upload them,
 then run.json (only the unbroken steps from the start, so the slider has no holes) -> manifest lists the newest `keep` runs
-whose run.json is in R2 -> prune older runs. Never touches the Pages projects. With WX_R2_PREFIX=preview/ the objects land under preview/ and the live keys stay put.
+whose run.json is in R2 -> prune older runs. Never touches the Pages projects. WX_R2_PREFIX=preview/ writes the shared preview. WX_R2_PREFIX=preview-pr16/ writes that deployment's prefix and leaves preview/ and the live keys alone.
   fast_cycle.py [--models hrrr,gfs,ifs,aifs] [--minutes 40] [--workers 4] [--dry-run]
-Env: PNW_R2_ACCESS_KEY_ID, PNW_R2_SECRET_ACCESS_KEY. Optional WX_R2_PREFIX (preview/ in the workflow)."""
+Env: PNW_R2_ACCESS_KEY_ID, PNW_R2_SECRET_ACCESS_KEY. Optional WX_R2_PREFIX (preview/ by default in the workflow; preview-pr16/ for that Pages alias)."""
 import os, sys, json, time, argparse, datetime as dt, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import fast_encode as FE
