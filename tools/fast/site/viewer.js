@@ -986,10 +986,12 @@ async function render(lite) {
   const tmode = P.towns || "numbers";
   const wave = !WXSelect.showStaticTowns(pid, MD().grid);
   const passView = VSRC(S.view) === "passes" || VSRC(S.view) === "capasses";
+  // North America and the Pacific basin: no city names and no readouts, on every product. Buoys stay.
+  const noTowns = !WXSelect.showTownLabels(VSRC(vid));
   const WT = wave ? coastPlan(ctx, st, V, LW, LH) : null;   // wave maps: coast towns (11-01 t1990u)
   // Wave maps never paint the static town layer: it includes inland cities. Coastal names are drawn by drawCoast.
-  if (V._cam && !wave) drawCamLabels(ctx, st, D, P, pid, V, LW, LH);
-  else {
+  if (!noTowns && V._cam && !wave) drawCamLabels(ctx, st, D, P, pid, V, LW, LH);
+  else if (!noTowns) {
   if (st.towns && tmode !== "none" && WXSelect.showStaticTowns(pid, MD().grid) && !(WT && WT.own)) ctx.drawImage(WT && WT.erase.length ? erasedTowns(L2.towns, `${st.townsU}#${WT.vid}`, WT.erase, LW) : L2.towns, 0, 0, LW, LH);
   if (!wave && st.towns && tmode === "numbers") for (const t of V.towns) {
     if (passView && t.kind === "pass") continue;   // pass name + readout is drawn together
@@ -1001,7 +1003,10 @@ async function render(lite) {
   }
   if (passView) drawPassLabels(ctx, st, D, P, pid, V, LW, LH);
   }
-  if (wave && WT) { addCoastalTowns(WT, V); drawCoast(ctx, st, D, P, V, LW, LH, WT); }
+  if (wave && WT) {
+    if (noTowns) drawBuoys(ctx, st, D, P, V, LW, LH, []);
+    else { addCoastalTowns(WT, V); drawCoast(ctx, st, D, P, V, LW, LH, WT); }
+  }
   // 11-01 8:32 AM (Benjamin t1987u: "Include known buoy locations off the coast, and have them show the wave height numbers, do the same for
   // significant wave height"; t1988u: "Just make them look like the other locations in the map"): NDBC buoys on every wave map
   if (P.lows && S.lowPanel) paintLowPanel(ctx, st, V, S.lowPanel);
@@ -1221,7 +1226,7 @@ const COAST_VIEWS = {   // order = priority; buoys: "first" = WA buoys placed be
   bigi: { style: "region", own: true, re: [], add: ["Hilo", "Kailua-Kona"], buoys: "after", side: "r", order: ["Hilo", "Kailua-Kona"] },
   bay: { style: "region", re: [], add: ["San Francisco", "Half Moon Bay", "Santa Cruz", "Monterey", "Bodega Bay", "Point Arena"], buoys: "after", side: "r" },
   orco: { style: "region", re: [], add: ["Astoria", "Cannon Beach", "Garibaldi", "Newport", "Florence", "Shore Acres", "Coos Bay", "Brookings"], buoys: "after", side: "r" },
-  pac: { style: "region", re: [], add: ["Westport", "Newport", "Eureka", "San Francisco", "Los Angeles", "Hanalei", "Honolulu", "Hilo"], buoys: "after", side: "r" } };   // no other city labels here: town names go on the (empty) land side, buoy labels keep the ocean
+  pac: { style: "region", re: [], add: ["Westport", "Newport", "Eureka", "San Francisco", "Los Angeles", "Hanalei", "Honolulu", "Hilo"], buoys: "after", side: "r" } };   // North America and Pacific skip this list (showTownLabels); buoys still draw
 function anchorHit(V, la, lo) {   // pixel from the same camera that drew the coast; no second projection
   const A = V.anchors || [];
   for (const a of A) {

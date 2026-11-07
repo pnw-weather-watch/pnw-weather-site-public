@@ -238,6 +238,11 @@
   function showStaticTowns(pid, grid) {
     return !(isWaveProduct(pid) && grid === "ll");
   }
+  // Continent and ocean-basin maps. Town names and their readouts stay off; buoy labels do not.
+  const NO_TOWN_VIEWS = { na: 1, pac: 1 };
+  function showTownLabels(vid) {
+    return !NO_TOWN_VIEWS[vid];
+  }
   // Wave maps draw a town only when it sits on or within about 10 km of the coast, including Hawaii.
   function coastalTowns(towns, pts, km) {
     return (towns || []).filter(t => Number.isFinite(t.lat) && Number.isFinite(t.lon) && isCoastal(t.lat, t.lon, pts, km));
@@ -278,5 +283,5 @@
   }
 
   return { lookupKey, climParts, resolveSelection, publicName, formatValidPT, WA_PASSES, CA_PASSES, passUnit, formatPassValue, passCaption,
-    passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, coastalTowns, decodeCoast, coastPoints };
+    passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, showTownLabels, coastalTowns, decodeCoast, coastPoints };
 });
