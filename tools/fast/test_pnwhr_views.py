@@ -18,13 +18,11 @@ import regions
 
 REGIONS = os.path.normpath(os.path.join(HERE, "..", "..", "regions", "regions.json"))
 
-# The frame already on HRRR / RRFS / NBM. Other models must use this, not a new window.
+# The tight frame. Longitude is wide enough for 16:9; the north edge clears 49N.
 PNWHR = {
     "label": "Pacific NW (high-res)",
-    "size": [16, 11.2],
-    "proj": ["lcc", -122.6, 46.5, [42, 49]],
-    "ll": [-128.4, -112.6, 41.6, 50.4],
-    "box": [-131.6, -109.6, 40.5, 52.0],
+    "proj": ["lcc", -116.4, 45.7, [42, 49]],
+    "ll": [-128.31, -104.49, 41.7, 49.7],
 }
 
 
@@ -36,8 +34,14 @@ class PnwhrViews(unittest.TestCase):
         for k, want in PNWHR.items():
             self.assertEqual(v[k], want, k)
         self.assertEqual(list(R["views"]).count("pnwhr"), 1)
+        self.assertEqual(R["views"]["pnwwide"]["label"], "Pacific Northwest (Wide)")
         missing = [m for m, vs in R["model_views"].items() if "pnwhr" not in vs]
         self.assertEqual(missing, [])
+        # HRRR's published domain cannot hold the wide rectangle. The 9 km job stays on the tight crop.
+        for m in ("hrrr", "rrfs", "ifs9"):
+            self.assertNotIn("pnwwide", R["model_views"][m], m)
+        for m in ("nbm", "gfs", "ifs", "aifs", "eps", "aens", "gfsw", "oisst", "epsm"):
+            self.assertIn("pnwwide", R["model_views"][m], m)
         # The encoder's model table is the same set the static job publishes.
         self.assertEqual(set(fe.MODELS), set(R["model_views"]))
         for m in fe.MODELS:

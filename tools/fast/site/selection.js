@@ -44,7 +44,7 @@
   // Tighter frame -> the wider frame it sits in. A model that lacks the chosen view
   // shows the nearest parent (high-res Pacific Northwest -> Pacific Northwest) with no toast.
   const VIEW_PARENT = {
-    pnwhr: "pnw", pnwt: "pnw", pnw: "na", pac: "na",
+    pnwwide: "pnwhr", pnwhr: "pnw", pnwt: "pnw", pnw: "na", pac: "na",
     passes: "pnwhr", puget: "wa", wwa: "wa", ewa: "wa", newa: "wa", lm: "wa", wa: "pnwhr", bc: "pnw",
     orco: "pnwt", bay: "norca", norca: "ca", cenca: "ca", socal: "ca", capasses: "ca",
     bigi: "hiw", hiw: "pac", wc: "pnw",
