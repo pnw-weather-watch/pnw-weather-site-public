@@ -8,7 +8,7 @@ import os, sys, json, time, argparse, datetime as dt, tempfile, shutil
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE); sys.path.insert(0, os.path.join(HERE, "..", "forecast"))
 import aens_members as AM
 from upload_r2 import client, BUCKET
-from fast_cycle import update_manifest
+from fast_cycle import update_manifest, union_live_runs
 KEEP = 2
 
 def src_has(c, s):
@@ -70,7 +70,7 @@ def main():
     # manifest: newest KEEP runs whose run.json is in R2; prune the rest
     pre = sorted(o["Prefix"].split("/")[2] for o in s3.list_objects_v2(Bucket=BUCKET, Prefix="runs/aensm/", Delimiter="/").get("CommonPrefixes", []))
     present = [r for r in pre if r2_json(s3, f"runs/aensm/{r}/run.json")]
-    kept = present[-KEEP:]
+    kept = union_live_runs(s3, "aensm", present, KEEP)
     def fn(mn): mn.setdefault("runs", {})["aensm"] = kept
     update_manifest(s3, fn); print("manifest runs.aensm", kept, flush=True)
     for old in [r for r in pre if r not in kept]:

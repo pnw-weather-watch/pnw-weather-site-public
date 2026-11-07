@@ -541,13 +541,18 @@ def _frz(R, m):
     if m in NOAA:
         return np.clip(np.asarray(R._idx("HGT:0C isotherm", R.url)[2], float) * 3.28084, 0, 20000)
     if m not in ("ifs", "aifs"): raise KeyError("frz")
-    Ts, Zs = [], []
+    Ts, Zs, used = [], [], []
     for lev in FRZ_LEVELS_HPA:
-        Ts.append(np.asarray(R.f(f"T:{lev}")[2], float))
-        Zs.append(np.asarray(R.f(f"Z:{lev}")[2], float))
+        try:
+            Ts.append(np.asarray(R.f(f"T:{lev}")[2], float))
+            Zs.append(np.asarray(R.f(f"Z:{lev}")[2], float))
+            used.append(lev)
+        except (KeyError, StopIteration):
+            continue
+    if len(used) < 2: raise KeyError("frz")
     try: sp = np.asarray(R.f("sp")[2], float)
     except KeyError: sp = None
-    return np.clip(freezing_level_m(Ts, Zs, sp) * 3.28084, 0, 20000)
+    return np.clip(freezing_level_m(Ts, Zs, sp, used) * 3.28084, 0, 20000)
 
 def _ec(*params):   # ECMWF sfc param under any of its names (10fg is 10fg3 at 93-144 h, 10fg6 elsewhere on some runs)
     def g(R, m):

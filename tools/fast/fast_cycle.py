@@ -2,9 +2,9 @@
 """One pass of the fast-style publisher (GitHub Actions, every 15 min; also runnable on the box).
 For each model: newest cycle whose first step is out -> encode the steps that are out and not yet in R2 -> upload them,
 then run.json (only the unbroken steps from the start, so the slider has no holes) -> manifest lists the newest `keep` runs
-whose run.json is in R2 -> prune older runs. Never touches the Pages projects or the live site.
+whose run.json is in R2 -> prune older runs. Never touches the Pages projects. With WX_R2_PREFIX=preview/ the objects land under preview/ and the live keys stay put.
   fast_cycle.py [--models hrrr,gfs,ifs,aifs] [--minutes 40] [--workers 4] [--dry-run]
-Env: CF_PAGES_KEY (Cloudflare token with R2 edit), CLOUDFLARE_ACCOUNT_ID."""
+Env: PNW_R2_ACCESS_KEY_ID, PNW_R2_SECRET_ACCESS_KEY. Optional WX_R2_PREFIX (preview/ in the workflow)."""
 import os, sys, json, time, argparse, datetime as dt, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import fast_encode as FE
@@ -53,24 +53,79 @@ def run_due(s3, m):
     return False
 
 def update_manifest(s3, fn, tries=8):
-    """Read-modify-write manifest.json with an ETag check (If-Match), so parallel model jobs never overwrite each other."""
+    """Read-modify-write manifest.json with an ETag check (If-Match), so parallel model jobs never overwrite each other.
+    A preview publish that had to read the live manifest creates preview/manifest.json (If-None-Match) and does not reuse the live ETag."""
     import random
     for i in range(tries):
         o = s3.get_object(Bucket=BUCKET, Key="manifest.json"); man = json.loads(o["Body"].read()); fn(man)
+        kw = dict(Bucket=BUCKET, Key="manifest.json", Body=json.dumps(man).encode(), ContentType="application/json")
+        if o.get("_wx_live_fallback"): kw["IfNoneMatch"] = "*"
+        else: kw["IfMatch"] = o["ETag"]
         try:
-            s3.put_object(Bucket=BUCKET, Key="manifest.json", Body=json.dumps(man).encode(), ContentType="application/json", IfMatch=o["ETag"])
+            s3.put_object(**kw)
             return man
         except Exception as e:
             if "PreconditionFailed" not in str(e) and "412" not in str(e): raise
             time.sleep(0.5 + random.random() * 2)
     raise SystemExit("manifest.json kept changing; gave up")
 
+def live_run_ids(s3, model):
+    """Cycle ids listed on the live manifest. Empty when this client is not writing under a prefix."""
+    if not getattr(s3, "prefix", ""): return []
+    try:
+        live = json.loads(s3.live_object(Bucket=BUCKET, Key="manifest.json")["Body"].read())
+    except Exception as e:
+        print("live manifest not read:", e, flush=True); return []
+    return list((live.get("runs") or {}).get(model) or [])
+
+def union_live_runs(s3, model, preview_ids, keep):
+    """Newest `keep` of the preview cycles plus the cycles still listed on the live manifest."""
+    merged = sorted(set(preview_ids) | set(live_run_ids(s3, model)))
+    return merged[-keep:] if keep else merged
+
+# Copy a product row from a model that already has it, once a preview run actually encoded the fields.
+# Color-key paths are dropped: they name the donor's PNGs, and the viewer skips a missing key.
+_GRAFT_EXTRA = {
+    "gfs": {"snow": "GFS snow depth (SNOD)  \u00b7  max {hi} in in view",
+            "ir": "GFS cloud-top temperature, coldest low / middle / high top  \u00b7  2 m temp where clear"},
+    "ifs": {"frz": "0\u00b0C height from the model temperature profile  \u00b7  {lo} to {hi} ft in view"},
+    "aifs": {"frz": "0\u00b0C height from the model temperature profile  \u00b7  {lo} to {hi} ft in view"},
+}
+_DONORS = ("hrrr", "rrfs", "ifs", "gfs", "aifs")
+
+def graft_encoded_products(man, m, fields):
+    have = set(fields or [])
+    models = man.get("models") or {}
+    me = models.get(m)
+    if not me or not have: return []
+    prods = me.setdefault("products", {})
+    added = []
+    for pid, allow in FE.PRODUCT_ONLY.items():
+        if FE.as_model(m) not in allow or pid in prods: continue
+        donor = None
+        for other in _DONORS:
+            if other == m: continue
+            P = ((models.get(other) or {}).get("products") or {}).get(pid)
+            need = set((P or {}).get("fields") or [])
+            if P and need and need <= have:
+                donor = P; break
+        if not donor: continue
+        copied = json.loads(json.dumps(donor))
+        copied.pop("keys", None); copied.pop("only", None)
+        extra = (_GRAFT_EXTRA.get(m) or {}).get(pid)
+        if extra: copied["extra"] = extra
+        prods[pid] = copied
+        added.append(pid)
+    if added: print(m, "menu gained", ",".join(added), flush=True)
+    return added
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--models", default="hrrr,gfs,ifs,aifs"); ap.add_argument("--minutes", type=float, default=40)
     ap.add_argument("--workers", type=int, default=4); ap.add_argument("--out", default=os.path.join(HERE, "data")); ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--watch", action="store_true"); ap.add_argument("--every", type=float, default=60)
     a = ap.parse_args(); t_end = time.time() + a.minutes * 60; D = a.out; os.makedirs(D, exist_ok=True)
-    s3 = client(); s3.download_file(BUCKET, "manifest.json", f"{D}/manifest.json")
+    s3 = client(); print("R2 prefix:", getattr(s3, "prefix", "") or "(live)", flush=True)
+    s3.download_file(BUCKET, "manifest.json", f"{D}/manifest.json")
     models = a.models.split(",")
     # ECMWF 9 km (ifs9) rides the ECMWF job (no workflow change): after "ifs", once its static layers are in the manifest
     if "ifs" in models and "ifs9" not in models: models.insert(models.index("ifs") + 1, "ifs9")
@@ -92,8 +147,9 @@ def main():
         want = FE.steps_for(m, c.hour)
         # 10-31 frame at a time (Benjamin 11:48 AM "roll hour data one frame at a time the moment the data is available"): a chunk is
         # only as many hours as there are workers, all encoded in parallel, so each chunk takes about one hour's encode time; when
-        # the job is caught up with the source only the hours that are out are in the chunk (usually one), and each goes live
-        # (step files + run.json) as soon as it is encoded. The manifest (run list) is rewritten for a new run, at completion and at
+        # the job is caught up with the source only the hours that are out are in the chunk (usually one), and each is uploaded
+        # (step files + run.json) as soon as it is encoded, under WX_R2_PREFIX when that is set (preview/ in the workflow).
+        # The manifest (run list) is rewritten for a new run, at completion and at
         # most every MAN_EVERY s in between (the viewer follows an open run through its run.json), to keep R2 writes low.
         W = min(a.workers, 2) if m == "ifs9" else a.workers
         chunk = W
@@ -123,7 +179,7 @@ def main():
                 with ThreadPoolExecutor(16) as ex: list(ex.map(lambda k: s3.upload_file(f"{D}/{k}", BUCKET, k, ExtraArgs={"ContentType": "application/json" if k.endswith(".json") else "image/png"}), files))
                 s3.upload_file(f"{rd}/run.json", BUCKET, key, ExtraArgs={"ContentType": "application/json"})
                 if first or full["complete"] or time.time() - LASTMAN.get(m, 0) >= MAN_EVERY:
-                    publish_manifest(s3, D, m, prog=(cyc, ordered[-1]["f"] if ordered else None, want[-1], full["complete"])); LASTMAN[m] = time.time()
+                    publish_manifest(s3, D, m, prog=(cyc, ordered[-1]["f"] if ordered else None, want[-1], full["complete"]), fields=full.get("fields")); LASTMAN[m] = time.time()
             print(f"{m} {cyc}: uploaded {len(files)} files, {len(ordered)}/{len(want)} steps live", flush=True); WORK[m] = WORK.get(m, 0) + len(new)
             for f in files: os.remove(f"{D}/{f}")   # keep the runner disk small
             if full["complete"]:
@@ -166,10 +222,12 @@ def write_agg(s3, m, cyc, full, local, key):
         print(m, cyc, "aggregate town files:", agg, flush=True)
 
 
-def publish_manifest(s3, D, m, prog=None):
+def publish_manifest(s3, D, m, prog=None, fields=None):
     keep = FE.MODELS[m]["keep"]
     pre = {o["Prefix"].split("/")[2] for o in s3.list_objects_v2(Bucket=BUCKET, Prefix=f"runs/{m}/", Delimiter="/").get("CommonPrefixes", [])}
-    present = sorted(r for r in pre if "Contents" in s3.list_objects_v2(Bucket=BUCKET, Prefix=f"runs/{m}/{r}/run.json", MaxKeys=1))
+    preview_present = sorted(r for r in pre if "Contents" in s3.list_objects_v2(Bucket=BUCKET, Prefix=f"runs/{m}/{r}/run.json", MaxKeys=1))
+    # Preview menu keeps cycles that still exist only on the live keys, so the 11-05 run stays listed until newer ones replace it.
+    present = sorted(set(preview_present) | set(live_run_ids(s3, m)))
     # 10-31 (keep 2 -> 4): a run already slimmed (map images deleted, marker .../slim) must never come back into the map list
     def is_slim(r):
         try: s3.head_object(Bucket=BUCKET, Key=f"runs/{m}/{r}/slim"); return True
@@ -197,13 +255,14 @@ def publish_manifest(s3, D, m, prog=None):
         if not pg: mn["progress"].pop(m)
         xr[:] = (mn.get("runs_x") or {}).pop(m, None) or []
         if "runs_x" in mn and not mn["runs_x"]: del mn["runs_x"]
+        graft_encoded_products(mn, m, fields)
     man = update_manifest(s3, both)
     for old in [r for r in xr if r not in present]:
         ks = [o["Key"] for pg in s3.get_paginator("list_objects_v2").paginate(Bucket=BUCKET, Prefix=f"runs/{m}/{old}/") for o in pg.get("Contents", [])]
         for i in range(0, len(ks), 1000): s3.delete_objects(Bucket=BUCKET, Delete={"Objects": [{"Key": k} for k in ks[i:i + 1000]]})
         print("pruned preview run", m, old, len(ks), "objects", flush=True)
     json.dump(man, open(f"{D}/manifest.json", "w"))
-    for old in [r for r in present if r not in kept]:
+    for old in [r for r in preview_present if r not in kept]:
         slim = old in mg
         if slim:
             try: s3.head_object(Bucket=BUCKET, Key=f"runs/{m}/{old}/slim"); continue   # already slimmed

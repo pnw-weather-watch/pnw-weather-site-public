@@ -10,11 +10,113 @@ BUCKET = os.environ.get("R2_BUCKET", "pnw-models-data")
 CT = {".png": "image/png", ".json": "application/json", ".bin": "application/octet-stream", ".webp": "image/webp"}
 
 def client():
-    # 11-04 safety: pinned to the PNW account (b6dc...) and the PNW R2 S3 keys; the shared CF_PAGES_KEY / CLOUDFLARE_ACCOUNT_ID belong to the OTHER site and are never read
+    # 11-04 safety: pinned to the PNW account (b6dc...) and the PNW R2 S3 keys; the shared CF_PAGES_KEY / CLOUDFLARE_ACCOUNT_ID belong to the OTHER site and are never read.
+    # WX_R2_PREFIX (the ingest workflow sets preview/) sends every write under that prefix. manifest.json and static/ reads
+    # fall back to the live key so the first preview cycle can see the current manifest. runs/ reads do not fall back, so a
+    # finished live cycle is not treated as already published. Deletes stay under the prefix.
     acc = "b6dc205037fd8e8c37d5267ee61dc302"
-    return boto3.client("s3", endpoint_url=f"https://{acc}.r2.cloudflarestorage.com", aws_access_key_id=os.environ["PNW_R2_ACCESS_KEY_ID"],
-                        aws_secret_access_key=os.environ["PNW_R2_SECRET_ACCESS_KEY"], region_name="auto",
-                        config=Config(max_pool_connections=32, retries={"max_attempts": 5, "mode": "standard"}))
+    raw = boto3.client("s3", endpoint_url=f"https://{acc}.r2.cloudflarestorage.com", aws_access_key_id=os.environ["PNW_R2_ACCESS_KEY_ID"],
+                       aws_secret_access_key=os.environ["PNW_R2_SECRET_ACCESS_KEY"], region_name="auto",
+                       config=Config(max_pool_connections=32, retries={"max_attempts": 5, "mode": "standard"}))
+    pre = os.environ.get("WX_R2_PREFIX", "").strip()
+    if pre and not pre.endswith("/"): pre += "/"
+    return Prefixed(raw, pre) if pre else raw
+
+
+class Prefixed:
+    """S3 client that writes under prefix and strips it on the way back out."""
+
+    def __init__(self, raw, prefix):
+        self.raw = raw
+        self.prefix = prefix or ""
+
+    def _k(self, key):
+        if not self.prefix or key.startswith(self.prefix): return key
+        return self.prefix + key
+
+    def _run_key(self, key):
+        return key.startswith("runs/")
+
+    def _missing(self, err):
+        from botocore.exceptions import ClientError
+        if not isinstance(err, ClientError): return False
+        return str(err.response.get("Error", {}).get("Code", "")) in ("NoSuchKey", "404", "NotFound")
+
+    def _strip_page(self, page):
+        n = len(self.prefix)
+        for o in page.get("Contents") or []:
+            if o.get("Key", "").startswith(self.prefix): o["Key"] = o["Key"][n:]
+        for o in page.get("CommonPrefixes") or []:
+            if o.get("Prefix", "").startswith(self.prefix): o["Prefix"] = o["Prefix"][n:]
+        return page
+
+    def get_object(self, **kw):
+        key = kw["Key"]
+        if not self.prefix: return self.raw.get_object(**kw)
+        try:
+            o = self.raw.get_object(**{**kw, "Key": self._k(key)})
+            o["_wx_preview"] = True
+            return o
+        except Exception as e:
+            if self._run_key(key) or not self._missing(e): raise
+            o = self.raw.get_object(**kw)
+            o["_wx_live_fallback"] = True
+            return o
+
+    def head_object(self, **kw):
+        key = kw["Key"]
+        if not self.prefix: return self.raw.head_object(**kw)
+        try:
+            return self.raw.head_object(**{**kw, "Key": self._k(key)})
+        except Exception as e:
+            if self._run_key(key) or not self._missing(e): raise
+            return self.raw.head_object(**kw)
+
+    def put_object(self, **kw):
+        kw = dict(kw); kw["Key"] = self._k(kw["Key"])
+        return self.raw.put_object(**kw)
+
+    def upload_file(self, Filename, Bucket, Key, **kw):
+        return self.raw.upload_file(Filename, Bucket, self._k(Key), **kw)
+
+    def download_file(self, Bucket, Key, Filename, **kw):
+        try:
+            return self.raw.download_file(Bucket, self._k(Key), Filename, **kw)
+        except Exception as e:
+            if not self.prefix or self._run_key(Key) or not self._missing(e): raise
+            return self.raw.download_file(Bucket, Key, Filename, **kw)
+
+    def delete_object(self, **kw):
+        kw = dict(kw); kw["Key"] = self._k(kw["Key"])
+        return self.raw.delete_object(**kw)
+
+    def delete_objects(self, **kw):
+        kw = dict(kw)
+        delete = dict(kw.get("Delete") or {})
+        delete["Objects"] = [{"Key": self._k(o["Key"])} for o in (delete.get("Objects") or [])]
+        kw["Delete"] = delete
+        return self.raw.delete_objects(**kw)
+
+    def list_objects_v2(self, **kw):
+        kw = dict(kw)
+        kw["Prefix"] = self._k(kw.get("Prefix", ""))
+        return self._strip_page(self.raw.list_objects_v2(**kw))
+
+    def get_paginator(self, name):
+        if name != "list_objects_v2" or not self.prefix: return self.raw.get_paginator(name)
+        raw_p = self.raw.get_paginator(name)
+        outer = self
+        class P:
+            def paginate(self, **kw):
+                kw = dict(kw)
+                kw["Prefix"] = outer._k(kw.get("Prefix", ""))
+                for page in raw_p.paginate(**kw):
+                    yield outer._strip_page(page)
+        return P()
+
+    def live_object(self, **kw):
+        """Read the unprefixed key. The preview manifest uses this to keep cycles that still live only on the live keys."""
+        return self.raw.get_object(**kw)
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--data", required=True); ap.add_argument("--run", action="append", default=[])

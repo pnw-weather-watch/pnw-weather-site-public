@@ -1,0 +1,190 @@
+"""Preview-first ingest: writes stay under preview/, the menu can gain a product the run actually encoded, and the workflow is scheduled."""
+import io, json, os, sys, unittest
+from botocore.exceptions import ClientError
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, HERE)
+
+def _miss(op="GetObject"):
+    return ClientError({"Error": {"Code": "NoSuchKey", "Message": "no"}}, op)
+
+class FakeRaw:
+    def __init__(self):
+        self.store = {}
+        self.puts = []
+        self.deleted = []
+
+    def get_object(self, Bucket, Key, **kw):
+        if Key not in self.store: raise _miss()
+        body, etag = self.store[Key]
+        return {"Body": io.BytesIO(body), "ETag": etag}
+
+    def head_object(self, Bucket, Key, **kw):
+        if Key not in self.store: raise _miss("HeadObject")
+        return {"ETag": self.store[Key][1]}
+
+    def put_object(self, Bucket, Key, Body, **kw):
+        self.puts.append((Key, kw.get("IfMatch"), kw.get("IfNoneMatch")))
+        if kw.get("IfNoneMatch") == "*" and Key in self.store:
+            raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "PutObject")
+        if kw.get("IfMatch") and self.store.get(Key, (None, None))[1] != kw["IfMatch"]:
+            raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "PutObject")
+        data = Body if isinstance(Body, bytes) else Body.encode()
+        etag = "e%d" % len(self.puts)
+        self.store[Key] = (data, etag)
+        return {"ETag": etag}
+
+    def upload_file(self, Filename, Bucket, Key, **kw):
+        self.store[Key] = (open(Filename, "rb").read(), "up")
+
+    def download_file(self, Bucket, Key, Filename, **kw):
+        if Key not in self.store: raise _miss()
+        open(Filename, "wb").write(self.store[Key][0])
+
+    def delete_object(self, Bucket=None, Key=None, **kw):
+        self.deleted.append(Key)
+        self.store.pop(Key, None)
+
+    def delete_objects(self, **kw):
+        for o in kw["Delete"]["Objects"]:
+            self.deleted.append(o["Key"])
+            self.store.pop(o["Key"], None)
+
+    def list_objects_v2(self, **kw):
+        prefix = kw.get("Prefix", "")
+        delim = kw.get("Delimiter")
+        keys = [k for k in self.store if k.startswith(prefix)]
+        if not delim:
+            return {"Contents": [{"Key": k} for k in keys]}
+        cps, contents = {}, []
+        for k in keys:
+            rest = k[len(prefix):]
+            if delim in rest: cps[prefix + rest.split(delim)[0] + delim] = 1
+            else: contents.append({"Key": k})
+        return {"Contents": contents, "CommonPrefixes": [{"Prefix": p} for p in sorted(cps)]}
+
+    def get_paginator(self, name):
+        raw = self
+        class P:
+            def paginate(self, **kw):
+                yield raw.list_objects_v2(**kw)
+        return P()
+
+
+class Prefix(unittest.TestCase):
+    def setUp(self):
+        from upload_r2 import Prefixed
+        self.raw = FakeRaw()
+        self.s3 = Prefixed(self.raw, "preview/")
+        self.raw.store["manifest.json"] = (b'{"runs":{"hrrr":["2026110500"]},"models":{}}', "live")
+        self.raw.store["runs/hrrr/2026110500/run.json"] = (b'{"complete":true}', "live-run")
+        self.raw.store["preview/runs/hrrr/2026110700/run.json"] = (b'{"complete":false}', "prev")
+
+    def test_writes_and_deletes_stay_under_preview(self):
+        self.s3.put_object(Bucket="b", Key="runs/hrrr/2026110700/a.png", Body=b"z")
+        self.assertIn("preview/runs/hrrr/2026110700/a.png", self.raw.store)
+        self.s3.delete_objects(Bucket="b", Delete={"Objects": [{"Key": "runs/hrrr/2026110500/run.json"}]})
+        self.assertIn("runs/hrrr/2026110500/run.json", self.raw.store)
+        self.assertEqual(self.raw.deleted, ["preview/runs/hrrr/2026110500/run.json"])
+
+    def test_run_read_does_not_fall_back_to_live(self):
+        with self.assertRaises(ClientError):
+            self.s3.get_object(Bucket="b", Key="runs/hrrr/2026110500/run.json")
+        got = json.loads(self.s3.get_object(Bucket="b", Key="runs/hrrr/2026110700/run.json")["Body"].read())
+        self.assertFalse(got["complete"])
+
+    def test_manifest_falls_back_then_creates_preview_copy(self):
+        from fast_cycle import update_manifest
+        o = self.s3.get_object(Bucket="b", Key="manifest.json")
+        self.assertTrue(o.get("_wx_live_fallback"))
+        def fn(mn): mn["runs"]["hrrr"] = ["2026110500", "2026110700"]
+        update_manifest(self.s3, fn)
+        self.assertEqual(self.raw.puts[0][1], None)
+        self.assertEqual(self.raw.puts[0][2], "*")
+        self.assertIn("preview/manifest.json", self.raw.store)
+        def fn2(mn): mn["runs"]["hrrr"].append("2026110706")
+        update_manifest(self.s3, fn2)
+        self.assertTrue(self.raw.puts[1][1])
+        self.assertIsNone(self.raw.puts[1][2])
+        man = json.loads(self.raw.store["preview/manifest.json"][0])
+        self.assertEqual(man["runs"]["hrrr"][-1], "2026110706")
+        self.assertIn("2026110500", json.loads(self.raw.store["manifest.json"][0])["runs"]["hrrr"])
+
+    def test_list_strips_prefix_for_cycle_ids(self):
+        page = self.s3.list_objects_v2(Bucket="b", Prefix="runs/hrrr/", Delimiter="/")
+        self.assertEqual([o["Prefix"].split("/")[2] for o in page["CommonPrefixes"]], ["2026110700"])
+
+    def test_paginator_strips_prefix(self):
+        keys = [o["Key"] for pg in self.s3.get_paginator("list_objects_v2").paginate(Bucket="b", Prefix="runs/hrrr/2026110700/") for o in pg.get("Contents", [])]
+        self.assertEqual(keys, ["runs/hrrr/2026110700/run.json"])
+
+
+class Graft(unittest.TestCase):
+    def test_gfs_and_aifs_gain_products_the_run_encoded(self):
+        from fast_cycle import graft_encoded_products
+        man = {"models": {
+            "hrrr": {"products": {
+                "refc": {"title": "Radar", "fields": ["refc"], "keys": {"pnwhr": "static/key_hrrr.png"}},
+                "ir": {"title": "IR", "fields": ["ir"], "keys": {"wa": "static/key_hrrr_ir.png"}},
+                "snow": {"title": "Snow", "fields": ["asnow"], "extra": "HRRR snowfall", "keys": {"wa": "k"}},
+            }},
+            "gfs": {"products": {"t2m": {"fields": ["t2m"]}}},
+            "ifs": {"products": {"frz": {"title": "Freezing Level", "fields": ["frz"], "keys": {"na": "k"}}}},
+            "aifs": {"products": {}},
+        }}
+        added = graft_encoded_products(man, "gfs", ["t2m", "refc", "asnow"])
+        self.assertEqual(added, ["refc", "snow"])
+        self.assertNotIn("keys", man["models"]["gfs"]["products"]["refc"])
+        self.assertIn("SNOD", man["models"]["gfs"]["products"]["snow"]["extra"])
+        self.assertNotIn("ir", man["models"]["gfs"]["products"])
+        added = graft_encoded_products(man, "aifs", ["frz"])
+        self.assertEqual(added, ["frz"])
+        self.assertIn("profile", man["models"]["aifs"]["products"]["frz"]["extra"])
+        self.assertEqual(graft_encoded_products(man, "gfs", ["t2m", "refc", "asnow"]), [])
+
+    def test_aifs_frz_skips_a_missing_level(self):
+        import numpy as np
+        import fast_encode as FE
+        class R:
+            def f(self, name):
+                if name == "T:925" or name == "Z:925": raise KeyError(name)
+                if name.startswith("T:"):
+                    lev = int(name.split(":")[1])
+                    return (None, None, np.array([280.0 if lev >= 1000 else 260.0]))
+                if name.startswith("Z:"):
+                    lev = int(name.split(":")[1])
+                    return (None, None, np.array([{1000: 100.0, 850: 1500.0}.get(lev, 4000.0)]))
+                if name == "sp": return (None, None, np.array([101325.0]))
+                raise KeyError(name)
+        z = FE._frz(R(), "aifs")
+        self.assertTrue(np.isfinite(z).all())
+        self.assertGreater(float(z[0]), 100 * 3.28084)
+        self.assertLess(float(z[0]), 1500 * 3.28084)
+        class One:
+            def f(self, name):
+                if name in ("T:1000", "Z:1000"): return (None, None, np.array([280.0 if name.startswith("T") else 100.0]))
+                raise KeyError(name)
+        with self.assertRaises(KeyError):
+            FE._frz(One(), "aifs")
+
+
+class Workflow(unittest.TestCase):
+    def test_schedule_checkout_and_preview_switch(self):
+        with open(os.path.join(ROOT, ".github", "workflows", "fast-models.yml"), encoding="utf-8") as f:
+            text = f.read()
+        self.assertIn("FAST_PAUSED", text)
+        self.assertNotIn("sparse-checkout", text)
+        self.assertIn('cron: "7,22,37,52 * * * *"', text)
+        self.assertNotIn("#   - cron:", text)
+        self.assertIn("WX_R2_PREFIX: preview/", text)
+        self.assertIn("PNW_R2_ACCESS_KEY_ID", text)
+        self.assertIn("PNW_R2_SECRET_ACCESS_KEY", text)
+        self.assertNotIn("CF_PAGES_KEY", text)
+        self.assertIn("promote_preview_to_live.py", text)
+        self.assertIn("regions/stations.json", text)
+        self.assertIn("--watch", text)
+
+
+if __name__ == "__main__":
+    unittest.main()
