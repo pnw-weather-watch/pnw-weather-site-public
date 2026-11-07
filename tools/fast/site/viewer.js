@@ -408,8 +408,9 @@ function camFor(vid) {
   if (!md || !md.crop) return null;
   const m = S.run.split("/")[0];
   // Globals and NBM draw the 150 mi Pacific Northwest frame. HRRR and RRFS stay
-  // on the frame that still fits the CONUS grid (pnwhr). NBM data is sampled on
-  // its own Lambert; the coast, states and labels are this same camera.
+  // on the tight frame that still fits the CONUS grid (pnwhr). The wide frame is
+  // this same camera for every model, including HRRR and RRFS. NBM data is sampled
+  // on its own Lambert; the coast, states and labels are this camera.
   let C = views[vid];
   if (vid === "pnwhr" && m !== "hrrr" && m !== "rrfs" && views.pnwhr150) C = views.pnwhr150;
   if (!C) return null;

@@ -33,10 +33,9 @@ MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lo
                  steps_short=list(range(3, 145, 3)), short_cycles=(6, 18), keep=4, keep_long=True),
     "aifs": dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 6, 12, 18), steps=list(range(6, 361, 6)), keep=3, grid_from="ifs"),   # 11-04: reuses the IFS normals slots
     # ECMWF IFS 9 km (Benjamin 10-31 1:58 AM "build the euro 9km option"): the same IFS run on ECMWF's free 0.1 deg open data
-    # (ifs/0p1/oper, -sfc / -pl files, out about 2 h after the 0.25 deg files, since 10-20-26). Kept small: Washington-scale
-    # views + Pacific NW tight only (no North America / Pacific NW wide), 0-144 h every 3 h, newest run only. The crop at 0.1 deg
-    # (about 400 x 240 points) is smaller than the 0.25 deg global crop, so a run is ~1/3 the size of an ECMWF 0.25 run.
-    "ifs9": dict(grid="ll", res=0.1, views=("puget", "wa", "wwa", "ewa", "passes", "newa", "lm", "bc", "pnwt"), cycles=(0, 6, 12, 18),
+    # (ifs/0p1/oper, -sfc / -pl files). 0-144 h every 3 h, newest runs only. The 0.1 deg grid covers the wide Pacific
+    # Northwest frame, so that view is on this job too. No North America or full Pacific view: the crop stays regional.
+    "ifs9": dict(grid="ll", res=0.1, views=("puget", "wa", "wwa", "ewa", "passes", "newa", "lm", "bc", "pnwt", "pnwhr", "pnwwide"), cycles=(0, 6, 12, 18),
                  steps=list(range(3, 145, 3)), keep=2, as_model="ifs"),
     # ECMWF ENS (EPS) 0.25 open data, 50 perturbed members (no control in the open files), 00/12Z to 360 h. Mean/spread/probability
     # computed here from the members (the open em/es file only appears once the whole run is out). 10-30-26 (Benjamin's saved order).
@@ -872,6 +871,148 @@ def sample_pts(a, P):
     v = a[i, j] * (1 - di) * (1 - dj) + a[i + 1, j] * di * (1 - dj) + a[i, j + 1] * (1 - di) * dj + a[i + 1, j + 1] * di * dj
     return [None if not np.isfinite(x) else round(float(x), 2) for x in v]
 
+# HRRR / RRFS CONUS is 3 km. Two frames hang past its west edge: the wide Pacific Northwest
+# view (about 7 percent, at most ~75 cells / 220 km north and west) and the California view
+# (the offshore left side, out to about 270 cells). The pad covers both, or the California
+# ocean would be GFS for a while and then white. Cells past the native edge are stored on the
+# same Lambert index, with a negative column origin. They are filled from GFS, the nearest
+# 3-hour file, and blended across EDGE_BLEND cells so the join is a ramp rather than a line.
+# RRFS North America would cover the corner from the same model, but that file is 3-hourly,
+# has no pressure-level set, and is several times the CONUS download.
+CONUS_OUTSIDE = 320
+EDGE_BLEND = 24
+# Same physical quantity on GFS, safe to blend in the encoded units.
+GFS_EDGE_FIELDS = {
+    "t2m", "gust", "mslp", "u10", "v10", "d2m", "tcc", "vis", "ir", "refc", "frz", "apcp", "pw",
+    "mucape", "sbcape", "kinc", "fzinc", "prt",
+    "t850", "t700", "t925", "t500", "t300",
+    "u850", "v850", "u925", "v925", "u700", "v700", "u500", "v500", "u250", "v250", "u300", "v300",
+    "z500", "z250", "z300", "z1000",
+}
+# No matching GFS field (snowfall is not snow depth; the rest are HRRR/RRFS-only). Fade to quiet
+# outside the domain so a storm is not smeared into the Pacific and the basemap shows through.
+QUIET_EDGE_FIELDS = {"asnow", "dsnod", "ltng", "uh", "cape3", "srh03"}
+CATEGORICAL_EDGE = {"prt"}
+_EDGE_PLAN = {}
+_GFS_READER = {}
+
+def gfs_donor_hour(step):
+    """Nearest GFS output. Files are every 3 h from f000. f001 uses the analysis; f002 uses f003."""
+    return int(round(float(step) / 3.0)) * 3
+
+def take_crop(a, i0, i1, j0, j1):
+    """Slice [i0:i1, j0:j1) out of a native grid. Indexes past the array are NaN, not a wrap."""
+    a = np.asarray(a, float)
+    ny, nx = a.shape[:2]
+    out = np.full((i1 - i0, j1 - j0), np.nan, dtype=float)
+    ia0, ia1 = max(int(i0), 0), min(int(i1), ny)
+    ja0, ja1 = max(int(j0), 0), min(int(j1), nx)
+    if ia1 > ia0 and ja1 > ja0:
+        out[ia0 - i0:ia1 - i0, ja0 - j0:ja1 - j0] = a[ia0:ia1, ja0:ja1]
+    return out
+
+def conus_edge_weight(i0, i1, j0, j1, ny, nx, band=EDGE_BLEND):
+    """0 deep inside the native rectangle, 1 on and outside the edge, linear across `band` cells.
+
+    The native edge cell is pure donor, matching the first cell outside it, so the field does
+    not step where the CONUS domain ends.
+    """
+    ii = np.arange(i0, i1)[:, None]
+    jj = np.arange(j0, j1)[None, :]
+    dist = np.minimum(np.minimum(jj, (nx - 1) - jj), np.minimum(ii, (ny - 1) - ii)).astype(float)
+    return np.clip(1.0 - dist / float(band), 0.0, 1.0).astype(np.float32)
+
+def hold_native(cropped, i0, i1, j0, j1, ny, nx):
+    """Value of the nearest native cell. Outside the domain this is the boundary cell."""
+    ii = np.arange(i0, i1)[:, None]
+    jj = np.arange(j0, j1)[None, :]
+    si = np.clip(ii, 0, ny - 1) - i0
+    sj = np.clip(jj, 0, nx - 1) - j0
+    return np.asarray(cropped, float)[si, sj]
+
+def conus_latlon(i0, i1, j0, j1):
+    """Lat/lon of HRRR/RRFS CONUS cell centers, including cells past the native edge."""
+    import cartopy.crs as ccrs
+    rad = 6371229.0
+    globe = ccrs.Globe(ellipse="sphere", semimajor_axis=rad, semiminor_axis=rad)
+    hp = ccrs.LambertConformal(globe=globe, **HRRR_LCC)
+    pc = ccrs.PlateCarree()
+    sw = hp.transform_point(-122.719528, 21.138123, pc)
+    ii, jj = np.mgrid[i0:i1, j0:j1]
+    ll = pc.transform_points(hp, sw[0] + jj * 3000.0, sw[1] + ii * 3000.0)
+    return ll[..., 1], ll[..., 0]
+
+def edge_plan(crop, ny, nx):
+    key = (tuple(crop), int(ny), int(nx))
+    if key in _EDGE_PLAN: return _EDGE_PLAN[key]
+    i0, i1, j0, j1 = crop
+    weight = conus_edge_weight(i0, i1, j0, j1, ny, nx)
+    lat = lon = None
+    if np.any(weight > 1e-6):
+        lat, lon = conus_latlon(i0, i1, j0, j1)
+    _EDGE_PLAN[key] = (weight, lat, lon)
+    return _EDGE_PLAN[key]
+
+def sample_ll(values, lat, lon):
+    """Bilinear sample. Row 0 is 90N and column 0 is 180W, which is how the NOAA reader returns a global field."""
+    v = np.asarray(values, float)
+    ny, nx = v.shape
+    lat_res = 180.0 / (ny - 1)
+    fi = np.clip((90.0 - np.asarray(lat, float)) / lat_res, 0, ny - 1.001)
+    fj = np.mod(np.asarray(lon, float) + 180.0, 360.0) / (360.0 / nx)
+    fi0 = np.floor(fi).astype(int)
+    fi1 = np.minimum(fi0 + 1, ny - 1)
+    fj0 = np.floor(fj).astype(int) % nx
+    fj1 = (fj0 + 1) % nx
+    ty = fi - fi0
+    tx = fj - np.floor(fj)
+    return (v[fi0, fj0] * (1 - ty) * (1 - tx) + v[fi0, fj1] * (1 - ty) * tx
+            + v[fi1, fj0] * ty * (1 - tx) + v[fi1, fj1] * ty * tx)
+
+def paint_edge(native, donor, weight, categorical=False):
+    """Blend donor into native. weight 0 leaves native untouched. Categorical fields switch, they do not average."""
+    out = np.array(native, dtype=float, copy=True)
+    if categorical:
+        use = (weight >= 0.5) & np.isfinite(donor)
+        return np.where(use, np.rint(donor), out)
+    m = weight > 1e-6
+    if not np.any(m): return out
+    n = out[m]
+    d = np.asarray(donor, float)[m]
+    ww = np.asarray(weight, float)[m]
+    both = np.isfinite(n) & np.isfinite(d)
+    only_d = ~np.isfinite(n) & np.isfinite(d)
+    mixed = np.array(n, copy=True)
+    mixed[both] = (1.0 - ww[both]) * n[both] + ww[both] * d[both]
+    mixed[only_d] = d[only_d]
+    out[m] = mixed
+    return out
+
+def gfs_reader(c, hour):
+    import menu_maps as M
+    key = (f"{c:%Y%m%d%H}", int(hour))
+    if key not in _GFS_READER:
+        _GFS_READER[key] = M.Reader("gfs", c, int(hour))
+    return _GFS_READER[key]
+
+def fill_conus_outside(name, cropped, crop, native_shape, c, s, get):
+    """Fill cells outside the HRRR/RRFS CONUS rectangle. The ramp is inside the domain edge."""
+    ny, nx = native_shape
+    i0, i1, j0, j1 = crop
+    weight, lat, lon = edge_plan(crop, ny, nx)
+    if not np.any(weight > 1e-6): return cropped
+    if name in QUIET_EDGE_FIELDS:
+        return paint_edge(cropped, np.zeros(cropped.shape, np.float32), weight)
+    if name not in GFS_EDGE_FIELDS:
+        return paint_edge(cropped, hold_native(cropped, i0, i1, j0, j1, ny, nx), weight)
+    try:
+        raw = np.asarray(get(gfs_reader(c, gfs_donor_hour(s)), "gfs"), float)
+        donor = sample_ll(raw, lat, lon)
+    except Exception as e:
+        print(f"edge fill {name} f{s:03d}: {str(e)[:120]}", flush=True)
+        return paint_edge(cropped, hold_native(cropped, i0, i1, j0, j1, ny, nx), weight, False)
+    return paint_edge(cropped, donor, weight, name in CATEGORICAL_EDGE)
+
 def step_job(args):
     m, c_str, s, crop, out, P = args if len(args) == 6 else (*args, None)
     ptv = {}
@@ -894,7 +1035,13 @@ def step_job(args):
         if isinstance(a, Cropped): a = np.asarray(a, float)
         else:
             if MODELS[m]["grid"] == "ll": a = roll_ll(a)
-            a = a[i0:i1, j0:j1]
+            a = np.asarray(a, float)
+            if m in ("hrrr", "rrfs") and (i0 < 0 or j0 < 0 or i1 > a.shape[0] or j1 > a.shape[1]):
+                native_shape = a.shape
+                a = take_crop(a, i0, i1, j0, j1)
+                a = fill_conus_outside(name, a, (i0, i1, j0, j1), native_shape, c, s, get)
+            else:
+                a = a[i0:i1, j0:j1]
         if not np.isfinite(a).any(): continue
         if name == "ir":
             from scipy.ndimage import gaussian_filter
@@ -1121,29 +1268,44 @@ def latest_published(m):
         if c.hour in MODELS[m]["cycles"]: return c
 
 def same_grid(run, crop):
-    """True when run.json was encoded on this crop. A finished run from a smaller crop is not done."""
+    """True when run.json was encoded on this crop. A finished run from a smaller crop is not done.
+
+    Runs that record i0/j0 must match the origin too. A west or north pad moves the origin,
+    and a size-only check would keep a shifted field.
+    """
     if not crop or not run: return True
     g = run.get("grid") or {}
-    return g.get("ny") == crop[1] - crop[0] and g.get("nx") == crop[3] - crop[2]
+    if g.get("ny") != crop[1] - crop[0] or g.get("nx") != crop[3] - crop[2]: return False
+    if g.get("i0") is not None and g.get("i0") != crop[0]: return False
+    if g.get("j0") is not None and g.get("j0") != crop[2]: return False
+    return True
 
-def crop_bounds(fi, fj, ny, nx, extra=()):
+def crop_bounds(fi, fj, ny, nx, extra=(), outside=0):
     """[i0, i1, j0, j1) covering every sample that lands on the model grid, plus extra index boxes.
 
-    Samples past the grid are left out (there is no field there). The pad is the same 3 / 4 cells
-    static() has always used, so a crop that only grows on the east keeps its old origin.
+    Samples past the grid are left out when outside is 0 (there is no field there). The pad is the
+    same 3 / 4 cells static() has always used, so a crop that only grows on the east keeps its old origin.
+    outside > 0 keeps samples that many cells past the native edge and lets the origin go negative.
+    HRRR and RRFS use that so the wide Pacific Northwest frame has cells to fill.
     """
     fi = np.asarray(fi, float); fj = np.asarray(fj, float)
-    ok = np.isfinite(fi) & np.isfinite(fj) & (fi >= 0) & (fi <= ny - 1) & (fj >= 0) & (fj <= nx - 1)
-    if ok.any():
-        i0 = max(0, int(np.floor(fi[ok].min())) - 3); i1 = min(ny, int(np.ceil(fi[ok].max())) + 4)
-        j0 = max(0, int(np.floor(fj[ok].min())) - 3); j1 = min(nx, int(np.ceil(fj[ok].max())) + 4)
+    ok = np.isfinite(fi) & np.isfinite(fj)
+    if outside <= 0:
+        ok &= (fi >= 0) & (fi <= ny - 1) & (fj >= 0) & (fj <= nx - 1)
     else:
-        i0, i1, j0, j1 = ny, 0, nx, 0
+        ok &= (fi >= -outside) & (fi <= ny - 1 + outside) & (fj >= -outside) & (fj <= nx - 1 + outside)
+    if ok.any():
+        i0 = int(np.floor(fi[ok].min())) - 3; i1 = int(np.ceil(fi[ok].max())) + 4
+        j0 = int(np.floor(fj[ok].min())) - 3; j1 = int(np.ceil(fj[ok].max())) + 4
+    else:
+        i0, i1, j0, j1 = (0, 0, 0, 0) if outside > 0 else (ny, 0, nx, 0)
     for box in extra:
         if not box: continue
         i0, i1 = min(i0, int(box[0])), max(i1, int(box[1]))
         j0, j1 = min(j0, int(box[2])), max(j1, int(box[3]))
-    return [max(0, i0), min(ny, i1), max(0, j0), min(nx, j1)]
+    if outside <= 0:
+        return [max(0, i0), min(ny, i1), max(0, j0), min(nx, j1)]
+    return [max(-outside, i0), min(ny + outside, i1), max(-outside, j0), min(nx + outside, j1)]
 
 def _lon_in(lo, west, east):
     """Longitude mask. Grid longitudes may be -180..180 or 0..360; the view box is either."""
@@ -1207,7 +1369,9 @@ def static(m, out, views_only=None, x2_only=False):
         views[vid]["cut_abs"] = [int(ii.min()), int(ii.max() + 1), int(jj.min()), int(jj.max() + 1)] if len(ii) else None
         plt.close(fig)
     allfi = np.concatenate([l[0].ravel() for l in luts.values()]); allfj = np.concatenate([l[1].ravel() for l in luts.values()])
-    i0, i1, j0, j1 = crop_bounds(allfi, allfj, ny_, nx_, [v["cut_abs"] for v in views.values() if v.get("cut_abs")])
+    # HRRR and RRFS: keep wide-frame samples that fall just past the CONUS edge so the fill has cells.
+    outside = CONUS_OUTSIDE if m in ("hrrr", "rrfs") else 0
+    i0, i1, j0, j1 = crop_bounds(allfi, allfj, ny_, nx_, [v["cut_abs"] for v in views.values() if v.get("cut_abs")], outside=outside)
     mp0 = f"{out}/manifest.json"
     if os.path.exists(mp0):   # keep the published crop when it is a superset (runs already in R2 stay valid)
         oc = json.load(open(mp0)).get("models", {}).get(m, {}).get("crop")
@@ -1254,7 +1418,16 @@ def static(m, out, views_only=None, x2_only=False):
             try: return TM.towns(ax, "wa", field, lambda v: None if not np.isfinite(v) else "88") or []
             finally: TM.WA_TOWNS, TM.WA_PASSES = keepT, keepP
         return TM.towns(ax, vid, field, lambda v: None if not np.isfinite(v) else "88") or []
-    crop_la, crop_lo = la[i0:i1, j0:j1], lo[i0:i1, j0:j1]
+    extended = MD["grid"] == "lcc" and (i0 < 0 or j0 < 0 or i1 > ny_ or j1 > nx_)
+    if extended:
+        # Native lat/lon stop at the CONUS edge. The pad uses the same Lambert cell centers.
+        ii, jj = np.mgrid[i0:i1, j0:j1]
+        ll = pc.transform_points(hp, gx0 + jj * d, gy0 + ii * d)
+        crop_lo, crop_la = ll[..., 0], ll[..., 1]
+    else:
+        crop_la, crop_lo = la[i0:i1, j0:j1], lo[i0:i1, j0:j1]
+    oro_crop = None if oro is None else take_crop(oro, i0, i1, j0, j1)
+    if oro_crop is not None: oro_crop = np.where(np.isfinite(oro_crop), oro_crop, 0.0)
     if MD["grid"] == "ll":   # towns are all in the western hemisphere: sample on the part of the crop with lon 180..360 (-180..0, monotonic)
         wcols = np.where(crop_lo[0] >= 180)[0]; tw_la, tw_lo = crop_la[:, wcols], crop_lo[:, wcols] - 360
         tw_la1, tw_lo1 = tw_la[:, 0], tw_lo[0, :]   # town_values wants 1-D axes for regular lat/lon grids (bilinear)
@@ -1294,7 +1467,8 @@ def static(m, out, views_only=None, x2_only=False):
             slot = dict(name=last, kind=kind, x=bb.x0 / Wd, y=1 - (bb.y0 + bb.y1) / 2 / Hd, fi=fi_, fj=fj_, size=t.get_fontsize(), color=t.get_color())
             if kind == "pass" and oro is not None:
                 rr, cc = int(round(fi_)) + i0, int(round(fj_)) + j0
-                slot["t2m_corr"] = float(TM.LAPSE_T_F_PER_FT * (oro[rr, cc] - el))
+                if 0 <= rr < oro.shape[0] and 0 <= cc < oro.shape[1] and np.isfinite(oro[rr, cc]):
+                    slot["t2m_corr"] = float(TM.LAPSE_T_F_PER_FT * (oro[rr, cc] - el))
             slots.append(slot); t.set_visible(False)
         a_ = views[vid].get("cut_abs")
         views[vid]["cut"] = [a_[0] - i0, a_[1] - i0, a_[2] - j0, a_[3] - j0] if a_ else [0, i1 - i0, 0, j1 - j0]
@@ -1940,7 +2114,7 @@ def static(m, out, views_only=None, x2_only=False):
         json.dump(prods, open(f"{out}/products_{m}.json", "w"), indent=1)
         json.dump(prods_x, open(f"{out}/products_x_{m}.json", "w"), indent=1)   # for a targeted manifest merge (tools: add_product.py)
         if os.environ.get("WX_X2_CLIM"):   # also build the named climatologies (comma list) for a targeted manifest clim merge
-            clim = {var: clim_static(m, out, crop_la, crop_lo, var, None if oro is None else oro[i0:i1, j0:j1] / 3.28084) for var in os.environ["WX_X2_CLIM"].split(",")}
+            clim = {var: clim_static(m, out, crop_la, crop_lo, var, None if oro_crop is None else oro_crop / 3.28084) for var in os.environ["WX_X2_CLIM"].split(",")}
             json.dump(clim, open(f"{out}/clim_{m}.json", "w"), indent=1)
         mp = f"{out}/manifest.json"
         if os.path.exists(mp):
@@ -1949,7 +2123,7 @@ def static(m, out, views_only=None, x2_only=False):
     clim = {}; mp = f"{out}/manifest.json"; man = json.load(open(mp)) if os.path.exists(mp) else {}
     old_clim = ((man.get("models") or {}).get(m) or {}).get("clim") or {}
     for var in sorted({P["clim"] for P in list(prods.values()) + list(prods_x.values()) if P.get("clim")}):   # 11-04: products_x too (mslpa -> slp)
-        try: clim[var] = clim_static(m, out, crop_la, crop_lo, var, None if oro is None else oro[i0:i1, j0:j1] / 3.28084)
+        try: clim[var] = clim_static(m, out, crop_la, crop_lo, var, None if oro_crop is None else oro_crop / 3.28084)
         except StopIteration:   # source normals not in this kit's clim/: keep the already-built slot files
             if var in old_clim: clim[var] = old_clim[var]
             elif MD.get("grid_from") and var in (((man.get("models") or {}).get(MD["grid_from"]) or {}).get("clim") or {}):
@@ -2013,7 +2187,7 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None):
     ordered = unbroken
     fields = sorted({k for s_ in ordered for k in s_["ranges"]})
     MM = minfo(m)
-    run = dict(model=m, cycle=cycle, init=c.isoformat(), base=f"runs/{m}/{cycle}", fields=fields, grid=dict(ny=i1 - i0, nx=j1 - j0),
+    run = dict(model=m, cycle=cycle, init=c.isoformat(), base=f"runs/{m}/{cycle}", fields=fields, grid=dict(ny=i1 - i0, nx=j1 - j0, i0=i0, j0=j0),
                runline=f"{MM['name']} {MM['res']} {c:%HZ} run {c.astimezone(PT):%-m-%-d-%y (%-I %p PT)}", steps=ordered,
                complete=len(ordered) == len(full_want), expected=len(full_want), file="single/{name}_f{f:03d}.png",
                points=[{k: v for k, v in p_.items() if k in ("n", "k", "c")} for p_ in town_points(man, m)], pts_file="single/pts_f{f:03d}.json")

@@ -31,6 +31,14 @@ def target_cycle(m):
         c = now - dt.timedelta(hours=b)
         if c.hour in FE.MODELS[m]["cycles"] and avail(m, c, FE.MODELS[m]["steps"][0]): return c
 
+def cycles_to_encode(newest, stale):
+    """Newest source cycle first, then listed cycles whose stored grid is not the current crop."""
+    out, seen = [], set()
+    for c in ([newest] if newest is not None else []) + list(stale or []):
+        if c in seen: continue
+        seen.add(c); out.append(c)
+    return out
+
 MORE = set(); WORK = {}
 LASTMAN = {}
 MAN_EVERY = 300   # s between manifest rewrites while a run is coming in (run.json is updated every chunk)
@@ -167,10 +175,21 @@ def main():
     # ECMWF 9 km is paused: its source kept answering 503 and the ECMWF job hit the 50 min timeout. Re-enable: remove ifs9 there.
     paused = {x.strip() for x in os.environ.get("FAST_PAUSED", "").split(",") if x.strip()}
     if paused & set(models): print("paused (FAST_PAUSED):", sorted(paused & set(models)), flush=True); models = [x for x in models if x not in paused]
-    def one(m):
+    def stale_cycles(m, crop):
+        if not crop: return []
+        out = []
+        listed = (json.load(open(f"{D}/manifest.json")).get("runs") or {}).get(m) or []
+        for cyc in listed:
+            try: ct = dt.datetime.strptime(cyc, "%Y%m%d%H").replace(tzinfo=dt.timezone.utc)
+            except Exception: continue
+            try: r = json.loads(s3.get_object(Bucket=BUCKET, Key=f"runs/{m}/{cyc}/run.json")["Body"].read())
+            except Exception: continue
+            if r and not FE.same_grid(r, crop): out.append(ct)
+        return out
+    def one(m, c=None):
         if time.time() > t_end - 120: print("time budget used up", flush=True); MORE.add(m); return
         if m not in json.load(open(f"{D}/manifest.json")).get("models", {}): print(m, "no static layers in R2 yet, skipped", flush=True); return
-        c = target_cycle(m)
+        if c is None: c = target_cycle(m)
         if not c: print(m, "no cycle out", flush=True); return
         cyc = f"{c:%Y%m%d%H}"; key = f"runs/{m}/{cyc}/run.json"; rd = f"{D}/runs/{m}/{cyc}"; os.makedirs(rd + "/single", exist_ok=True)
         crop = (json.load(open(f"{D}/manifest.json")).get("models") or {}).get(m, {}).get("crop")
@@ -228,14 +247,19 @@ def main():
                     except Exception as e: print(m, cyc, "aggregate town files failed (site falls back to per-step files):", e, flush=True)
                 break
 
-    for m in models: one(m)
+    def cycles_for(m):
+        crop = (json.load(open(f"{D}/manifest.json")).get("models") or {}).get(m, {}).get("crop")
+        return cycles_to_encode(target_cycle(m), stale_cycles(m, crop))
+    for m in models:
+        for c in cycles_for(m): one(m, c)
     # --watch (10-31): keep polling (every --every s) while a model has a run due or in progress, so a new run starts within
     # about a minute of its first hours being out instead of waiting for the next (throttled, ~40 min apart) cron run
     while a.watch and time.time() < t_end - 180:
         due = [m for m in models if m not in MORE and run_due(s3, m)]
         if not due: print("watch: nothing due, done", flush=True); break
         time.sleep(a.every)
-        for m in due: one(m)
+        for m in due:
+            for c in cycles_for(m): one(m, c)
     if a.watch:
         for m in models:
             if run_due(s3, m): MORE.add(m)   # still due when the budget ends -> re-dispatch (chains until the run is in)

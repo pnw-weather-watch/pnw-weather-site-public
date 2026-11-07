@@ -204,8 +204,8 @@
     37.4,
     52.0
    ],
-   "models": "nbm+global",
-   "from": "11-07 Benjamin: zoomed-out Pacific Northwest. Washington, Oregon, Idaho, western Montana, northern California and Nevada, southern British Columbia and Alberta, and the nearby Pacific. 16:9 Lambert, true shape. The national blend covers this rectangle; HRRR does not, so HRRR and RRFS keep the tight view."
+   "models": "hires+nbm+global",
+   "from": "11-07 Benjamin: zoomed-out Pacific Northwest, on every model including HRRR, RRFS and ECMWF 9 km. Same 16:9 Lambert window. The 9 km grid covers it. The 3 km CONUS grid covers the cities and about 92 percent of the frame. The rest, a western ocean strip and a northern strip at most about 220 km past the domain, is filled from the nearest GFS hour and blended over 24 cells so there is no line. The same pad fills the California view's offshore side, which was already past the CONUS edge, so that ocean does not turn white halfway. RRFS North America is 3-hourly and several times the download, so RRFS stays on the CONUS grid."
   },
   "passes": {
    "label": "Cascade Passes",
@@ -709,6 +709,7 @@
  "model_views": {
   "hrrr": [
    "pnwhr",
+   "pnwwide",
    "passes",
    "ca",
    "socal",
@@ -720,6 +721,7 @@
   ],
   "rrfs": [
    "pnwhr",
+   "pnwwide",
    "passes",
    "ca",
    "socal",
@@ -780,6 +782,7 @@
   "ifs9": [
    "pnwt",
    "pnwhr",
+   "pnwwide",
    "passes",
    "ca",
    "socal",

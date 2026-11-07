@@ -44,10 +44,8 @@ class PnwhrViews(unittest.TestCase):
         self.assertEqual(R["views"]["pnwwide"]["label"], "Pacific Northwest (Wide)")
         missing = [m for m, vs in R["model_views"].items() if "pnwhr" not in vs]
         self.assertEqual(missing, [])
-        # HRRR's published domain cannot hold the wide rectangle. The 9 km job stays on the tight crop.
-        for m in ("hrrr", "rrfs", "ifs9"):
-            self.assertNotIn("pnwwide", R["model_views"][m], m)
-        for m in ("nbm", "gfs", "ifs", "aifs", "eps", "aens", "gfsw", "oisst", "epsm"):
+        # The wide frame is on every model, including HRRR, RRFS and the 9 km job.
+        for m in R["model_views"]:
             self.assertIn("pnwwide", R["model_views"][m], m)
         # The encoder's model table is the same set the static job publishes.
         self.assertEqual(set(fe.MODELS), set(R["model_views"]))
