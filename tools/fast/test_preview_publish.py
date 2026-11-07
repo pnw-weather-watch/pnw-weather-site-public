@@ -100,13 +100,16 @@ class Prefix(unittest.TestCase):
         self.assertTrue(o.get("_wx_live_fallback"))
         def fn(mn): mn["runs"]["hrrr"] = ["2026110500", "2026110700"]
         update_manifest(self.s3, fn)
-        self.assertEqual(self.raw.puts[0][1], None)
-        self.assertEqual(self.raw.puts[0][2], "*")
+        mans = [p for p in self.raw.puts if p[0].endswith("/manifest.json") or p[0] == "manifest.json"]
+        self.assertEqual(mans[0][1], None)
+        self.assertEqual(mans[0][2], "*")
         self.assertIn("preview/manifest.json", self.raw.store)
+        self.assertIn("preview/manifest.index.json", self.raw.store)
         def fn2(mn): mn["runs"]["hrrr"].append("2026110706")
         update_manifest(self.s3, fn2)
-        self.assertTrue(self.raw.puts[1][1])
-        self.assertIsNone(self.raw.puts[1][2])
+        mans = [p for p in self.raw.puts if p[0].endswith("/manifest.json") or p[0] == "manifest.json"]
+        self.assertTrue(mans[1][1])
+        self.assertIsNone(mans[1][2])
         man = json.loads(self.raw.store["preview/manifest.json"][0])
         self.assertEqual(man["runs"]["hrrr"][-1], "2026110706")
         self.assertIn("2026110500", json.loads(self.raw.store["manifest.json"][0])["runs"]["hrrr"])

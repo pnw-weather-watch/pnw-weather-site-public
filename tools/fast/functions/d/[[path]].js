@@ -1,5 +1,9 @@
 // GET/HEAD /d/<key> -> R2 bucket pnw-models-data (binding DATA). The whole host is behind Cloudflare Access.
-// Cache: run data is immutable (run + step in the key), static layers 1 day, manifest/run.json 30 s.
+// Cache: run frames are immutable for a year (run + step are in the key). Manifests, per-model catalogs
+// and run.json are 30 s. Static layers are 1 day.
+// Every request is one Pages Function invocation. The free plan allows 100,000 of those a day for the
+// whole account (https://developers.cloudflare.com/pages/functions/pricing/). The viewer therefore
+// prefetches only the next 3 hours and polls the small manifest index, not every frame.
 // Production (pnw-weather-site.pages.dev) reads the live keys only.
 // Every other host reads one prefix, then the live key. The prefix is WX_DATA_PREFIX when that env
 // var is set (preview-pr16, or preview-pr16/). A Pages alias preview-pr16.pnw-weather-site.pages.dev
@@ -34,9 +38,15 @@ export async function onRequest({ request, params, env }) {
   if (!obj) return new Response("not found", { status: 404 });
   const h = new Headers(); obj.writeHttpMetadata(h); h.set("etag", obj.httpEtag);
   if (obj.uploaded) h.set("last-modified", obj.uploaded.toUTCString());   // meteograms page "Updated" stamp
-  const live = key === "manifest.json" || key.endsWith("/run.json") || key.endsWith("/run_x.json");
-  h.set("cache-control", live ? "private, max-age=30" : key.startsWith("runs/") ? "private, max-age=31536000, immutable" : "private, max-age=86400");
+  const meta = key === "manifest.json" || key === "manifest.index.json" || key.startsWith("models/") || key.endsWith("/run.json") || key.endsWith("/run_x.json");
+  h.set("cache-control", meta ? "private, max-age=30" : key.startsWith("runs/") ? "private, max-age=31536000, immutable" : "private, max-age=86400");
+  const status = request.headers.has("range") && obj.range ? 206 : 200;
   if (!("body" in obj) || !obj.body) return new Response(null, { status: 304, headers: h });
   if (request.method === "HEAD") return new Response(null, { headers: h });
-  return new Response(obj.body, { status: request.headers.has("range") && obj.range ? 206 : 200, headers: h });
+  const accept = request.headers.get("accept-encoding") || "";
+  if (meta && status === 200 && accept.includes("gzip") && typeof CompressionStream === "function") {
+    h.set("content-encoding", "gzip"); h.set("vary", "accept-encoding"); h.delete("content-length");
+    return new Response(obj.body.pipeThrough(new CompressionStream("gzip")), { status, headers: h });
+  }
+  return new Response(obj.body, { status, headers: h });
 }

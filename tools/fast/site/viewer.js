@@ -218,14 +218,21 @@ async function boot() {
   if (Q.get("embed") && "ResizeObserver" in window) new ResizeObserver(() => cmpBox()).observe($("wrap"));
   if (Q.get("slim")) {
     let lh = 0; new ResizeObserver(() => { const h = cslimH(); if (Math.abs(h - lh) > 2 && parent !== window) { lh = h; parent.postMessage({ wx: "size", id: Q.get("id"), h }, "*"); } }).observe(document.body); }
-  // 10-29: manifest, fonts and the shown run's run.json in parallel; other runs load when picked
-  PV = !Q.get("pv") ? null : await fetch("pdata/manifest_pv.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+  // Manifest index, view fixes and wave views start together. Fonts do not hold the first frame.
+  const fontsP = Promise.all([document.fonts.load("800 20px WXTheme"), document.fonts.load("500 12px WXTheme")]).catch(() => null);
+  PV = !Q.get("pv") ? null : await fetchJson("pdata/manifest_pv.json", { cache: "no-cache" }).catch(() => null);
   if (PV) PV.re = new RegExp(`^(runs/(${Object.keys(PV.models).join("|")})/|static/(x2/)?(lut|key)_(${Object.keys(PV.models).join("|")})_)`);
-  const [man, vf, wv] = await Promise.all([fetch(DATA + "manifest.json", { cache: "no-cache" }).then(r => r.json()).then(pvMerge),
-                                   fetch(DATA + "static/view_fixes.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null, () => null),
-                                   fetch(DATA + "static/wave_views.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null, () => null),
-                                   document.fonts.load("800 20px WXTheme"), document.fonts.load("500 12px WXTheme")]);
-  S.man = waveViews(viewFixes(mergeRunsX(man), vf), wv);
+  const indexP = fetchJson(DATA + "manifest.index.json", { cache: "no-cache" }).catch(() => null);
+  const vfP = fetchJson(DATA + "static/view_fixes.json", { cache: "no-cache" }).catch(() => null);
+  const wvP = fetchJson(DATA + "static/wave_views.json", { cache: "no-cache" }).catch(() => null);
+  let man = await indexP;
+  if (!man || !man.catalog_v) man = await fetchJson(DATA + "manifest.json", { cache: "no-cache" });
+  man = pvMerge(man);
+  let vf = null, wv = null;
+  const fixesP = Promise.all([vfP, wvP]).then(([a, b]) => { vf = a; wv = b; });
+  S._raw = man;
+  const applyFixes = () => { S.man = waveViews(viewFixes(mergeRunsX(S._raw), vf), wv); };
+  applyFixes();
   // ECMWF 9 km is listed even when static has never written models.ifs9 (publisher paused).
   if (!S.man.models.ifs9) S.man.models.ifs9 = { name: "ECMWF IFS", site: "ECMWF 9 km", res: "9 km (0.1\u00b0)", grid: "ll", note: "publishing paused", views: {}, products: {} };
   S.man.runs = S.man.runs || {}; if (!S.man.runs.ifs9) S.man.runs.ifs9 = [];
@@ -238,7 +245,9 @@ async function boot() {
   // 11-01: a ?prod= link with no run/model (e.g. ?prod=waves) opens the first model that has that product
   const qp = !qr && !qm && Q.get("prod"), pm = qp && order.find(m => allProds(S.man.models[m])[qp]);
   S.run = all.includes(qr) ? qr : (all.find(r => qm && r.startsWith(qm + "/")) || (pm && all.find(r => r.startsWith(pm + "/"))) || all[0]);
-  await loadRun(S.run);
+  await Promise.all([ensureModel(S.run.split("/")[0]), loadRun(S.run)]);
+  await Promise.race([fixesP, new Promise(r => setTimeout(r, 0))]);
+  applyFixes();
   // "Runs" menu (Benjamin 10-29 7:10 PM): every available run, grouped by model, newest first; picking one keeps the valid time
   const runLabel = r => { const [m, c] = r.split("/"), p = ((S.man.progress || {})[m] || {})[c];
     if (m === "oisst") { const st = (S.runs[r] || {}).steps, d = x => { const v = new Date(x.valid); return `${v.getUTCMonth() + 1}-${v.getUTCDate()}`; };   // 11-03: daily analyses, not a run time
@@ -254,12 +263,16 @@ async function boot() {
   runMenu(order, all); S.runMenu = () => S._runs && runMenu(...S._runs);
   // 10-31 frame at a time: every 2 min re-read the manifest so a run that just started shows up in the Runs menu without a reload
   setInterval(async () => {
-    if (document.hidden) return; let M2; try { M2 = await (await fetch(DATA + "manifest.json", { cache: "no-cache" })).json(); } catch (e) { return; }
-    mergeRunsX(pvMerge(M2)); if (JSON.stringify([M2.runs, M2.progress]) === JSON.stringify([S.man.runs, S.man.progress])) return;
-    S.man.runs = M2.runs; S.man.progress = M2.progress; S.man.mgruns = M2.mgruns;
+    if (document.hidden) return;
+    let M2; try { M2 = await fetchJson(DATA + "manifest.index.json", { cache: "no-cache" }); if (!M2 || !M2.catalog_v) throw new Error("full"); }
+    catch (e) { try { M2 = await fetchJson(DATA + "manifest.json", { cache: "no-cache" }); } catch (e2) { return; } }
+    const runsChanged = JSON.stringify([M2.runs, M2.progress]) !== JSON.stringify([S.man.runs, S.man.progress]);
+    if (runsChanged) { S.man.runs = M2.runs; S.man.progress = M2.progress; S.man.mgruns = M2.mgruns; }
     const o2 = order.filter(m => (S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)), a2 = []; for (const m of o2) for (const c of [...(S.man.runs[m] || [])].reverse()) a2.push(`${m}/${c}`);
     if (!a2.includes(S.run)) a2.push(S.run);
-    runMenu(o2, a2); loadNote();
+    if (runsChanged) runMenu(o2, a2);
+    if (S.runs[S.run] && S.runs[S.run].complete === false) await refreshPartial();
+    loadNote();
   }, 120e3);
   const f0 = Q.get("f"), steps = S.runs[S.run].steps; S.i = f0 ? Math.max(0, steps.findIndex(s => s.f == +f0)) : S.run.startsWith("oisst/") ? steps.length - 1 : 0;   // 11-03: daily analyses open on the newest day
   const vq = Date.parse(Q.get("valid") || ""); if (!f0 && vq) { let b = 0; steps.forEach((x, k) => { if (Math.abs(Date.parse(x.valid) - vq) < Math.abs(Date.parse(steps[b].valid) - vq)) b = k; }); S.i = b; }   // old-site links
@@ -267,7 +280,8 @@ async function boot() {
   setLists();
   $("step").value = S.i;
   $("run").onchange = async e => {   // keep the same valid time when switching runs/models (nearest step)
-    const vt = Date.parse(S.runs[S.run].steps[S.i].valid); S.run = e.target.value; await loadRun(S.run); setLists();
+    const vt = Date.parse(S.runs[S.run].steps[S.i].valid); S.run = e.target.value;
+    await ensureModel(S.run.split("/")[0]); await loadRun(S.run); setLists();
     const st = S.runs[S.run].steps; let b = 0; st.forEach((x, k) => { if (Math.abs(Date.parse(x.valid) - vt) < Math.abs(Date.parse(st[b].valid) - vt)) b = k; });
     S.i = b; $("step").value = b; memUI(); syncUrl(); draw(); loadNote(); };
   memUI();
@@ -292,7 +306,9 @@ async function boot() {
   $("play").onclick = () => { if (S.timer) { clearInterval(S.timer); S.timer = null; $("play").textContent = "Play"; }
                               else { S.timer = setInterval(() => go(1, true), 250); $("play").textContent = "Stop"; } };
   addEventListener("keydown", e => { if (e.key === "Escape") mgClose(); if (MG.open) return; if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1); });
-  await draw(); loadNote(); setInterval(refreshPartial, 60e3);
+  fontsP.then(() => { if (window.__drawn) draw(); });
+  fixesP.then(() => { applyFixes(); if (window.__drawn) { setLists(); draw(); } });
+  await draw(); loadNote(); setInterval(refreshPartial, 120e3);
   // ?mg= / ?obs= open the panel once (meteograms page "Pass Forecaster" tab links to ./?mg=pass) and are then dropped from the
   // address: they used to stay in it after Close, so every reload / iOS tab restore / shared link reopened Pass Forecaster
   // ("the website glitches into pass mode every so often", Benjamin 10-31 2:01 AM).
@@ -318,7 +334,7 @@ function loadNote() {
 }
 async function refreshPartial() {
   const r = S.run, R_ = S.runs[r]; if (!R_ || R_.complete !== false || document.hidden) return;
-  let N; try { N = await (await fetch(`${DATA}runs/${r}/${runFile(r)}`, { cache: "no-cache" })).json(); } catch (e) { return; }
+  let N; try { N = await fetchJson(`${DATA}runs/${r}/${runFile(r)}`, { cache: "no-cache" }); } catch (e) { return; }
   if (S.run !== r || !N || !N.steps || N.steps.length < R_.steps.length) return;
   const newF = N.fields.join() !== R_.fields.join();
   S.runs[r] = prepRun(N); if (newF) setLists(); $("step").max = N.steps.length - 1; $("step").value = S.i; loadNote();
@@ -356,7 +372,7 @@ async function onCompareMsg(e) {
   const d0 = e.data; if (d0 && e.source === parent && d0.wx === "menus") { cmpMenus(!!d0.show, true); return; }
   if (d0 && e.source === parent && d0.wx === "box") { CMPBOX = d0.w > 0 && d0.h > 0 ? { w: d0.w, h: d0.h } : null; fitPhone(); return; }
   const d = e.data; if (!d || d.wx !== "set" || e.source !== parent) return;
-  if (d.run && d.run !== S.run) { try { await loadRun(d.run); S.run = d.run; $("run").value = d.run; } catch (err) { return; } }
+  if (d.run && d.run !== S.run) { try { await ensureModel(d.run.split("/")[0]); await loadRun(d.run); S.run = d.run; $("run").value = d.run; } catch (err) { return; } }
   const P = PRODS(), has = new Set(S.runs[S.run].fields);
   if (d.prod && P[d.prod] && P[d.prod].fields.every(x => has.has(x))) { S.prod = d.prod; S.tab = null; }
   if (d.view) { S.viewPrefer = d.view; if (VIEWS()[d.view]) S.view = d.view; }
@@ -367,7 +383,13 @@ async function onCompareMsg(e) {
     st.forEach((x, k) => { if (Math.abs(Date.parse(x.valid) - vt) < Math.abs(Date.parse(st[b].valid) - vt)) b = k; }); S.i = b; $("step").value = b; }
   cmpEcho = !lead; draw(); loadNote();
 }
-async function loadRun(r) { if (!S.runs[r]) S.runs[r] = prepRun(await (await fetch(`${DATA}runs/${r}/${runFile(r)}`, { cache: "no-cache" })).json()); return S.runs[r]; }
+async function loadRun(r) { if (!S.runs[r]) S.runs[r] = prepRun(await fetchJson(`${DATA}runs/${r}/${runFile(r)}`, { cache: "no-cache" })); return S.runs[r]; }
+async function ensureModel(id) {
+  const M = S.man && S.man.models && S.man.models[id];
+  if (!M || M.products || M._full || !M.catalog) return M;
+  const full = await fetchJson(DATA + M.catalog, { cache: "no-cache" });
+  Object.assign(M, full, { _full: 1 }); delete M._allP; return M;
+}
 const SV = () => (S.man.static_v ? `?v=${S.man.static_v}` : "");   // cache-buster for static layers (they are cached 1 day)
 const MD = () => S.man.models[S.run.split("/")[0]];
 // Severe tab (10-31): new products are published under the manifest's products_x (production's older viewer only reads "products")
@@ -627,16 +649,39 @@ function fieldURL(run, name, f) {   // packed runs: several fields share one RGB
   return [`${DATA}${R_.base}/` + R_.file.replace("{mem}", memPad()).replace("{name}", file).replace("{f:03d}", String(f).padStart(3, "0")), ch, tile];
 }
 const pixCache = new Map();
-function getPixels(url) {   // one fetch + decode per image, shared by every field packed in it
+// Metadata: 12 s, three tries. Frames: 20 s, two tries. A 4xx other than 408/429 is final.
+async function fetchRetry(url, opts, tries, ms) {
+  let last;
+  for (let i = 0; i < (tries || 3); i++) {
+    const ac = new AbortController(), timer = setTimeout(() => ac.abort(), ms || 12000);
+    try {
+      const r = await fetch(url, Object.assign({}, opts, { signal: ac.signal }));
+      if (r.ok || (r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429)) return r;
+      last = new Error(`${url}: HTTP ${r.status}`);
+    } catch (e) { last = e; }
+    finally { clearTimeout(timer); }
+    if (i + 1 < (tries || 3)) await new Promise(res => setTimeout(res, 350 * (i + 1)));
+  }
+  throw last;
+}
+async function fetchJson(url, opts) { const r = await fetchRetry(url, opts, 3, 12000); if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); }
+async function decodeFrame(url) {
+  const t0 = performance.now(); const r = await fetchRetry(url, {}, 2, 20000); if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  const blob = await r.blob(), t1 = performance.now();
+  const bm = await createImageBitmap(blob, { premultiplyAlpha: "none", colorSpaceConversion: "none" });
+  const oc = new OffscreenCanvas(bm.width, bm.height), cx = oc.getContext("2d", { willReadFrequently: true });
+  cx.drawImage(bm, 0, 0); const px = cx.getImageData(0, 0, bm.width, bm.height).data;
+  S.timings.push({ key: url, bytes: blob.size, fetch: t1 - t0, decode: performance.now() - t1 });
+  return { px, w: bm.width, h: bm.height, bytes: blob.size };
+}
+function getPixels(url) {   // one fetch + decode per image, shared by every field packed in it. WebP falls back to PNG.
   if (pixCache.has(url)) return pixCache.get(url);
   const p = (async () => {
-    const t0 = performance.now(); const r = await fetch(url); if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
-    const blob = await r.blob(), t1 = performance.now();
-    const bm = await createImageBitmap(blob, { premultiplyAlpha: "none", colorSpaceConversion: "none" });
-    const oc = new OffscreenCanvas(bm.width, bm.height), cx = oc.getContext("2d", { willReadFrequently: true });
-    cx.drawImage(bm, 0, 0); const px = cx.getImageData(0, 0, bm.width, bm.height).data;
-    S.timings.push({ key: url, bytes: blob.size, fetch: t1 - t0, decode: performance.now() - t1 });
-    return { px, w: bm.width, h: bm.height, bytes: blob.size };
+    try { return await decodeFrame(url); }
+    catch (e) {
+      if (/\.webp($|\?)/.test(url)) return decodeFrame(url.replace(/\.webp(?=$|\?)/, ".png"));
+      throw e;
+    }
   })();
   p.catch(() => pixCache.delete(url)); pixCache.set(url, p); return p;
 }
@@ -1108,11 +1153,10 @@ function drawCredit(ctx, st, pid, P, LW, LH, towns, stamp) {
 }
 const cv_ = () => $("map");
 
-function preload(run, pid, i) {   // next 6 steps first, then the rest of the run, 3 at a time
-  const steps = S.runs[run].steps, order = [];
-  for (let d = 1; d < steps.length; d++) order.push((i + d) % steps.length);
+function preload(run, pid, i) {   // the next 3 hours only. A full-run prefetch would burn the 100k/day Function cap.
+  const steps = S.runs[run].steps, ahead = WXSelect.nextHours(steps.length, i, 3).map(k => steps[k].f);
   if (S.pre) S.pre.cancel = true; const job = S.pre = { cancel: false };
-  let k = 0; const next = () => { if (job.cancel || k >= order.length) return; const f = steps[order[k++]].f; productFields(run, pid, f).then(next, next); };
+  let k = 0; const next = () => { if (job.cancel || k >= ahead.length) return; productFields(run, pid, ahead[k++]).then(next, next); };
   for (let c = 0; c < 3; c++) next();
 }
 
