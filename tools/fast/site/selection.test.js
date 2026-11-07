@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 const { lookupKey, climParts, resolveSelection, publicName, formatValidPT, formatPassValue, passCaption, passesForView,
-  WA_PASSES, CA_PASSES, latLonIndex, showStaticTowns, coastalTowns, isWaveProduct, decodeCoast } = require("./selection.js");
+  WA_PASSES, CA_PASSES, latLonIndex, showStaticTowns, showTownLabels, coastalTowns, isWaveProduct, decodeCoast } = require("./selection.js");
 
 const ensViews = [
   ["na", "North America"], ["pac", "Pacific"], ["pnw", "Pacific Northwest"],
@@ -188,6 +188,13 @@ test("wave products never keep inland towns", () => {
   assert.equal(showStaticTowns("wavemax", "ll"), false);
   assert.equal(showStaticTowns("swellhs", "ll"), false);
   assert.equal(showStaticTowns("t2m", "ll"), true);
+  assert.equal(showTownLabels("na"), false);
+  assert.equal(showTownLabels("pac"), false);
+  assert.equal(showTownLabels("pnw"), true);
+  assert.equal(showTownLabels("pnwwide"), true);
+  assert.equal(showTownLabels("pnwhr"), true);
+  assert.equal(showTownLabels("ca"), true);
+  assert.equal(showTownLabels("hiw"), true);
   const src = fs.readFileSync(path.join(__dirname, "coastline.js"), "utf8");
   const pts = decodeCoast(src.match(/"([A-Za-z0-9+/=]+)"/)[1]);
   const towns = [
