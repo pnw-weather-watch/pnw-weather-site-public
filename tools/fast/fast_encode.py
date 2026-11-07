@@ -979,6 +979,15 @@ def static(m, out, views_only=None, x2_only=False):
     import house_style as HS, temp_maps as TM, menu_maps as M
     from theme import encoder_scales as _theme_scales
     HS.use_for_plots(); extra_views(TM, ccrs)
+    # HRRR and RRFS CONUS cannot hold the 150 mi frame. Their static lookup uses the hires window.
+    if m in ("hrrr", "rrfs") and "pnwhr" in TM.VIEWS:
+        import regions as _regions
+        h = (_regions.R["views"].get("pnwhr") or {}).get("hires")
+        if h:
+            p = h["proj"]
+            TM.VIEWS["pnwhr"] = dict(TM.VIEWS["pnwhr"],
+                proj=ccrs.LambertConformal(central_longitude=p[1], central_latitude=p[2], standard_parallels=tuple(p[3])),
+                extent=tuple(h["extent"]), ll=tuple(h["ll"]), box=tuple(h["box"]))
     pc = ccrs.PlateCarree(); MD = MODELS[m]; vids = MD["views"]
     la, lo, oro = model_grid(m); ny_, nx_ = la.shape
     if MD["grid"] == "lcc":

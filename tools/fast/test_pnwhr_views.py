@@ -18,9 +18,13 @@ import regions
 
 REGIONS = os.path.normpath(os.path.join(HERE, "..", "..", "regions", "regions.json"))
 
-# The tight frame. Longitude is wide enough for 16:9; the north edge clears 49N.
+# Globals and NBM. 150 mi west of -116.4. Same size, same edge latitudes.
 PNWHR = {
     "label": "Pacific NW (high-res)",
+    "proj": ["lcc", -119.5, 45.7, [42, 49]],
+    "ll": [-131.41, -107.59, 41.7, 49.7],
+}
+HIRES = {
     "proj": ["lcc", -116.69, 45.7, [42, 49]],
     "ll": [-128.6, -104.78, 41.7, 49.7],
 }
@@ -33,6 +37,9 @@ class PnwhrViews(unittest.TestCase):
         v = R["views"]["pnwhr"]
         for k, want in PNWHR.items():
             self.assertEqual(v[k], want, k)
+        for k, want in HIRES.items():
+            self.assertEqual(v["hires"][k], want, k)
+        self.assertEqual(v["extent"], v["hires"]["extent"])
         self.assertEqual(list(R["views"]).count("pnwhr"), 1)
         self.assertEqual(R["views"]["pnwwide"]["label"], "Pacific Northwest (Wide)")
         missing = [m for m, vs in R["model_views"].items() if "pnwhr" not in vs]

@@ -75,16 +75,18 @@ def frac(cam, lon, lat):
 class PnwWindows(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tight = CAM.Camera(view_dict("pnwhr"))
+        cls.tight = CAM.Camera(view_dict("pnwhr", hires=True))
+        cls.shifted = CAM.Camera(view_dict("pnwhr"))
         cls.wide = CAM.Camera(view_dict("pnwwide"))
 
     @classmethod
     def tearDownClass(cls):
         cls.tight.close()
+        cls.shifted.close()
         cls.wide.close()
 
     def test_slot_keeps_true_shape(self):
-        for cam in (self.tight, self.wide):
+        for cam in (self.tight, self.shifted, self.wide):
             x0, x1, y0, y1 = cam.bounds()
             slot = cam.layout["axes"]
             W, H = cam.fig.get_size_inches()
@@ -120,6 +122,24 @@ class PnwWindows(unittest.TestCase):
             self.assertLessEqual(fi, HRRR_NY - 0.5, (lon, lat, fi))
             self.assertGreaterEqual(fj, -0.5)
             self.assertLessEqual(fj, HRRR_NX - 0.5)
+
+    def test_150_mile_frame_fits_nbm_and_not_the_conus_grid(self):
+        """Globals and NBM use this window. The northwest corner is off HRRR and RRFS."""
+        to_h = hrrr_ij()
+        to_n = nbm_ij()
+        off = 0
+        for lon, lat in panel_samples(self.shifted, 25, 15):
+            fi, fj = to_h(lon, lat)
+            if not (0 <= fi <= HRRR_NY - 1 and 0 <= fj <= HRRR_NX - 1):
+                off += 1
+            nfi, nfj = to_n(lon, lat)
+            self.assertGreaterEqual(nfi, 0)
+            self.assertLessEqual(nfi, 1596)
+            self.assertGreaterEqual(nfj, 0)
+            self.assertLessEqual(nfj, 2344)
+        self.assertGreater(off, 0)
+        # Same edge latitudes as the hi-res frame. Center is 150 mi further west.
+        self.assertAlmostEqual(self.shifted.lonlat(*[self.shifted.panel()[0] + self.shifted.panel()[2] / 2, self.shifted.panel()[1]])[1], 49.7, delta=0.05)
 
     def test_wide_covers_the_inland_northwest_inside_nbm(self):
         places = {

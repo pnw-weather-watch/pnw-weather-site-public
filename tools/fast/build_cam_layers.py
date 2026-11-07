@@ -40,7 +40,12 @@ def proj_of(p):
 
 
 def view_dict(vid):
-    v = dict(REG["views"][vid])
+    # pnwhr150 is the 150 mi frame (globals and NBM). pnwhr is the hi-res CONUS frame.
+    key = "pnwhr" if vid == "pnwhr150" else vid
+    v = dict(REG["views"][key])
+    if vid == "pnwhr" and v.get("hires"):
+        v.update(v["hires"])
+    v.pop("hires", None)
     v["proj"] = proj_of(v["proj"])
     if "ll" in v:
         v["ll"] = tuple(v["ll"])
@@ -105,8 +110,10 @@ def grid(cam):
 def main():
     os.makedirs(OUT, exist_ok=True)
     HS.use_for_plots()
+    only = os.environ.get("WX_CAM_ONLY", "").strip()
+    views = [only] if only else list(VIEWS)
     cams = {}
-    for vid in VIEWS:
+    for vid in views:
         print("land", vid, flush=True)
         cam = new_fig(vid)
         HS.land(cam.ax, cf)
@@ -126,9 +133,13 @@ def main():
         cams[vid] = (list(cam.panel()), nx, ny, lon, lat, ang, towns)
         plt.close(cam.fig)
     spec = {"v": ASSET, "views": {}}
+    if only:
+        prev = open(os.path.join(HERE, "site", "cameras.js"), encoding="utf-8").read()
+        spec = json.loads(prev[len("window.WXCAM = "):-2])
     for vid, (panel, nx, ny, lon, lat, ang, towns) in cams.items():
-        spec["views"][vid] = {
-            "label": REG["views"][vid]["label"],
+        label_key = "pnwhr" if vid == "pnwhr150" else vid
+        entry = {
+            "label": REG["views"][label_key]["label"],
             "fig": [1920, 1080],
             "panel": [round(float(v), 2) for v in panel],
             "nx": nx, "ny": ny,
@@ -137,6 +148,9 @@ def main():
             "ang": [round(float(v), 5) for v in ang.ravel()],
             "towns": towns,
         }
+        if vid == "pnwhr150":
+            entry["stem"] = "pnwhr150"
+        spec["views"][vid] = entry
     js = "window.WXCAM = " + json.dumps(spec, separators=(",", ":")) + ";\n"
     open(os.path.join(HERE, "site", "cameras.js"), "w").write(js)
     print("wrote cameras.js", len(js), flush=True)

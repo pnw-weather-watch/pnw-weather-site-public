@@ -114,7 +114,7 @@
    ],
    "proj": [
     "lcc",
-    -116.69,
+    -119.5,
     45.7,
     [
      42,
@@ -128,19 +128,48 @@
     444396.4
    ],
    "ll": [
-    -128.6,
-    -104.78,
+    -131.41,
+    -107.59,
     41.7,
     49.7
    ],
    "box": [
-    -130.2,
-    -103.2,
+    -133.0,
+    -106.0,
     40.6,
     50.2
    ],
+   "hires": {
+    "proj": [
+     "lcc",
+     -116.69,
+     45.7,
+     [
+      42,
+      49
+     ]
+    ],
+    "extent": [
+     -932927.2,
+     932927.2,
+     -443828.1,
+     444396.4
+    ],
+    "ll": [
+     -128.6,
+     -104.78,
+     41.7,
+     49.7
+    ],
+    "box": [
+     -130.2,
+     -103.2,
+     40.6,
+     50.2
+    ]
+   },
    "models": "hires+global",
-   "from": "11-07: center scooted west until the NW corner sits on the last HRRR row. 150 mi (to -119.5) puts that corner off the grid. This is 14 mi west of -116.4, central longitude -116.69. Same size, same 41.7 to 49.7 latitudes."
+   "from": "11-07: globals and NBM use central longitude -119.5 (150 mi west of -116.4). Same size and the same 41.7 to 49.7 edge latitudes. HRRR and RRFS use hires (central -116.69, 14 mi west): 150 mi puts their northwest corner off the CONUS grid."
   },
   "pnwwide": {
    "label": "Pacific Northwest (Wide)",

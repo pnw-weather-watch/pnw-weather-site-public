@@ -402,11 +402,17 @@ const PRODS = () => allProds(MD());
 // panel, and — once run.json's grid is known — the Lambert/lat-lon sample. A manifest
 // without crop (local fixtures) keeps the published LUT.
 function camFor(vid) {
-  const C = window.WXCAM && WXCAM.views && WXCAM.views[vid];
-  if (!C || !S.man || !S.run) return null;
+  const views = window.WXCAM && WXCAM.views;
+  if (!views || !S.man || !S.run) return null;
   const md = MD();
   if (!md || !md.crop) return null;
   const m = S.run.split("/")[0];
+  // Globals draw the 150 mi Pacific Northwest frame. HRRR and RRFS stay on the
+  // frame that still fits the CONUS grid (pnwhr). NBM is a different Lambert and
+  // keeps its static lookup.
+  let C = views[vid];
+  if (vid === "pnwhr" && m !== "hrrr" && m !== "rrfs" && views.pnwhr150) C = views.pnwhr150;
+  if (!C) return null;
   if (md.grid === "lcc" && m !== "hrrr" && m !== "rrfs") return null;
   return C;
 }
@@ -450,8 +456,9 @@ function camPixel(C, lon, lat) {
   }
   return [x, y];
 }
-function camURL(kind, vid) {
-  return `cam/${kind}_${vid}.png?v=${(window.WXCAM && WXCAM.v) || "1"}`;
+function camURL(kind, vid, C) {
+  const stem = (C && C.stem) || vid;
+  return `cam/${kind}_${stem}.png?v=${(window.WXCAM && WXCAM.v) || "1"}`;
 }
 // Product tabs (Benjamin 10-30 8:04 PM: "upper air tab, surface tab, precipitation tab, snow tab", Pivotal Weather style).
 // The Product menu lists only the open tab's products, in the order below (Pivotal: winds by level, 250 -> 850 mb);
@@ -547,10 +554,10 @@ async function viewStatic(vid) {
   if (!V || !V.fig) return null;
   const C = V._cam ? camFor(vid) : null;
   const p = (async () => {
-    const tP = C ? camURL("towns", vid) : (V.towns_png || `static/towns_${vid}.png`);
+    const tP = C ? camURL("towns", vid, C) : (V.towns_png || `static/towns_${vid}.png`);
     const tU = C ? tP : (tP[0] === "@" ? tP.slice(1) : DATA + tP) + SV();
-    const landU = C ? camURL("land", vid) : DATA + `static/land_${vid}.png` + SV();
-    const baseU = C ? camURL("base", vid) : DATA + `static/base_${vid}.png` + SV();
+    const landU = C ? camURL("land", vid, C) : DATA + `static/land_${vid}.png` + SV();
+    const baseU = C ? camURL("base", vid, C) : DATA + `static/base_${vid}.png` + SV();
     // Land fill is part of the first paint. It is the same full-canvas figure as the coast, so it is not drawn into a smaller rectangle.
     const lutP = C ? Promise.resolve(null) : fetch(DATA + V.lut + SV()).then(r => r.arrayBuffer()).then(b => new Float32Array(b));
     const [lut, base, land] = await Promise.all([lutP, img(baseU), img(landU).catch(() => null)]);

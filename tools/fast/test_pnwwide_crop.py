@@ -69,7 +69,7 @@ class WideCrop(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.wide = CAM.Camera(view_dict("pnwwide"))
-        cls.tight = CAM.Camera(view_dict("pnwhr"))
+        cls.tight = CAM.Camera(view_dict("pnwhr", hires=True))
 
     @classmethod
     def tearDownClass(cls):
