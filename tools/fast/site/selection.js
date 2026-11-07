@@ -44,7 +44,7 @@
   // Tighter frame -> the wider frame it sits in. A model that lacks the chosen view
   // shows the nearest parent (high-res Pacific Northwest -> Pacific Northwest) with no toast.
   const VIEW_PARENT = {
-    pnwhr: "pnw", pnwt: "pnw", pnw: "na", pac: "na",
+    pnwwide: "pnwhr", pnwhr: "pnw", pnwt: "pnw", pnw: "na", pac: "na",
     passes: "pnwhr", puget: "wa", wwa: "wa", ewa: "wa", newa: "wa", lm: "wa", wa: "pnwhr", bc: "pnw",
     orco: "pnwt", bay: "norca", norca: "ca", cenca: "ca", socal: "ca", capasses: "ca",
     bigi: "hiw", hiw: "pac", wc: "pnw",
@@ -191,8 +191,11 @@
     return [];
   }
 
-  // HRRR / RRFS 3 km Lambert. Origin is the GRIB first grid point (NOAA HRRR mass grid).
+  // HRRR / RRFS share the 3 km CONUS Lambert. NBM is the 2.5 km NDFD grid.
+  // Origins are the GRIB first grid points (row 0 = south).
   const HRRR_LCC = { lon0: -97.5, lat0: 38.5, lat1: 38.5, R: 6371229, dx: 3000, lon00: -122.719528, lat00: 21.138123 };
+  const NBM_LCC = { lon0: -95.0, lat0: 25.0, lat1: 25.0, R: 6371200, dx: 2539.703, lon00: -126.2766, lat00: 19.229 };
+  const LCC_GRID = { hrrr: HRRR_LCC, rrfs: HRRR_LCC, nbm: NBM_LCC };
   function lambertXY(lon, lat, p) {
     const rad = Math.PI / 180, n = Math.sin(p.lat1 * rad);
     const F = Math.cos(p.lat1 * rad) * Math.pow(Math.tan(Math.PI / 4 + p.lat1 * rad / 2), n) / n;
@@ -208,10 +211,11 @@
       const lon360 = ((lon % 360) + 360) % 360;
       return [fi, lon360 / res - cr[2]];
     }
-    if (model.id && model.id !== "hrrr" && model.id !== "rrfs") return null;
-    const o = lambertXY(HRRR_LCC.lon00, HRRR_LCC.lat00, HRRR_LCC);
-    const q = lambertXY(lon, lat, HRRR_LCC);
-    return [(q[1] - o[1]) / HRRR_LCC.dx - cr[0], (q[0] - o[0]) / HRRR_LCC.dx - cr[2]];
+    const p = LCC_GRID[model.id || ""];
+    if (!p) return null;
+    const o = lambertXY(p.lon00, p.lat00, p);
+    const q = lambertXY(lon, lat, p);
+    return [(q[1] - o[1]) / p.dx - cr[0], (q[0] - o[0]) / p.dx - cr[2]];
   }
 
   function kmToCoast(lat, lon, pts) {

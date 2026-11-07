@@ -139,9 +139,15 @@ def main():
         c = target_cycle(m)
         if not c: print(m, "no cycle out", flush=True); return
         cyc = f"{c:%Y%m%d%H}"; key = f"runs/{m}/{cyc}/run.json"; rd = f"{D}/runs/{m}/{cyc}"; os.makedirs(rd + "/single", exist_ok=True)
+        crop = (json.load(open(f"{D}/manifest.json")).get("models") or {}).get(m, {}).get("crop")
         try:
             s3.download_file(BUCKET, key, f"{rd}/run.json"); r0 = json.load(open(f"{rd}/run.json"))
-            if r0.get("complete"): print(m, cyc, "complete in R2", flush=True); return
+            if r0.get("complete") and FE.same_grid(r0, crop): print(m, cyc, "complete in R2", flush=True); return
+            if r0 and not FE.same_grid(r0, crop):
+                print(m, cyc, "grid", r0.get("grid"), "!= crop", crop, "re-encode", flush=True)
+                r0 = None
+                try: os.remove(f"{rd}/run.json")
+                except OSError: pass
         except Exception: r0 = None
         print(m, cyc, "has", len((r0 or {}).get("steps", [])), "steps in R2", flush=True)
         want = FE.steps_for(m, c.hour)

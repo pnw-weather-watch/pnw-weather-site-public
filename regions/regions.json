@@ -114,33 +114,98 @@
    ],
    "proj": [
     "lcc",
-    -122.6,
-    46.5,
+    -119.5,
+    45.7,
     [
      42,
      49
     ]
    ],
    "extent": [
-    -637207.9,
-    705771.5,
-    -463899.0,
-    175415.1
+    -932927.2,
+    932927.2,
+    -443828.1,
+    444396.4
    ],
    "ll": [
-    -131.13,
-    -113.16,
-    41.98,
-    48.08
+    -131.41,
+    -107.59,
+    41.7,
+    49.7
    ],
    "box": [
-    -130.5,
-    -110.0,
-    42.2,
-    49.6
+    -133.0,
+    -106.0,
+    40.6,
+    50.2
    ],
+   "hires": {
+    "proj": [
+     "lcc",
+     -116.69,
+     45.7,
+     [
+      42,
+      49
+     ]
+    ],
+    "extent": [
+     -932927.2,
+     932927.2,
+     -443828.1,
+     444396.4
+    ],
+    "ll": [
+     -128.6,
+     -104.78,
+     41.7,
+     49.7
+    ],
+    "box": [
+     -130.2,
+     -103.2,
+     40.6,
+     50.2
+    ]
+   },
    "models": "hires+global",
-   "from": "11-07: Lambert window shrunk to the HRRR grid so the raster fills the rectangle. Seattle, Portland, the coast, Bend and Spokane stay inside."
+   "from": "11-07: globals and NBM use central longitude -119.5 (150 mi west of -116.4). Same size and the same 41.7 to 49.7 edge latitudes. HRRR and RRFS use hires (central -116.69, 14 mi west): 150 mi puts their northwest corner off the CONUS grid."
+  },
+  "pnwwide": {
+   "label": "Pacific Northwest (Wide)",
+   "size": [
+    16,
+    11.2
+   ],
+   "proj": [
+    "lcc",
+    -115.4,
+    45.225,
+    [
+     40,
+     50
+    ]
+   ],
+   "extent": [
+    -1415532.7,
+    1415532.7,
+    -673321.4,
+    674383.6
+   ],
+   "ll": [
+    -133.2,
+    -97.6,
+    39.15,
+    51.3
+   ],
+   "box": [
+    -136.0,
+    -95.0,
+    37.4,
+    52.0
+   ],
+   "models": "nbm+global",
+   "from": "11-07 Benjamin: zoomed-out Pacific Northwest. Washington, Oregon, Idaho, western Montana, northern California and Nevada, southern British Columbia and Alberta, and the nearby Pacific. 16:9 Lambert, true shape. The national blend covers this rectangle; HRRR does not, so HRRR and RRFS keep the tight view."
   },
   "passes": {
    "label": "Cascade Passes",
@@ -465,6 +530,7 @@
   "pnw": 0.8,
   "pnwt": 0.6,
   "pnwhr": 0.0,
+  "pnwwide": 0.35,
   "passes": 0.0,
   "ca": 0.4,
   "capasses": 0.0,
@@ -484,6 +550,14 @@
     15000
    ],
    60
+  ],
+  "pnwwide": [
+   [
+    400000,
+    80000,
+    25000
+   ],
+   48
   ],
   "pnwt": [
    [
@@ -579,7 +653,9 @@
    "norca": 250,
    "bay": 200,
    "orco": 300,
-   "bigi": 180
+   "bigi": 180,
+   "pnwwide": 480,
+   "pnwhr": 400
   },
   "prominence_mb": {
    "na": 3.0,
@@ -593,7 +669,9 @@
    "norca": 1.5,
    "bay": 1.2,
    "orco": 1.5,
-   "bigi": 1.5
+   "bigi": 1.5,
+   "pnwwide": 2.0,
+   "pnwhr": 2.0
   },
   "edge_km": {
    "na": 500,
@@ -607,7 +685,9 @@
    "norca": 250,
    "bay": 180,
    "orco": 300,
-   "bigi": 150
+   "bigi": 150,
+   "pnwwide": 400,
+   "pnwhr": 45
   }
  },
  "barbs_across": {
@@ -616,6 +696,7 @@
   "pnw": 20,
   "pnwt": 20,
   "pnwhr": 20,
+  "pnwwide": 22,
   "ca": 20,
   "hiw": 20,
   "socal": 18,
@@ -650,6 +731,7 @@
   ],
   "nbm": [
    "pnwhr",
+   "pnwwide",
    "passes",
    "ca",
    "socal",
@@ -665,6 +747,7 @@
    "pnw",
    "pnwt",
    "pnwhr",
+   "pnwwide",
    "passes",
    "ca",
    "socal",
@@ -682,6 +765,7 @@
    "pnw",
    "pnwt",
    "pnwhr",
+   "pnwwide",
    "passes",
    "ca",
    "socal",
@@ -713,6 +797,7 @@
    "pnw",
    "pnwt",
    "pnwhr",
+   "pnwwide",
    "ca",
    "socal",
    "cenca",
@@ -728,6 +813,7 @@
    "pnw",
    "pnwt",
    "pnwhr",
+   "pnwwide",
    "ca",
    "socal",
    "cenca",
@@ -743,6 +829,7 @@
    "pnw",
    "pnwt",
    "pnwhr",
+   "pnwwide",
    "ca",
    "socal",
    "cenca",
@@ -757,6 +844,7 @@
    "pac",
    "pnw",
    "pnwhr",
+   "pnwwide",
    "ca",
    "socal",
    "cenca",
@@ -772,6 +860,7 @@
    "pnw",
    "pnwt",
    "pnwhr",
+   "pnwwide",
    "ca",
    "socal",
    "cenca",
@@ -787,6 +876,7 @@
    "pnw",
    "pnwt",
    "pnwhr",
+   "pnwwide",
    "ca",
    "socal",
    "cenca",

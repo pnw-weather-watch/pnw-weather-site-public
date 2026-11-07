@@ -402,12 +402,18 @@ const PRODS = () => allProds(MD());
 // panel, and — once run.json's grid is known — the Lambert/lat-lon sample. A manifest
 // without crop (local fixtures) keeps the published LUT.
 function camFor(vid) {
-  const C = window.WXCAM && WXCAM.views && WXCAM.views[vid];
-  if (!C || !S.man || !S.run) return null;
+  const views = window.WXCAM && WXCAM.views;
+  if (!views || !S.man || !S.run) return null;
   const md = MD();
   if (!md || !md.crop) return null;
   const m = S.run.split("/")[0];
-  if (md.grid === "lcc" && m !== "hrrr" && m !== "rrfs") return null;
+  // Globals and NBM draw the 150 mi Pacific Northwest frame. HRRR and RRFS stay
+  // on the frame that still fits the CONUS grid (pnwhr). NBM data is sampled on
+  // its own Lambert; the coast, states and labels are this same camera.
+  let C = views[vid];
+  if (vid === "pnwhr" && m !== "hrrr" && m !== "rrfs" && views.pnwhr150) C = views.pnwhr150;
+  if (!C) return null;
+  if (md.grid === "lcc" && m !== "hrrr" && m !== "rrfs" && m !== "nbm") return null;
   return C;
 }
 function VIEWS() {
@@ -450,8 +456,9 @@ function camPixel(C, lon, lat) {
   }
   return [x, y];
 }
-function camURL(kind, vid) {
-  return `cam/${kind}_${vid}.png?v=${(window.WXCAM && WXCAM.v) || "1"}`;
+function camURL(kind, vid, C) {
+  const stem = (C && C.stem) || vid;
+  return `cam/${kind}_${stem}.png?v=${(window.WXCAM && WXCAM.v) || "1"}`;
 }
 // Product tabs (Benjamin 10-30 8:04 PM: "upper air tab, surface tab, precipitation tab, snow tab", Pivotal Weather style).
 // The Product menu lists only the open tab's products, in the order below (Pivotal: winds by level, 250 -> 850 mb);
@@ -547,10 +554,10 @@ async function viewStatic(vid) {
   if (!V || !V.fig) return null;
   const C = V._cam ? camFor(vid) : null;
   const p = (async () => {
-    const tP = C ? camURL("towns", vid) : (V.towns_png || `static/towns_${vid}.png`);
+    const tP = C ? camURL("towns", vid, C) : (V.towns_png || `static/towns_${vid}.png`);
     const tU = C ? tP : (tP[0] === "@" ? tP.slice(1) : DATA + tP) + SV();
-    const landU = C ? camURL("land", vid) : DATA + `static/land_${vid}.png` + SV();
-    const baseU = C ? camURL("base", vid) : DATA + `static/base_${vid}.png` + SV();
+    const landU = C ? camURL("land", vid, C) : DATA + `static/land_${vid}.png` + SV();
+    const baseU = C ? camURL("base", vid, C) : DATA + `static/base_${vid}.png` + SV();
     // Land fill is part of the first paint. It is the same full-canvas figure as the coast, so it is not drawn into a smaller rectangle.
     const lutP = C ? Promise.resolve(null) : fetch(DATA + V.lut + SV()).then(r => r.arrayBuffer()).then(b => new Float32Array(b));
     const [lut, base, land] = await Promise.all([lutP, img(baseU), img(landU).catch(() => null)]);
@@ -575,7 +582,7 @@ async function viewStatic(vid) {
       idx[k] = r0 * gnx + c0; wy[k] = fi - r0; wx[k] = fj - c0;
     };
     if (C) {
-      const md = MD();
+      const md = Object.assign({ id: (S.run || "").split("/")[0] }, MD());
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         const [lon, lat] = camLonLat(C, x0 + x + 0.5, y0 + y + 0.5);
         const ij = WXSelect.latLonIndex(md, lat, lon);
@@ -1204,6 +1211,8 @@ const COAST_VIEWS = {   // order = priority; buoys: "first" = WA buoys placed be
         "Santa Barbara", "Half Moon Bay", "Santa Cruz", "Morro Bay", "Fort Bragg", "Bodega Bay", "Cape Mendocino", "Malibu", "Westport", "Tatoosh Island",
         "Coos Bay", "Cannon Beach", "Long Beach", "Ocean Shores", "La Push"], buoys: "after", side: "r" },
   pnw: { style: "region", re: [], add: ["Ocean Shores", "Long Beach", "La Push", "Westport", "Tatoosh Island", "Newport", "Coos Bay", "Brookings", "Garibaldi", "Florence"], buoys: "after", side: "r" },
+  pnwwide: { style: "region", re: [], add: ["Ocean Shores", "Long Beach", "La Push", "Westport", "Tatoosh Island", "Newport", "Coos Bay", "Brookings", "Garibaldi", "Florence"], buoys: "after", side: "r" },
+  pnwhr: { style: "region", re: [], add: ["Ocean Shores", "Westport", "La Push", "Long Beach", "Tatoosh Island", "Newport", "Astoria"], buoys: "first", side: "r" },
   // [KIT] second site views (California, wide Hawaii, whole Pacific)
   ca: { style: "region", re: [], add: ["San Francisco", "Los Angeles", "San Diego", "Monterey", "Eureka", "Crescent City", "Santa Barbara", "Half Moon Bay",
         "Santa Cruz", "Morro Bay", "Fort Bragg", "Bodega Bay", "Cape Mendocino", "Point Arena", "Point Conception", "Malibu", "Oceanside", "Brookings"], buoys: "after", side: "r" },
@@ -1981,7 +1990,7 @@ function gridFwd(V, lut, x, y) {   // panel px (relative to panel) -> [fi, fj], 
     const C = camFor(V._id);
     if (C) {
       const [lon, lat] = camLonLat(C, V.panel[0] + x, V.panel[1] + y);
-      return WXSelect.latLonIndex(MD(), lat, lon) || [NaN, NaN];
+      return WXSelect.latLonIndex(Object.assign({ id: (S.run || "").split("/")[0] }, MD() || {}), lat, lon) || [NaN, NaN];
     }
   }
   if (!lut) return [NaN, NaN];
@@ -2015,7 +2024,7 @@ function gridInv(V, st, fi, fj, guess) {   // [fi, fj] -> panel px, or null when
 // with H ... highest pressure number"; 1:27 AM: also on MSLP + wind maps). Old site's house_style.find_centers ported: smoothed
 // MSLP, neighbourhood extreme over a radius (km) per view, prominence vs the median of the ring at that radius, min spacing;
 // the number is the raw (unsmoothed) min / max near the centre. Drawn on every map with MSLP isobars except ensemble lows.
-const HL_VIEW = { na: [800, 3.0, 75], pac: [1000, 3.0, 90], pnw: [400, 2.0, 50], pnwt: [400, 2.0, 50], pnwhr: [400, 2.0, 45], ca: [400, 2.0, 45], hiw: [350, 1.5, 40], bay: [200, 1.2, 35], orco: [300, 1.5, 55], bigi: [180, 1.5, 35] };   // [KIT] from regions.json   // radius km, prominence mb, smoothing km
+const HL_VIEW = { na: [800, 3.0, 75], pac: [1000, 3.0, 90], pnw: [400, 2.0, 50], pnwt: [400, 2.0, 50], pnwhr: [400, 2.0, 45], pnwwide: [480, 2.0, 60], ca: [400, 2.0, 45], hiw: [350, 1.5, 40], bay: [200, 1.2, 35], orco: [300, 1.5, 55], bigi: [180, 1.5, 35] };   // [KIT] from regions.json   // radius km, prominence mb, smoothing km
 const HL_WA = [250, 1.5, 35];   // Washington-type frames (old HL_RADIUS_KM / HL_PROMINENCE_MB "wa")
 const HL_LOW_COLOR = (getComputedStyle(document.documentElement).getPropertyValue("--map-lo") || "").trim() || "#E4572E", HL_HIGH_COLOR = (getComputedStyle(document.documentElement).getPropertyValue("--map-hi") || "").trim() || "#0B2545";   // [THEME]   // L red, H blue (Benjamin 10-31 1:42 AM; old site H blue #1747c9)
 function drawHL(ctx, st, D, V, gk, P) {

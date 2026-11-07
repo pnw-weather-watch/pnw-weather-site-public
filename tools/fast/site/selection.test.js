@@ -173,6 +173,11 @@ test("HRRR Lambert index lands on Snoqualmie", () => {
   assert.ok(Math.abs(fj - 298.598) < 0.02, String(fj));
   const gfs = latLonIndex({ id: "gfs", grid: "ll", crop: [0, 0, 0, 0] }, 47.4245, -121.4136);
   assert.ok(gfs[0] > 160 && gfs[0] < 180);
+  // NBM is the 2.5 km NDFD Lambert, not the HRRR grid. Seattle must not land on the HRRR index.
+  const nbm = latLonIndex({ id: "nbm", grid: "lcc" }, 47.6062, -122.3321);
+  assert.ok(Math.abs(nbm[0] - 1210.22) < 0.05, String(nbm[0]));
+  assert.ok(Math.abs(nbm[1] - 414.60) < 0.05, String(nbm[1]));
+  assert.ok(Math.abs(nbm[0] - fi) > 50);
 });
 
 test("wave products never keep inland towns", () => {

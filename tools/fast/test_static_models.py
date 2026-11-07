@@ -32,8 +32,13 @@ def proj_of(p):
     return ccrs.LambertConformal(central_longitude=p[1], central_latitude=p[2], standard_parallels=tuple(p[3]))
 
 
-def view_dict(vid):
+def view_dict(vid, hires=False):
     v = dict(REGIONS["views"][vid])
+    # The shared pnwhr id is the 150 mi frame. HRRR static and this coverage
+    # check use the hires window that still fits the CONUS grid.
+    if hires and v.get("hires"):
+        v.update(v["hires"])
+    v.pop("hires", None)
     v["proj"] = proj_of(v["proj"])
     if "ll" in v:
         v["ll"] = tuple(v["ll"])
@@ -66,7 +71,7 @@ class StaticModels(unittest.TestCase):
     def setUpClass(cls):
         cls.cams = {}
         for vid in REGIONS["views"]:
-            cls.cams[vid] = CAM.Camera(view_dict(vid))
+            cls.cams[vid] = CAM.Camera(view_dict(vid, hires=(vid == "pnwhr")))
 
     @classmethod
     def tearDownClass(cls):
