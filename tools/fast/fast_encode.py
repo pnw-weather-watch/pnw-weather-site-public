@@ -938,6 +938,39 @@ def latest_published(m):
         c = now - dt.timedelta(hours=b)
         if c.hour in MODELS[m]["cycles"]: return c
 
+def same_grid(run, crop):
+    """True when run.json was encoded on this crop. A finished run from a smaller crop is not done."""
+    if not crop or not run: return True
+    g = run.get("grid") or {}
+    return g.get("ny") == crop[1] - crop[0] and g.get("nx") == crop[3] - crop[2]
+
+def crop_bounds(fi, fj, ny, nx, extra=()):
+    """[i0, i1, j0, j1) covering every sample that lands on the model grid, plus extra index boxes.
+
+    Samples past the grid are left out (there is no field there). The pad is the same 3 / 4 cells
+    static() has always used, so a crop that only grows on the east keeps its old origin.
+    """
+    fi = np.asarray(fi, float); fj = np.asarray(fj, float)
+    ok = np.isfinite(fi) & np.isfinite(fj) & (fi >= 0) & (fi <= ny - 1) & (fj >= 0) & (fj <= nx - 1)
+    if ok.any():
+        i0 = max(0, int(np.floor(fi[ok].min())) - 3); i1 = min(ny, int(np.ceil(fi[ok].max())) + 4)
+        j0 = max(0, int(np.floor(fj[ok].min())) - 3); j1 = min(nx, int(np.ceil(fj[ok].max())) + 4)
+    else:
+        i0, i1, j0, j1 = ny, 0, nx, 0
+    for box in extra:
+        if not box: continue
+        i0, i1 = min(i0, int(box[0])), max(i1, int(box[1]))
+        j0, j1 = min(j0, int(box[2])), max(j1, int(box[3]))
+    return [max(0, i0), min(ny, i1), max(0, j0), min(nx, j1)]
+
+def _lon_in(lo, west, east):
+    """Longitude mask. Grid longitudes may be -180..180 or 0..360; the view box is either."""
+    lo = np.mod(np.asarray(lo, float) + 180.0, 360.0) - 180.0
+    west = float(np.mod(float(west) + 180.0, 360.0) - 180.0)
+    east = float(np.mod(float(east) + 180.0, 360.0) - 180.0)
+    if west <= east: return (lo >= west) & (lo <= east)
+    return (lo >= west) | (lo <= east)
+
 def static(m, out, views_only=None, x2_only=False):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -975,17 +1008,15 @@ def static(m, out, views_only=None, x2_only=False):
                           panel=[px, py, pw, ph], stride=STRIDE, nx=g["nx"], ny=g["ny"], barbs_across=HS.BARBS_ACROSS.get(vid, 20),
                           bounds=list(cam.bounds()), anchors=cam.anchors())
         held[vid] = tuple(cam.bounds())
-        b_ = V["box"]; lob = np.mod(lo, 360) if MD["grid"] == "ll" else lo; bl0, bl1 = (np.mod(b_[0], 360), np.mod(b_[1], 360)) if MD["grid"] == "ll" else (b_[0], b_[1])
-        inlon = ((lob >= bl0) & (lob <= bl1)) if bl0 <= bl1 else ((lob >= bl0) | (lob <= bl1))
-        mm = (la >= b_[2]) & (la <= b_[3]) & inlon
-        ii, jj = np.where(mm); views[vid]["cut_abs"] = [int(ii.min()), int(ii.max() + 1), int(jj.min()), int(jj.max() + 1)]
+        b_ = V["box"]
+        mm = (la >= b_[2]) & (la <= b_[3]) & _lon_in(lo, b_[0], b_[1])
+        ii, jj = np.where(mm)
+        # The lat/lon box can be empty when a grid's longitudes and the box disagree. The camera
+        # samples still set the crop; an empty box must not abort the model.
+        views[vid]["cut_abs"] = [int(ii.min()), int(ii.max() + 1), int(jj.min()), int(jj.max() + 1)] if len(ii) else None
         plt.close(fig)
     allfi = np.concatenate([l[0].ravel() for l in luts.values()]); allfj = np.concatenate([l[1].ravel() for l in luts.values()])
-    ok = np.isfinite(allfi) & (allfi >= 0) & (allfi <= ny_ - 1) & (allfj >= 0) & (allfj <= nx_ - 1)
-    i0 = max(0, int(np.floor(allfi[ok].min())) - 3); i1 = min(ny_, int(np.ceil(allfi[ok].max())) + 4)
-    j0 = max(0, int(np.floor(allfj[ok].min())) - 3); j1 = min(nx_, int(np.ceil(allfj[ok].max())) + 4)
-    for v_ in views.values():
-        a_ = v_["cut_abs"]; i0, i1, j0, j1 = min(i0, a_[0]), max(i1, a_[1]), min(j0, a_[2]), max(j1, a_[3])
+    i0, i1, j0, j1 = crop_bounds(allfi, allfj, ny_, nx_, [v["cut_abs"] for v in views.values() if v.get("cut_abs")])
     mp0 = f"{out}/manifest.json"
     if os.path.exists(mp0):   # keep the published crop when it is a superset (runs already in R2 stay valid)
         oc = json.load(open(mp0)).get("models", {}).get(m, {}).get("crop")
@@ -1074,7 +1105,9 @@ def static(m, out, views_only=None, x2_only=False):
                 rr, cc = int(round(fi_)) + i0, int(round(fj_)) + j0
                 slot["t2m_corr"] = float(TM.LAPSE_T_F_PER_FT * (oro[rr, cc] - el))
             slots.append(slot); t.set_visible(False)
-        a_ = views[vid]["cut_abs"]; views[vid]["cut"] = [a_[0] - i0, a_[1] - i0, a_[2] - j0, a_[3] - j0]; del views[vid]["cut_abs"]
+        a_ = views[vid].get("cut_abs")
+        views[vid]["cut"] = [a_[0] - i0, a_[1] - i0, a_[2] - j0, a_[3] - j0] if a_ else [0, i1 - i0, 0, j1 - j0]
+        views[vid].pop("cut_abs", None)
         views[vid]["towns"] = slots
         sizes[f"towns_{vid}"] = save(fig, f"{out}/static/towns_{vid}.png")
         print(f"{m} {vid}: {len(slots)} town numbers", flush=True)
@@ -1743,6 +1776,10 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None):
     c = dt.datetime.strptime(cycle, "%Y%m%d%H").replace(tzinfo=dt.timezone.utc)
     rd = f"{out}/runs/{m}/{cycle}"; os.makedirs(rd + "/single", exist_ok=True)
     rj = f"{rd}/run.json"; run = json.load(open(rj)) if os.path.exists(rj) else None
+    # A run encoded on a smaller crop (NBM pnwwide grew east of column 847) is not reusable.
+    if run and not same_grid(run, crop):
+        print(f"{m} {cycle}: encoded grid {run.get('grid')} != crop {[i0, i1, j0, j1]}, re-encoding", flush=True)
+        run = None
     have = {s_["f"] for s_ in (run or {}).get("steps", [])}
     todo = [s for s in want if not (only_missing and s in have)]
     from concurrent.futures import ProcessPoolExecutor
