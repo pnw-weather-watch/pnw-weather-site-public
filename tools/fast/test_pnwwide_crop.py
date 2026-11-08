@@ -4,6 +4,9 @@ NBM's previously published crop stopped at column 847. Denver is column ~940 and
 east edge of pnwwide is column ~1270, both on the CONUS grid. That is the white wedge.
 Global 0.25 deg crops that already include North America already cover this frame.
 """
+import contextlib
+import datetime as dt
+import io
 import os
 import sys
 import unittest
@@ -205,6 +208,9 @@ class WideCrop(unittest.TestCase):
         self.assertEqual(FE.gfs_donor_hour(2), 3)
         self.assertEqual(FE.gfs_donor_hour(3), 3)
         self.assertEqual(FE.gfs_donor_hour(5), 6)
+        c = dt.datetime(2026, 11, 8, 6, tzinfo=dt.timezone.utc)
+        slots = [(f"{dc:%Y%m%d%H}", h) for dc, h in FE.gfs_donor_slots(c, 1)]
+        self.assertEqual(slots, [("2026110806", 0), ("2026110800", 6), ("2026110718", 12), ("2026110712", 18)])
         self.assertNotIn("asnow", FE.GFS_EDGE_FIELDS)
         self.assertIn("asnow", FE.QUIET_EDGE_FIELDS)
         self.assertIn("t2m", FE.GFS_EDGE_FIELDS)
@@ -216,6 +222,64 @@ class WideCrop(unittest.TestCase):
         self.assertAlmostEqual(float(got[0, 1]), 10.0, places=4)
         self.assertFalse(FE.same_grid({"grid": {"ny": 1100, "nx": 800, "i0": 0, "j0": 0}}, [-20, 1080, -40, 760]))
         self.assertTrue(FE.same_grid({"grid": {"ny": 1100, "nx": 800, "i0": -20, "j0": -40}}, [-20, 1080, -40, 760]))
+
+    def test_gfs_donor_uses_the_previous_cycle_when_this_one_is_not_posted(self):
+        # HRRR 06Z f001/f002 ask for GFS 06Z f000/f003. Those indexes are not up yet; 00Z f006/f009 are.
+        c = dt.datetime(2026, 11, 8, 6, tzinfo=dt.timezone.utc)
+        posted = {("2026110800", 6), ("2026110800", 9)}
+        asked = []
+
+        def ready(cycle, hour):
+            key = (f"{cycle:%Y%m%d%H}", hour)
+            asked.append(key)
+            return key in posted
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            f001 = FE.gfs_donor_for(c, 1, ready)
+            f002 = FE.gfs_donor_for(c, 2, ready)
+        self.assertEqual((f"{f001[0]:%Y%m%d%H}", f001[1]), ("2026110800", 6))
+        self.assertEqual((f"{f002[0]:%Y%m%d%H}", f002[1]), ("2026110800", 9))
+        self.assertEqual(asked[:2], [("2026110806", 0), ("2026110800", 6)])
+        text = buf.getvalue()
+        self.assertIn("edge donor 2026110806 f001: real 2026110800 f006", text)
+        self.assertIn("edge donor 2026110806 f002: real 2026110800 f009", text)
+        native = np.full((5, 5), 10.0)
+        cropped = FE.take_crop(native, 0, 5, -1, 5)
+        seen = []
+
+        def get(R, model):
+            seen.append((f"{R.c:%Y%m%d%H}", R.s, model))
+            return np.full((721, 1440), 3.0)
+
+        out = FE.fill_conus_outside("t2m", cropped, (0, 5, -1, 5), native.shape, c, 1, get, ready=ready)
+        self.assertEqual(seen, [("2026110800", 6, "gfs")])
+        self.assertAlmostEqual(float(out[2, 0]), 3.0)
+
+    def test_gfs_donor_holds_when_none_of_the_cycles_are_posted(self):
+        c = dt.datetime(2026, 11, 8, 6, tzinfo=dt.timezone.utc)
+        asked = []
+
+        def ready(cycle, hour):
+            asked.append((f"{cycle:%Y%m%d%H}", hour))
+            return False
+
+        native = np.arange(25, dtype=float).reshape(5, 5)
+        cropped = FE.take_crop(native, 0, 5, -1, 5)
+        called = []
+
+        def get(R, model):
+            called.append(R)
+            raise AssertionError("donor fetch")
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            out = FE.fill_conus_outside("t2m", cropped, (0, 5, -1, 5), native.shape, c, 2, get, ready=ready)
+        self.assertEqual(called, [])
+        self.assertEqual(asked, [("2026110806", 3), ("2026110800", 9), ("2026110718", 15), ("2026110712", 21)])
+        self.assertIn("edge donor 2026110806 f002: held", buf.getvalue())
+        # The column past the west edge keeps the boundary cell, not a fetched field.
+        self.assertTrue(np.allclose(out[:, 0], cropped[:, 1]))
 
     def test_stale_cycles_follow_the_newest(self):
         import fast_cycle as FC

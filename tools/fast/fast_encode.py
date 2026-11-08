@@ -875,8 +875,10 @@ def sample_pts(a, P):
 # view (about 7 percent, at most ~75 cells / 220 km north and west) and the California view
 # (the offshore left side, out to about 270 cells). The pad covers both, or the California
 # ocean would be GFS for a while and then white. Cells past the native edge are stored on the
-# same Lambert index, with a negative column origin. They are filled from GFS, the nearest
-# 3-hour file, and blended across EDGE_BLEND cells so the join is a ramp rather than a line.
+# same Lambert index, with a negative column origin. They are filled from GFS at the nearest
+# 3-hour valid time. If that cycle is not posted yet, the newest of the three previous cycles
+# that has the same valid time is used. Otherwise the boundary is held. The join is a ramp
+# across EDGE_BLEND cells.
 # RRFS North America would cover the corner from the same model, but that file is 3-hourly,
 # has no pressure-level set, and is several times the CONUS download.
 CONUS_OUTSIDE = 320
@@ -899,6 +901,49 @@ _GFS_READER = {}
 def gfs_donor_hour(step):
     """Nearest GFS output. Files are every 3 h from f000. f001 uses the analysis; f002 uses f003."""
     return int(round(float(step) / 3.0)) * 3
+
+def gfs_donor_slots(c, step, lags=3):
+    """Newest cycle first. Each slot is the 3-hour GFS file at the same valid time, up to `lags` cycles back."""
+    hour = gfs_donor_hour(step)
+    slots = []
+    for back in range(int(lags) + 1):
+        donor_h = hour + 6 * back
+        if donor_h > 384: break
+        slots.append((c - dt.timedelta(hours=6 * back), donor_h))
+    return slots
+
+def gfs_index_ready(c, hour):
+    """True when the GFS index for this cycle and hour is posted. 403 and 404 are not posted."""
+    import menu_maps as M
+    import temp_maps as TM
+    url = M.GFS.format(d=f"{c:%Y%m%d}", h=c.hour, s=int(hour)) + ".idx"
+    try:
+        TM.get(url, (0, 10))
+        return True
+    except Exception:
+        return False
+
+_GFS_DONOR = {}
+
+def gfs_donor_for(c, step, ready=None):
+    """(cycle, hour) of the newest posted GFS file at this valid time, or None when none of the four are up."""
+    key = (f"{c:%Y%m%d%H}", int(step))
+    if ready is None and key in _GFS_DONOR: return _GFS_DONOR[key]
+    probe = gfs_index_ready if ready is None else ready
+    chosen = None
+    for donor_c, donor_h in gfs_donor_slots(c, step):
+        try: ok = bool(probe(donor_c, donor_h))
+        except Exception: ok = False
+        if ok:
+            chosen = (donor_c, donor_h)
+            break
+    if ready is None: _GFS_DONOR[key] = chosen
+    if chosen is None:
+        print(f"edge donor {c:%Y%m%d%H} f{int(step):03d}: held", flush=True)
+    else:
+        dc, dh = chosen
+        print(f"edge donor {c:%Y%m%d%H} f{int(step):03d}: real {dc:%Y%m%d%H} f{dh:03d}", flush=True)
+    return chosen
 
 def take_crop(a, i0, i1, j0, j1):
     """Slice [i0:i1, j0:j1) out of a native grid. Indexes past the array are NaN, not a wrap."""
@@ -995,7 +1040,7 @@ def gfs_reader(c, hour):
         _GFS_READER[key] = M.Reader("gfs", c, int(hour))
     return _GFS_READER[key]
 
-def fill_conus_outside(name, cropped, crop, native_shape, c, s, get):
+def fill_conus_outside(name, cropped, crop, native_shape, c, s, get, ready=None):
     """Fill cells outside the HRRR/RRFS CONUS rectangle. The ramp is inside the domain edge."""
     ny, nx = native_shape
     i0, i1, j0, j1 = crop
@@ -1003,14 +1048,18 @@ def fill_conus_outside(name, cropped, crop, native_shape, c, s, get):
     if not np.any(weight > 1e-6): return cropped
     if name in QUIET_EDGE_FIELDS:
         return paint_edge(cropped, np.zeros(cropped.shape, np.float32), weight)
+    held = hold_native(cropped, i0, i1, j0, j1, ny, nx)
     if name not in GFS_EDGE_FIELDS:
-        return paint_edge(cropped, hold_native(cropped, i0, i1, j0, j1, ny, nx), weight)
+        return paint_edge(cropped, held, weight)
+    chosen = gfs_donor_for(c, s, ready)
+    if chosen is None:
+        return paint_edge(cropped, held, weight, False)
     try:
-        raw = np.asarray(get(gfs_reader(c, gfs_donor_hour(s)), "gfs"), float)
+        raw = np.asarray(get(gfs_reader(*chosen), "gfs"), float)
         donor = sample_ll(raw, lat, lon)
     except Exception as e:
-        print(f"edge fill {name} f{s:03d}: {str(e)[:120]}", flush=True)
-        return paint_edge(cropped, hold_native(cropped, i0, i1, j0, j1, ny, nx), weight, False)
+        print(f"edge fill {name} f{int(s):03d}: held ({str(e)[:100]})", flush=True)
+        return paint_edge(cropped, held, weight, False)
     return paint_edge(cropped, donor, weight, name in CATEGORICAL_EDGE)
 
 def step_job(args):
