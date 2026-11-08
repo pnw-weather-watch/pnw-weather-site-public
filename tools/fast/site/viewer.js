@@ -1325,10 +1325,11 @@ const COAST_TOWNS = { "Neah Bay": [48.37, -124.62, "a"], "La Push": [47.908, -12
 const TOWN_PT = { 1: 24, 2: 17, 3: 13.5 }, TOWN_HALO = { 1: 4.8, 2: 3.8, 3: 3.2 };
 // 11-08 (Benjamin 1:45 PM): global-model Pacific NW views use smaller town names (house_style.GLOBAL_PNW_TOWN_SCALE, same values);
 // the numbers drawn here follow. HRRR/RRFS and California views keep TOWN_PT.
-const HIRES_MODELS = new Set(["hrrr", "rrfs"]), PNW_VIEWS = new Set(["pnw", "pnwhr", "pnwt", "pnwwide"]), GLOBAL_PNW_SCALE = { 1: 0.60, 2: 0.70, 3: 0.82 };
-function smallTowns() { const m = String(S.run || "").split("/")[0]; return !!m && !HIRES_MODELS.has(m) && PNW_VIEWS.has(VSRC(S.view)); }
-function townPt(tier) { return TOWN_PT[tier] * (smallTowns() ? GLOBAL_PNW_SCALE[tier] : 1); }
-function townHalo(tier) { return TOWN_HALO[tier] * (smallTowns() ? GLOBAL_PNW_SCALE[tier] : 1); }
+const HIRES_MODELS = new Set(["hrrr", "rrfs"]), PNW_VIEWS = new Set(["pnw", "pnwhr", "pnwt", "pnwwide"]), GLOBAL_PNW_SCALE = { 1: 0.54, 2: 0.72, 3: 0.82 };
+const HIRES_PNW_SCALE = { 1: 0.54, 2: 0.72, 3: 0.82 };   // 11-08 2:40 PM: HRRR/RRFS PNW views (house_style.HIRES_PNW_TOWN_SCALE)
+function townScale() { const m = String(S.run || "").split("/")[0]; if (!m || !PNW_VIEWS.has(VSRC(S.view))) return null; return HIRES_MODELS.has(m) ? HIRES_PNW_SCALE : GLOBAL_PNW_SCALE; }
+function townPt(tier) { const k = townScale(); return TOWN_PT[tier] * (k ? k[tier] : 1); }
+function townHalo(tier) { const k = townScale(); return TOWN_HALO[tier] * (k ? k[tier] : 1); }
 const MAJOR_CITIES = new Set(["Seattle", "Portland", "Honolulu", "Los Angeles", "San Francisco", "Sacramento"]);
 const MID_CITIES = new Set(["Spokane", "Tacoma", "San Diego", "San Jose", "Oakland", "Fresno", "Eugene", "Boise", "Vancouver", "Salem", "Bellevue", "Everett", "Bend", "Medford", "Hilo", "Bakersfield", "Reno", "Olympia", "Yakima", "Santa Rosa", "Modesto"]);
 function townTier(name) { return MAJOR_CITIES.has(name) ? 1 : MID_CITIES.has(name) ? 2 : 3; }

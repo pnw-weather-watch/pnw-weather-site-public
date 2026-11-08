@@ -31,24 +31,36 @@ TOWN_HALO_W = {1: 4.8, 2: 3.8, 3: 3.2}
 # 11-08 (Benjamin 1:45 PM): town names on the Pacific NW views of the GLOBAL models (GFS, IFS, AIFS, EPS, AENS, NBM, GFS-Wave,
 # IFS 9 km) were too big. There they use this scale (big cities shrink the most). HRRR/RRFS and every California view keep TOWN_PT.
 # Those layers are saved as static/towns_<view>_gs.png so the shared towns_<view>.png (HRRR/RRFS) is untouched.
-GLOBAL_PNW_TOWN_SCALE = {1: 0.60, 2: 0.70, 3: 0.82}
+GLOBAL_PNW_TOWN_SCALE = {1: 0.54, 2: 0.72, 3: 0.82}   # 11-08 2:42 PM: same as HRRR/RRFS (Benjamin)
 GLOBAL_PNW_VIEWS = frozenset({"pnw", "pnwhr", "pnwt", "pnwwide"})
 GLOBAL_PNW_MODELS = frozenset({"gfs", "ifs", "aifs", "eps", "aens", "nbm", "gfsw", "ifs9", "epsm", "oisst"})
+# 11-08 (Benjamin 2:40 PM): HRRR/RRFS PNW views get small names too; big cities only a touch bigger than the rest.
+# Saved as static/towns_<view>_hr.png (own set; California views unchanged).
+HIRES_PNW_TOWN_SCALE = {1: 0.54, 2: 0.72, 3: 0.82}
+HIRES_PNW_MODELS = frozenset({"hrrr", "rrfs"})
 
 
 def small_towns(model, vid):
-    return model in GLOBAL_PNW_MODELS and vid in GLOBAL_PNW_VIEWS
+    return (model in GLOBAL_PNW_MODELS or model in HIRES_PNW_MODELS) and vid in GLOBAL_PNW_VIEWS
+
+
+def town_scale_for(model):
+    return HIRES_PNW_TOWN_SCALE if model in HIRES_PNW_MODELS else GLOBAL_PNW_TOWN_SCALE
+
+
+def towns_suffix(model):
+    return "_hr" if model in HIRES_PNW_MODELS else "_gs"
 
 
 class town_scale:
     """with town_scale(model, vid): TOWN_PT / TOWN_HALO_W scaled while drawing that layer (no-op elsewhere)."""
-    def __init__(self, model, vid): self.on = small_towns(model, vid)
+    def __init__(self, model, vid): self.on = small_towns(model, vid); self.sc = town_scale_for(model)
     def __enter__(self):
         global TOWN_PT, TOWN_HALO_W
         self.keep = (TOWN_PT, TOWN_HALO_W)
         if self.on:
-            TOWN_PT = {k: v * GLOBAL_PNW_TOWN_SCALE[k] for k, v in TOWN_PT.items()}
-            TOWN_HALO_W = {k: v * GLOBAL_PNW_TOWN_SCALE[k] for k, v in TOWN_HALO_W.items()}
+            TOWN_PT = {k: v * self.sc[k] for k, v in TOWN_PT.items()}
+            TOWN_HALO_W = {k: v * self.sc[k] for k, v in TOWN_HALO_W.items()}
         return self
     def __exit__(self, *a):
         global TOWN_PT, TOWN_HALO_W

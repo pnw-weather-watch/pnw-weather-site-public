@@ -15,7 +15,7 @@ def grid_fn(m, M, ref, new):
     # Lambert (NBM): projection from FE.MODELS; grid origin fitted from this model's published slots (towns known on both grids)
     import cartopy.crs as ccrs
     rad = MD.get("radius", 6371229.0); pc = ccrs.PlateCarree()
-    hp = ccrs.LambertConformal(globe=ccrs.Globe(ellipse="sphere", semimajor_axis=rad, semiminor_axis=rad), **MD["lcc"])
+    hp = ccrs.LambertConformal(globe=ccrs.Globe(ellipse="sphere", semimajor_axis=rad, semiminor_axis=rad), **MD.get("lcc", FE.HRRR_LCC))
     known = [(new[n]["la"], new[n]["lo"], ref[n]["fi"] + i0, ref[n]["fj"] + j0) for n in ref if n in new]
     P = np.array([hp.transform_point(lo, la, pc) for la, lo, _, _ in known]); FI = np.array([k[2] for k in known]); FJ = np.array([k[3] for k in known])
     ax_, bx_ = np.polyfit(FJ, P[:, 0], 1); ay_, by_ = np.polyfit(FI, P[:, 1], 1)
@@ -24,10 +24,18 @@ def grid_fn(m, M, ref, new):
     return f
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--manifest"); ap.add_argument("--fixes"); ap.add_argument("--out"); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument("--manifest"); ap.add_argument("--fixes"); ap.add_argument("--out"); ap.add_argument("--group", default="global", choices=["global", "hires"]); a = ap.parse_args()
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt, cartopy.crs as ccrs
     import house_style as HS, temp_maps as TM
     HS.use_for_plots(); FE.extra_views(TM, ccrs)
+    rep_m = "hrrr" if a.group == "hires" else "gfs"
+    if a.group == "hires" and "pnwhr" in TM.VIEWS:   # same hires camera as fast_encode.static uses for HRRR/RRFS
+        import regions as _regions
+        h = (_regions.R["views"].get("pnwhr") or {}).get("hires")
+        if h:
+            p_ = h["proj"]
+            TM.VIEWS["pnwhr"] = dict(TM.VIEWS["pnwhr"], proj=ccrs.LambertConformal(central_longitude=p_[1], central_latitude=p_[2], standard_parallels=tuple(p_[3])),
+                                     extent=tuple(h["extent"]), ll=tuple(h["ll"]), box=tuple(h["box"]))
     man = json.load(open(a.manifest)); fx = json.load(open(a.fixes)) if a.fixes and os.path.exists(a.fixes) else {"models": {}}
     os.makedirs(f"{a.out}/static/x2", exist_ok=True); rep = {}
     gi0, gi1, gj0, gj1 = man["models"]["gfs"]["crop"]
@@ -36,12 +44,12 @@ def main():
             fig, ax, ky = TM.frame(vid); cam = fig._cam; cam.snap(); HS.frame(ax); fig.set_dpi(FE.DPI)
             fig.patch.set_alpha(0); ax.patch.set_alpha(0); fig.patches.clear(); return fig, ax, ky
         f0, s0 = VF.town_slots(TM, vid, layer_fig, gi0, gi1, gj0, gj1, 0.25); plt.close(f0)   # current sizes (alignment check)
-        with HS.town_scale("gfs", vid): fig, s1 = VF.town_slots(TM, vid, layer_fig, gi0, gi1, gj0, gj1, 0.25)
-        png = f"static/towns_{vid}_gs.png"
-        fig.savefig(f"{a.out}/{png}", dpi=FE.DPI, transparent=True); fig.savefig(f"{a.out}/static/x2/towns_{vid}_gs.png", dpi=FE.DPI * FE.X2, transparent=True); plt.close(fig)
+        with HS.town_scale(rep_m, vid): fig, s1 = VF.town_slots(TM, vid, layer_fig, gi0, gi1, gj0, gj1, 0.25)
+        png = f"static/towns_{vid}{HS.towns_suffix(rep_m)}.png"
+        fig.savefig(f"{a.out}/{png}", dpi=FE.DPI, transparent=True); fig.savefig(f"{a.out}/static/x2/towns_{vid}{HS.towns_suffix(rep_m)}.png", dpi=FE.DPI * FE.X2, transparent=True); plt.close(fig)
         new = {s_["name"]: dict(s_, la=90.0 - (s_["fi"] + gi0) * 0.25, lo=(s_["fj"] + gj0) * 0.25 - 360.0) for s_ in s1}
         for m, M in man["models"].items():
-            if not HS.small_towns(m, vid) or vid not in M.get("views", {}): continue
+            if not HS.small_towns(m, vid) or vid not in M.get("views", {}) or HS.towns_suffix(m) != HS.towns_suffix(rep_m): continue
             src = (fx.get("models", {}).get(m, {}).get(vid) or {}).get("towns") if vid == "pnwt" else None
             old = src or M["views"][vid].get("towns") or []
             ref = {o["name"]: o for o in old}

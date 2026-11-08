@@ -1575,7 +1575,7 @@ def static(m, out, views_only=None, x2_only=False):
         views[vid]["cut"] = [a_[0] - i0, a_[1] - i0, a_[2] - j0, a_[3] - j0] if a_ else [0, i1 - i0, 0, j1 - j0]
         views[vid].pop("cut_abs", None)
         views[vid]["towns"] = slots
-        _tn = f"static/towns_{vid}_gs.png" if _ts.on else f"static/towns_{vid}.png"
+        _tn = f"static/towns_{vid}{HS.towns_suffix(m)}.png" if _ts.on else f"static/towns_{vid}.png"
         if _ts.on: views[vid]["towns_png"] = _tn
         sizes[f"towns_{vid}"] = save(fig, f"{out}/{_tn}"); _ts.__exit__()
         print(f"{m} {vid}: {len(slots)} town numbers", flush=True)
