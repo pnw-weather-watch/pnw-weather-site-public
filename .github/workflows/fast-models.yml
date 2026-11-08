@@ -92,9 +92,9 @@ jobs:
           # 11-03: epsm = ECMWF EPS single members (tools/fast/epsm_cycle.py: newest 2 00Z/12Z runs, one 2-tile WebP per member per hour)
           if [ "${{ matrix.model }}" = "epsm" ]; then python tools/fast/epsm_cycle.py --minutes "${{ inputs.minutes || '40' }}" --workers 4; exit 0; fi
           python tools/fast/fast_cycle.py --models "${{ matrix.model }}" --minutes "${{ inputs.minutes || '40' }}" --workers 4 --watch
-      - name: Promote this model's verified run to live (repo variable AUTO_PROMOTE_LIVE=true; off by default)
+      - name: Promote this model's verified run to live (on; set repo variable AUTO_PROMOTE_LIVE=false to stop)
         # Only after a scheduled/chained publish into the shared preview/. Never replaces a fuller live run with a partial one.
-        if: ${{ always() && env.ON == 'true' && vars.AUTO_PROMOTE_LIVE == 'true' && (inputs.prefix || 'preview/') == 'preview/' && contains(',hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,', format(',{0},', matrix.model)) }}
+        if: ${{ always() && env.ON == 'true' && vars.AUTO_PROMOTE_LIVE != 'false' && (inputs.prefix || 'preview/') == 'preview/' && contains(',hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,', format(',{0},', matrix.model)) }}
         env:
           PNW_R2_ACCESS_KEY_ID: ${{ secrets.PNW_R2_ACCESS_KEY_ID }}
           PNW_R2_SECRET_ACCESS_KEY: ${{ secrets.PNW_R2_SECRET_ACCESS_KEY }}
