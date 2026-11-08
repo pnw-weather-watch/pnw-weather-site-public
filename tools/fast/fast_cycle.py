@@ -241,7 +241,12 @@ def main():
         # (step files + run.json) as soon as it is encoded, under WX_R2_PREFIX when that is set (preview/ in the workflow).
         # The manifest (run list) is rewritten for a new run, at completion and at
         # most every MAN_EVERY s in between (the viewer follows an open run through its run.json), to keep R2 writes low.
-        W = min(a.workers, 2) if m == "ifs9" else a.workers
+        W = a.workers
+        if m == "ifs9":   # 11-08 memory guard: 1 worker, and only with at least 4 GB free
+            try: free_gb = int([l for l in open("/proc/meminfo") if l.startswith("MemAvailable")][0].split()[1]) / 1048576
+            except Exception: free_gb = 99
+            if free_gb < 4: print("ifs9 skipped: only", round(free_gb, 1), "GB free", flush=True); MORE.add(m); return
+            W = 1
         chunk = W
         while True:
             if time.time() >= t_end - 60: MORE.add(m); break   # budget ran out with hours left -> ask for a re-dispatch
