@@ -349,7 +349,16 @@ async function boot() {
   sl.addEventListener("touchstart", () => { S.dragging = true; }, { passive: true });
   for (const ev of ["pointerup", "pointercancel", "touchend", "touchcancel", "change"]) sl.addEventListener(ev, endDrag);
   sl.oninput = e => { const v = +e.target.value; if (v === S.i) return; S.i = v; draw(); };
-  $("prev").onclick = () => go(-1); $("next").onclick = () => go(1);
+  // 11-08: press and hold prev/next: one step now, then after 400 ms about 8 steps a second until released
+  const hold = (id, d) => { const b = $(id); let t0 = null, t1 = null;
+    const stop = () => { clearTimeout(t0); clearInterval(t1); t0 = t1 = null; if (S.dragging) { S.dragging = false; draw(); } };
+    b.addEventListener("pointerdown", e => { if (e.button) return; e.preventDefault(); stop(); go(d);
+      t0 = setTimeout(() => { S.dragging = true; t1 = setInterval(() => go(d), 125); }, 400); });
+    for (const ev of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(ev, stop);
+    b.addEventListener("contextmenu", e => e.preventDefault());
+    b.onclick = e => { if (e.detail === 0) go(d); };   // keyboard Enter/Space (pointer clicks already stepped on pointerdown)
+  };
+  hold("prev", -1); hold("next", 1);
   $("play").onclick = () => { if (S.timer) { clearInterval(S.timer); S.timer = null; $("play").textContent = "Play"; }
                               else { S.timer = setInterval(() => go(1, true), 250); $("play").textContent = "Stop"; } };
   addEventListener("keydown", e => { if (e.key === "Escape") mgClose(); if (MG.open) return; if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1); });
@@ -707,6 +716,10 @@ function fieldURL(run, name, f) {   // packed runs: several fields share one RGB
   const file = pk ? pk[0] : name, ch = pk ? pk[1] : 0, tile = (pk && pk[2]) || 0;   // 11-03 EPS members: packs [file, channel, tile] (tiles stacked top to bottom)
   return [`${DATA}${R_.base}/` + R_.file.replace("{mem}", memPad()).replace("{name}", file).replace("{f:03d}", String(f).padStart(3, "0")), ch, tile];
 }
+// 11-08 scrub: capped caches (LRU by Map order). Phones keep fewer decoded frames so long sessions don't run out of memory.
+const PIX_CAP = FINE_PTR ? 240 : 60, FIELD_CAP = FINE_PTR ? 600 : 150;
+function lruGet(m, k) { const v = m.get(k); if (v !== undefined) { m.delete(k); m.set(k, v); } return v; }
+function lruPut(m, k, v, cap) { m.delete(k); m.set(k, v); while (m.size > cap) m.delete(m.keys().next().value); }
 const pixCache = new Map();
 // Metadata: 12 s, three tries. Frames: 20 s, two tries. A 4xx other than 408/429 is final.
 async function fetchRetry(url, opts, tries, ms) {
@@ -729,12 +742,12 @@ async function decodeFrame(url) {
   const blob = await r.blob(), t1 = performance.now();
   const bm = await createImageBitmap(blob, { premultiplyAlpha: "none", colorSpaceConversion: "none" });
   const oc = new OffscreenCanvas(bm.width, bm.height), cx = oc.getContext("2d", { willReadFrequently: true });
-  cx.drawImage(bm, 0, 0); const px = cx.getImageData(0, 0, bm.width, bm.height).data;
+  cx.drawImage(bm, 0, 0); const px = cx.getImageData(0, 0, bm.width, bm.height).data; const w = bm.width, h = bm.height; bm.close && bm.close();
   S.timings.push({ key: url, bytes: blob.size, fetch: t1 - t0, decode: performance.now() - t1 });
-  return { px, w: bm.width, h: bm.height, bytes: blob.size };
+  return { px, w, h, bytes: blob.size };
 }
 function getPixels(url) {   // one fetch + decode per image, shared by every field packed in it. WebP falls back to PNG.
-  if (pixCache.has(url)) return pixCache.get(url);
+  if (pixCache.has(url)) return lruGet(pixCache, url);
   const p = (async () => {
     try { return await decodeFrame(url); }
     catch (e) {
@@ -742,11 +755,11 @@ function getPixels(url) {   // one fetch + decode per image, shared by every fie
       throw e;
     }
   })();
-  p.catch(() => pixCache.delete(url)); pixCache.set(url, p); return p;
+  p.catch(() => pixCache.delete(url)); lruPut(pixCache, url, p, PIX_CAP); return p;
 }
 function getField(run, name, f) {
   const key = `${rk(run)}/${name}/${f}`;
-  if (S.fields.has(key)) return S.fields.get(key);
+  if (S.fields.has(key)) return lruGet(S.fields, key);
   const p = (async () => {
     const st = S.runs[run].steps.find(s => s.f === f);
     if (!st || !st.ranges[name] || !WXSelect.plausibleRange(name, st.ranges[name])) throw new Error(`nodata:${name}`);
@@ -760,7 +773,7 @@ function getField(run, name, f) {
     if (S.runs[run].half && G) return { v: upHalf(out, I.w, I.h, G.nx, G.ny), w: G.nx, h: G.ny, bytes: I.bytes };   // 0.5 deg member files -> the 0.25 deg crop grid
     return { v: out, w: I.w, h: I.h, bytes: I.bytes };
   })();
-  p.catch(() => S.fields.delete(key)); S.fields.set(key, p); return p;
+  p.catch(() => S.fields.delete(key)); lruPut(S.fields, key, p, FIELD_CAP); return p;
 }
 function memUI() {   // AIFS ENS / EPS members: type or pick 1-50 (or < > / arrow up-down); only that member's files load
   const lab = $("memlab"), inp = $("mem"); if (!lab || !inp) return;
@@ -871,7 +884,7 @@ async function productFields(run, pid, f) {
       if (I.sea_only) for (let k = 0; k < a.length; k++) if (!(src[k] > 0)) out.iso[k] = NaN; }   // 11-03 swell period lines: none over land / no swell
     return out;
   })();
-  S.derived.set(key, p); return p;
+  lruPut(S.derived, key, p, FIELD_CAP); return p;
 }
 
 const climCache = new Map();
@@ -957,7 +970,7 @@ async function pump() {
   S.busy = true; const ws = S.waiters; S.waiters = [];
   // every drag frame on the full sharp path (light frames only on touch screens). Redraws stay coalesced: while one frame is
   // drawing, slider moves only update S.i and the next animation frame draws the newest hour (stale hours are skipped).
-  const lite = !!S.dragging;
+  const lite = !!S.dragging;   // lighter frames while dragging (phones and mouse; measured 11-08: sharp mouse drags were ~2x slower), sharp frame on release
   try { await render(lite); } catch (e) { showErr(e); }
   finally { S.busy = false; ws.forEach(r => r()); if (S.again || S.waiters.length) { S.again = false; if (!rafOn) { rafOn = true; requestAnimationFrame(pump); } } }
 }
@@ -1212,10 +1225,13 @@ function drawCredit(ctx, st, pid, P, LW, LH, towns, stamp) {
 }
 const cv_ = () => $("map");
 
-function preload(run, pid, i) {   // the next 3 hours only. A full-run prefetch would burn the 100k/day Function cap.
-  const steps = S.runs[run].steps, ahead = WXSelect.nextHours(steps.length, i, 3).map(k => steps[k].f);
+function preload(run, pid, i) {   // 11-08: the whole run, outward from the hour on screen (i+1, i-1, i+2, ...), 3 at a time.
+  // Frames are immutable for a year in the browser cache, so each hour costs one Function call per visitor per run.
+  const steps = S.runs[run].steps, n = steps.length, order = [];
+  for (let d = 1; d < n; d++) { if (i + d < n) order.push(i + d); if (i - d >= 0) order.push(i - d); }
+  const fs = order.slice(0, Math.min(order.length, PIX_CAP - 6)).map(k => steps[k].f);
   if (S.pre) S.pre.cancel = true; const job = S.pre = { cancel: false };
-  let k = 0; const next = () => { if (job.cancel || k >= ahead.length) return; productFields(run, pid, ahead[k++]).then(next, next); };
+  let k = 0; const next = () => { if (job.cancel || k >= fs.length) return; productFields(run, pid, fs[k++]).then(next, next); };
   for (let c = 0; c < 3; c++) next();
 }
 

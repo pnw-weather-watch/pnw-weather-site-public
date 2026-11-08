@@ -13,7 +13,7 @@ body{display:flex;flex-direction:column;height:100vh;height:100dvh}
 #bar input[type=range]{flex:1;min-width:200px}
 /* 10-29 8:45 PM slider fix: no page pan / rubber-band while dragging, bigger thumb, no tap delay on buttons */
 html,body{overscroll-behavior:none}
-#bar button,#bar select{touch-action:manipulation}
+#bar button,#bar select{touch-action:manipulation}#prev,#next{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #step{-webkit-appearance:none;appearance:none;background:transparent;height:32px;margin:0;touch-action:none;cursor:pointer}
 #step::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:#3a3f4a}
 #step::-moz-range-track{height:8px;border-radius:4px;background:#3a3f4a}
