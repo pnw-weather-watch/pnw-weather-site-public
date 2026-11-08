@@ -24,7 +24,7 @@ def grid_fn(m, M, ref, new):
     return f
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--manifest"); ap.add_argument("--fixes"); ap.add_argument("--out"); ap.add_argument("--group", default="global", choices=["global", "hires"]); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument("--manifest"); ap.add_argument("--fixes"); ap.add_argument("--out"); ap.add_argument("--group", default="global", choices=["global", "hires"]); ap.add_argument("--views", default=""); a = ap.parse_args()
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt, cartopy.crs as ccrs
     import house_style as HS, temp_maps as TM
     HS.use_for_plots(); FE.extra_views(TM, ccrs)
@@ -39,7 +39,7 @@ def main():
     man = json.load(open(a.manifest)); fx = json.load(open(a.fixes)) if a.fixes and os.path.exists(a.fixes) else {"models": {}}
     os.makedirs(f"{a.out}/static/x2", exist_ok=True); rep = {}
     gi0, gi1, gj0, gj1 = man["models"]["gfs"]["crop"]
-    for vid in sorted(HS.GLOBAL_PNW_VIEWS):
+    for vid in sorted(set(a.views.split(",")) if a.views else HS.GLOBAL_PNW_VIEWS):
         def layer_fig():
             fig, ax, ky = TM.frame(vid); cam = fig._cam; cam.snap(); HS.frame(ax); fig.set_dpi(FE.DPI)
             fig.patch.set_alpha(0); ax.patch.set_alpha(0); fig.patches.clear(); return fig, ax, ky
@@ -49,6 +49,7 @@ def main():
         fig.savefig(f"{a.out}/{png}", dpi=FE.DPI, transparent=True); fig.savefig(f"{a.out}/static/x2/towns_{vid}{HS.towns_suffix(rep_m)}.png", dpi=FE.DPI * FE.X2, transparent=True); plt.close(fig)
         new = {s_["name"]: dict(s_, la=90.0 - (s_["fi"] + gi0) * 0.25, lo=(s_["fj"] + gj0) * 0.25 - 360.0) for s_ in s1}
         for m, M in man["models"].items():
+            if a.views and vid not in a.views.split(","): continue
             if not HS.small_towns(m, vid) or vid not in M.get("views", {}) or HS.towns_suffix(m) != HS.towns_suffix(rep_m): continue
             src = (fx.get("models", {}).get(m, {}).get(vid) or {}).get("towns") if vid == "pnwt" else None
             old = src or M["views"][vid].get("towns") or []

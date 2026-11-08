@@ -1327,7 +1327,9 @@ const TOWN_PT = { 1: 24, 2: 17, 3: 13.5 }, TOWN_HALO = { 1: 4.8, 2: 3.8, 3: 3.2 
 // the numbers drawn here follow. HRRR/RRFS and California views keep TOWN_PT.
 const HIRES_MODELS = new Set(["hrrr", "rrfs"]), PNW_VIEWS = new Set(["pnw", "pnwhr", "pnwt", "pnwwide"]), GLOBAL_PNW_SCALE = { 1: 0.54, 2: 0.72, 3: 0.82 };
 const HIRES_PNW_SCALE = { 1: 0.54, 2: 0.72, 3: 0.82 };   // 11-08 2:40 PM: HRRR/RRFS PNW views (house_style.HIRES_PNW_TOWN_SCALE)
-function townScale() { const m = String(S.run || "").split("/")[0]; if (!m || !PNW_VIEWS.has(VSRC(S.view))) return null; return HIRES_MODELS.has(m) ? HIRES_PNW_SCALE : GLOBAL_PNW_SCALE; }
+const WIDE_PNW_VIEWS = new Set(["pnw", "pnwt", "pnwwide"]);   // 11-08 2:48 PM: wider views x0.8 (house_style.WIDE_PNW_EXTRA)
+function townScale() { const m = String(S.run || "").split("/")[0], v = VSRC(S.view); if (!m || !PNW_VIEWS.has(v)) return null;
+  const k = HIRES_MODELS.has(m) ? HIRES_PNW_SCALE : GLOBAL_PNW_SCALE; if (!WIDE_PNW_VIEWS.has(v)) return k; const o = {}; for (const t in k) o[t] = k[t] * 0.8; return o; }
 function townPt(tier) { const k = townScale(); return TOWN_PT[tier] * (k ? k[tier] : 1); }
 function townHalo(tier) { const k = townScale(); return TOWN_HALO[tier] * (k ? k[tier] : 1); }
 const MAJOR_CITIES = new Set(["Seattle", "Portland", "Honolulu", "Los Angeles", "San Francisco", "Sacramento"]);

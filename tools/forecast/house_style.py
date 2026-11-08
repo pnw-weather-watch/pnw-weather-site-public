@@ -44,8 +44,14 @@ def small_towns(model, vid):
     return (model in GLOBAL_PNW_MODELS or model in HIRES_PNW_MODELS) and vid in GLOBAL_PNW_VIEWS
 
 
-def town_scale_for(model):
-    return HIRES_PNW_TOWN_SCALE if model in HIRES_PNW_MODELS else GLOBAL_PNW_TOWN_SCALE
+# 11-08 2:48 PM (Benjamin): views wider than pnwhr get ~20% smaller names again (cover less data). ~10.4 / 9.8 / 8.9 pt.
+WIDE_PNW_VIEWS = frozenset({"pnw", "pnwt", "pnwwide"})
+WIDE_PNW_EXTRA = 0.8
+
+
+def town_scale_for(model, vid=None):
+    sc = HIRES_PNW_TOWN_SCALE if model in HIRES_PNW_MODELS else GLOBAL_PNW_TOWN_SCALE
+    return {k: v * WIDE_PNW_EXTRA for k, v in sc.items()} if vid in WIDE_PNW_VIEWS else sc
 
 
 def towns_suffix(model):
@@ -54,7 +60,7 @@ def towns_suffix(model):
 
 class town_scale:
     """with town_scale(model, vid): TOWN_PT / TOWN_HALO_W scaled while drawing that layer (no-op elsewhere)."""
-    def __init__(self, model, vid): self.on = small_towns(model, vid); self.sc = town_scale_for(model)
+    def __init__(self, model, vid): self.on = small_towns(model, vid); self.sc = town_scale_for(model, vid)
     def __enter__(self):
         global TOWN_PT, TOWN_HALO_W
         self.keep = (TOWN_PT, TOWN_HALO_W)
