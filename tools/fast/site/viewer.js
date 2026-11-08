@@ -486,7 +486,8 @@ const runInTab = (r, tab) => { const m = r.split("/")[0]; if (Q.get("embed")) re
 S.lastTab = {};
 function setLists() {   // products this run carries (all their fields present), views this model has
   const R_ = S.runs[S.run], has = new Set(R_.fields), P = PRODS(), V = VIEWS();
-  const prods = Object.entries(P).filter(([k, p]) => p.fields.every(f => has.has(f)));
+  const usable = (f) => R_.steps.some(st => st.ranges && st.ranges[f] && WXSelect.plausibleRange(f, st.ranges[f]));
+  const prods = Object.entries(P).filter(([k, p]) => p.fields.every(f => has.has(f) && usable(f)));
   const tabs = [...TABS, ["other", "Other", []]].map(([id, label, ids]) => [id, label,
     prods.filter(([k]) => id === "other" ? tabOf(k) === "other" : ids.includes(k)).sort((a, b) => ids.indexOf(a[0]) - ids.indexOf(b[0]))]).filter(t => t[2].length);
   const bootPick = !S._listed;
@@ -643,7 +644,7 @@ function getField(run, name, f) {
   if (S.fields.has(key)) return S.fields.get(key);
   const p = (async () => {
     const st = S.runs[run].steps.find(s => s.f === f);
-    if (!st || !st.ranges[name]) throw new Error(`nodata:${name}`);
+    if (!st || !st.ranges[name] || !WXSelect.plausibleRange(name, st.ranges[name])) throw new Error(`nodata:${name}`);
     const [url, ch0, tile] = fieldURL(run, name, f), I0 = await getPixels(url), T = S.runs[run].tiles || 1;
     const I = T > 1 ? { w: I0.w, h: I0.h / T, bytes: I0.bytes } : I0, ch = ch0 + tile * I.w * I.h * 4;   // tile k = rows k*h .. (k+1)*h-1
     const [lo, hi] = st.ranges[name], sc = (hi - lo) / 255, n = I.w * I.h, out = new Float32Array(n), px = I0.px;

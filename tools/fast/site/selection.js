@@ -243,6 +243,16 @@
   function showTownLabels(vid) {
     return !NO_TOWN_VIEWS[vid];
   }
+  // A stored range that cannot be a real forecast. The live GFS 12Z run lists asnow as
+  // 0..393662 in, which is the 9999 snow-depth sentinel turned into inches.
+  function plausibleRange(name, range) {
+    if (!range || range.length < 2) return false;
+    const lo = +range[0], hi = +range[1];
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi < lo) return false;
+    if (Math.abs(lo) > 50000 || Math.abs(hi) > 50000) return false;
+    if (/^(asnow|asnow90|ns6|nsnow|esnow|kinc|snod)/.test(name || "") && (hi > 2000 || lo < -50)) return false;
+    return true;
+  }
   // Wave maps draw a town only when it sits on or within about 10 km of the coast, including Hawaii.
   function coastalTowns(towns, pts, km) {
     return (towns || []).filter(t => Number.isFinite(t.lat) && Number.isFinite(t.lon) && isCoastal(t.lat, t.lon, pts, km));
@@ -283,5 +293,5 @@
   }
 
   return { lookupKey, climParts, resolveSelection, publicName, formatValidPT, WA_PASSES, CA_PASSES, passUnit, formatPassValue, passCaption,
-    passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, showTownLabels, coastalTowns, decodeCoast, coastPoints };
+    passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, showTownLabels, plausibleRange, coastalTowns, decodeCoast, coastPoints };
 });

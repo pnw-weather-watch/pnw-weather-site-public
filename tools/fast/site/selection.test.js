@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 const { lookupKey, climParts, resolveSelection, publicName, formatValidPT, formatPassValue, passCaption, passesForView,
-  WA_PASSES, CA_PASSES, latLonIndex, showStaticTowns, showTownLabels, coastalTowns, isWaveProduct, decodeCoast } = require("./selection.js");
+  WA_PASSES, CA_PASSES, latLonIndex, showStaticTowns, showTownLabels, plausibleRange, coastalTowns, isWaveProduct, decodeCoast } = require("./selection.js");
 
 const ensViews = [
   ["na", "North America"], ["pac", "Pacific"], ["pnw", "Pacific Northwest"],
@@ -211,4 +211,12 @@ test("wave products never keep inland towns", () => {
   const keep = new Set(coastalTowns(towns, pts).map(t => t.name));
   for (const inland of ["Spokane", "Sacramento", "Denver", "Wahiawa"]) assert.equal(keep.has(inland), false, inland);
   for (const shore of ["Seattle", "Westport", "Hilo", "Honolulu", "Kailua-Kona"]) assert.equal(keep.has(shore), true, shore);
+});
+
+test("a junk snowfall range is not drawn", () => {
+  assert.equal(plausibleRange("asnow", [0, 393662]), false);
+  assert.equal(plausibleRange("asnow", [0, 40]), true);
+  assert.equal(plausibleRange("t2m", [-20, 80]), true);
+  assert.equal(plausibleRange("frz", [0, 12000]), true);
+  assert.equal(plausibleRange("refc", [-10, 75]), true);
 });

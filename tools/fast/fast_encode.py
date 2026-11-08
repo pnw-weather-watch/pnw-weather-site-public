@@ -367,9 +367,9 @@ def _asnow(R, m):
     # AIFS (Benjamin 10-31 1:49 AM "verify snow map and just use that"): its open data has sf too, in kg/m2 (mm water), not m;
     # same 10:1 (mm / 25.4 x 10). Checked 00Z 10-31 F24: global mean 0.45 mm vs IFS 0.43 mm.
     if m == "aifs": return np.clip(_ec("sf")(R, m), 0, None) * 0.393701
-    # GFS 0.25 pgrb2 has no ASNOW, and pgrb2b does not add one. The 0-to-forecast-hour
-    # CSNOW average is only in the F+3 and F+6 files; every later file averages the latest
-    # precip bucket (6-9, 6-12, 12-15, ...). gfs_asnow_from_reader adds those buckets up.
+    # GFS 0.25 pgrb2 has no ASNOW, and pgrb2b does not add one. Each file's CSNOW average
+    # matches one APCP bucket: 3 h, then 6 h with the same start (0-3 then 0-6, 6-9 then 6-12).
+    # The 6 h mean is not the sum of the two 3 h pieces, so only the trailing 3 h is added.
     if m == "gfs":
         cache = os.environ.get("WX_CACHE") or os.path.join(os.environ.get("TMPDIR", "/tmp"), "wx_gfs_snow")
         return gfs_asnow_from_reader(R, cache)
@@ -531,13 +531,19 @@ def write_product_keys(model, products, out):
     return written
 
 def gfs_snowfall_in(precip_kg_m2, snow_fraction):
-    """Inches of snow in one window. precip is kg/m2. snow_fraction is 0..1 (or 0..100) over that window."""
+    """Inches of snow in one window. precip is kg/m2. snow_fraction is 0..1 (or 0..100) over that window.
+
+    A liquid amount of 100 inches or more in one window is not precipitation (the old
+    snow-depth read turned the 9999 missing value into about 393,662 inches)."""
     swe = np.asarray(precip_kg_m2, float) / 25.4
     frac = np.asarray(snow_fraction, float)
     if frac.size and np.isfinite(frac).any() and float(np.nanmax(frac)) > 1.5: frac = frac / 100.0
     frac = np.where(np.isfinite(frac), np.clip(frac, 0.0, 1.0), 0.0)
     swe = np.where(np.isfinite(swe) & (swe >= 0.0) & (swe < 100.0), swe, 0.0)
     return np.clip(swe * frac * 10.0, 0.0, None)
+
+# A 15-day total above this is not snowfall. The 9999 snow-depth sentinel became ~393,662 in.
+GFS_SNOW_MAX_IN = 500.0
 
 _CSNOW_AVE = re.compile(r"(\d+)-(\d+) hour ave fcst")
 
@@ -550,57 +556,110 @@ def gfs_snow_bucket(lines):
         if m: return int(m.group(1)), int(m.group(2))
     raise KeyError("CSNOW ave")
 
-def gfs_snow_totals(buckets):
-    """Run-total inches at each bucket's end hour.
+def gfs_three_hour_snow(long_swe, long_frac, long_hours, short_swe, short_frac, short_hours):
+    """Inches in the tail of a longer bucket.
 
-    buckets are (start_hour, end_hour, precip_kg_m2, snow_fraction). A bucket that
-    starts at 0 is the total through its end (F+3 is 0-3, F+6 is 0-6). A later bucket
-    is added to the total already computed at its start, so 6-12 is added to the 0-6
-    total and is not also added to 6-9.
+    GFS writes a 3-hour bucket, then a 6-hour bucket with the same start (0-3 then 0-6,
+    6-9 then 6-12). The 6-hour mean is not the sum of the two 3-hour pieces, so the
+    6-hour product cannot be stacked on the 3-hour total. The tail is
+    precip = apcp(6-12) - apcp(6-9) and fraction = (6*f(6-12) - 3*f(6-9)) / 3.
+    Checked on 2026-11-07 12Z through F+384: buckets stay 3 h and 6 h (no 12 h bucket)
+    on both sides of the F+120 change from hourly files to 3-hourly files.
     """
-    by_end = {}
-    for start, end, swe, frac in buckets:
-        by_end[int(end)] = (int(start), gfs_snowfall_in(np.asarray(swe, float), np.asarray(frac, float)))
-    def total(hour, seen):
-        if hour in seen: raise KeyError(f"snow window loops at {hour}")
-        start, inc = by_end[hour]
-        if start <= 0: return inc
-        if start not in by_end: raise KeyError(f"snow total at F+{start}")
-        return total(start, seen | {hour}) + inc
-    return {hour: total(hour, set()) for hour in by_end}
+    tail = long_hours - short_hours
+    if tail <= 0: raise ValueError(f"snow window {short_hours} h is not inside {long_hours} h")
+    precip = np.clip(np.asarray(long_swe, float) - np.asarray(short_swe, float), 0, None)
+    frac = (long_hours * np.asarray(long_frac, float) - short_hours * np.asarray(short_frac, float)) / tail
+    frac = np.where(np.isfinite(frac), frac, 0.0)
+    return gfs_snowfall_in(precip, np.clip(frac, 0.0, 1.0))
+
+def gfs_snow_running(steps):
+    """Run-total inches at each encoded hour, from 3-hour increments. Never decreases.
+
+    steps are (hour, start, end, precip_kg_m2, snow_fraction) in any order. A 3-hour
+    bucket is the increment. A longer bucket is split against the step 3 hours earlier,
+    which shares its start. The total is the sum of those increments, held at the
+    running maximum.
+    """
+    by_hour = {}
+    for hour, start, end, swe, frac in steps:
+        by_hour[int(hour)] = (int(start), int(end), np.asarray(swe, float), np.asarray(frac, float))
+    out = {}
+    total = None
+    for hour in sorted(by_hour):
+        start, end, swe, frac = by_hour[hour]
+        length = end - start
+        if length <= 3:
+            inc = gfs_snowfall_in(swe, frac)
+        else:
+            prev = by_hour.get(hour - 3)
+            if not prev or prev[0] != start or prev[1] >= end:
+                raise KeyError(f"F+{hour} snow window {start}-{end} has no {start}-{hour - 3} piece")
+            inc = gfs_three_hour_snow(swe, frac, length, prev[2], prev[3], prev[1] - prev[0])
+        total = inc if total is None else np.maximum(total, total + inc)
+        out[hour] = np.clip(total, 0.0, GFS_SNOW_MAX_IN)
+        total = out[hour]
+    return out
 
 def _gfs_idx_lines(R):
     if getattr(R, "url", None) and R.url not in getattr(R, "idxs", {}):
         R.acc0("APCP:surface")
     return R.idxs[R.url]
 
-def _gfs_snow_cache_path(cache, cycle, hour):
-    return os.path.join(cache, f"gfs_asnow_v1_{cycle:%Y%m%d%H}_f{int(hour):03d}.npy")
+def _gfs_snow_paths(cache, cycle, hour):
+    stem = f"gfs_asnow_v2_{cycle:%Y%m%d%H}_f{int(hour):03d}"
+    return os.path.join(cache, stem + ".npy"), os.path.join(cache, stem + "_bucket.npz")
+
+def _gfs_read_bucket(R):
+    start, end = gfs_snow_bucket(_gfs_idx_lines(R))
+    label = f"{start}-{end} hour acc fcst"
+    swe = np.asarray(R._idx("APCP:surface", R.url, (label,))[2], float)
+    frac = np.asarray(R._idx("CSNOW:surface", R.url, (f"{start}-{end} hour ave fcst",))[2], float)
+    return start, end, swe, frac
+
+def _gfs_save_bucket(path, start, end, swe, frac):
+    tmp = path + ".tmp.npz"
+    np.savez(tmp, start=start, end=end, swe=np.asarray(swe, np.float32), frac=np.asarray(frac, np.float32))
+    os.replace(tmp, path)
+
+def _gfs_load_bucket(path):
+    z = np.load(path)
+    return int(z["start"]), int(z["end"]), z["swe"], z["frac"]
 
 def gfs_asnow_from_reader(R, cache):
     """Inches of snow since the GFS run started, on the full grid. Cached per hour."""
     os.makedirs(cache, exist_ok=True)
-    path = _gfs_snow_cache_path(cache, R.c, R.s)
-    if os.path.exists(path): return np.load(path)
-    start, end = gfs_snow_bucket(_gfs_idx_lines(R))
-    if start == 0:
-        swe = np.asarray(R.acc0("APCP:surface")[2], float)
+    total_path, bucket_path = _gfs_snow_paths(cache, R.c, R.s)
+    if os.path.exists(total_path): return np.load(total_path)
+    start, end, swe, frac = _gfs_read_bucket(R)
+    _gfs_save_bucket(bucket_path, start, end, swe, frac)
+    length = end - start
+    if length <= 3:
+        inc = gfs_snowfall_in(swe, frac)
     else:
-        swe = np.asarray(R._idx("APCP:surface", R.url, (f"{start}-{end} hour acc fcst",))[2], float)
-    frac = np.asarray(R._idx("CSNOW:surface", R.url, "ave")[2], float)
-    inc = gfs_snowfall_in(swe, frac)
-    if start > 0:
-        prev_path = _gfs_snow_cache_path(cache, R.c, start)
-        if os.path.exists(prev_path):
-            prev = np.load(prev_path)
-        else:
-            import menu_maps as M
-            prev = gfs_asnow_from_reader(M.Reader("gfs", R.c, start), cache)
-        inc = prev + inc
-    tmp = path + ".tmp.npy"
-    np.save(tmp, np.asarray(inc, np.float32))
-    os.replace(tmp, path)
-    return inc
+        import menu_maps as M
+        earlier = R.s - 3
+        e_total, e_bucket = _gfs_snow_paths(cache, R.c, earlier)
+        if not os.path.exists(e_bucket):
+            gfs_asnow_from_reader(M.Reader("gfs", R.c, earlier), cache)
+        bstart, bend, bswe, bfrac = _gfs_load_bucket(e_bucket)
+        if bstart != start or bend >= end:
+            raise KeyError(f"F+{R.s} snow window {start}-{end} does not follow F+{earlier} {bstart}-{bend}")
+        inc = gfs_three_hour_snow(swe, frac, length, bswe, bfrac, bend - bstart)
+    if R.s <= 3:
+        total = inc
+    else:
+        import menu_maps as M
+        prev_path, _ = _gfs_snow_paths(cache, R.c, R.s - 3)
+        if not os.path.exists(prev_path):
+            gfs_asnow_from_reader(M.Reader("gfs", R.c, R.s - 3), cache)
+        prev = np.load(prev_path)
+        total = np.maximum(prev, np.asarray(prev, float) + inc)
+    total = np.clip(total, 0.0, GFS_SNOW_MAX_IN)
+    tmp = total_path + ".tmp.npy"
+    np.save(tmp, np.asarray(total, np.float32))
+    os.replace(tmp, total_path)
+    return total
 
 def gfs_cloud_top_c(layers_k, t2m_k):
     """Coldest GFS cloud-top temperature (C). Clear columns use the 2 m temperature. layers_k are Kelvin."""
