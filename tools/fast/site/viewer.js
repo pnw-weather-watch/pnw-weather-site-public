@@ -1225,10 +1225,11 @@ function drawCredit(ctx, st, pid, P, LW, LH, towns, stamp) {
 }
 const cv_ = () => $("map");
 
-function preload(run, pid, i) {   // 11-08: the whole run, outward from the hour on screen (i+1, i-1, i+2, ...), 3 at a time.
+function preload(run, pid, i) {   // 11-08: outward from the hour on screen (i+1, i-1, i+2, ...), 3 at a time.
   // Frames are immutable for a year in the browser cache, so each hour costs one Function call per visitor per run.
   const steps = S.runs[run].steps, n = steps.length, order = [];
-  for (let d = 1; d < n; d++) { if (i + d < n) order.push(i + d); if (i - d >= 0) order.push(i - d); }
+  // capped at +-12 hours: every /d/ frame is a Pages Function call (100k/day free for the account)
+  for (let d = 1; d <= Math.min(12, n); d++) { if (i + d < n) order.push(i + d); if (i - d >= 0) order.push(i - d); }
   const fs = order.slice(0, Math.min(order.length, PIX_CAP - 6)).map(k => steps[k].f);
   if (S.pre) S.pre.cancel = true; const job = S.pre = { cancel: false };
   let k = 0; const next = () => { if (job.cancel || k >= fs.length) return; productFields(run, pid, fs[k++]).then(next, next); };
@@ -1322,6 +1323,12 @@ const COAST_TOWNS = { "Neah Bay": [48.37, -124.62, "a"], "La Push": [47.908, -12
   "Kahului": [20.895, -156.47, "r"], "Lahaina": [20.878, -156.683, "r"], "Hilo": [19.725, -155.07, "r"], "Kailua-Kona": [19.64, -155.996, "r"] };   // BC (the lm / bc town pins for "Vancouver" sit at Vancouver WA)
 // Same three sizes as house_style.TOWN_PT. Dots stay on the camera pixel; only the type grows.
 const TOWN_PT = { 1: 24, 2: 17, 3: 13.5 }, TOWN_HALO = { 1: 4.8, 2: 3.8, 3: 3.2 };
+// 11-08 (Benjamin 1:45 PM): global-model Pacific NW views use smaller town names (house_style.GLOBAL_PNW_TOWN_SCALE, same values);
+// the numbers drawn here follow. HRRR/RRFS and California views keep TOWN_PT.
+const HIRES_MODELS = new Set(["hrrr", "rrfs"]), PNW_VIEWS = new Set(["pnw", "pnwhr", "pnwt", "pnwwide"]), GLOBAL_PNW_SCALE = { 1: 0.60, 2: 0.70, 3: 0.82 };
+function smallTowns() { const m = String(S.run || "").split("/")[0]; return !!m && !HIRES_MODELS.has(m) && PNW_VIEWS.has(VSRC(S.view)); }
+function townPt(tier) { return TOWN_PT[tier] * (smallTowns() ? GLOBAL_PNW_SCALE[tier] : 1); }
+function townHalo(tier) { return TOWN_HALO[tier] * (smallTowns() ? GLOBAL_PNW_SCALE[tier] : 1); }
 const MAJOR_CITIES = new Set(["Seattle", "Portland", "Honolulu", "Los Angeles", "San Francisco", "Sacramento"]);
 const MID_CITIES = new Set(["Spokane", "Tacoma", "San Diego", "San Jose", "Oakland", "Fresno", "Eugene", "Boise", "Vancouver", "Salem", "Bellevue", "Everett", "Bend", "Medford", "Hilo", "Bakersfield", "Reno", "Olympia", "Yakima", "Santa Rosa", "Modesto"]);
 function townTier(name) { return MAJOR_CITIES.has(name) ? 1 : MID_CITIES.has(name) ? 2 : 3; }
@@ -1395,7 +1402,7 @@ function coastPlan(ctx, st, V, LW, LH) {
   ctx.save();
   for (const t of V.towns || []) {   // static city labels: number at t.x / t.y, name just to its left
     const tier = townTier(t.name);
-    ctx.font = `${tier === 1 ? 700 : 600} ${pt(TOWN_PT[tier])}px WXTheme`;
+    ctx.font = `${tier === 1 ? 700 : 600} ${pt(townPt(tier))}px WXTheme`;
     const nx = t.x * LW, ny = t.y * LH, nw = ctx.measureText(t.name || "").width, b = [nx - nw - gap - pt(1), ny - hh, nx + pt(14), ny + hh];
     if (C.re.includes(t.name) && COAST_TOWNS[t.name]) { const T = COAST_TOWNS[t.name], d = px(T[0], T[1]); if (!d) { boxes.push(b); continue; }
       re.add(t.name); erase.push([b[0] - pt(2), ny - pt(8), nx + pt(1), ny + pt(8)], [d[0] - pt(3.5), d[1] - pt(3.5), d[0] + pt(3.5), d[1] + pt(3.5)]);
@@ -1541,12 +1548,12 @@ function drawCamLabels(ctx, st, D, P, pid, V, LW, LH) {
   for (const t of (C.towns || []).slice().sort((a, b) => (a.t || 3) - (b.t || 3))) {
     const [x, y] = camPixel(C, t.lo, t.la);
     if (x < X0 + 8 || x > X1 - 8 || y < Y0 + 8 || y > Y1 - 8) continue;
-    const tier = t.t || townTier(t.n), fN = `${tier === 1 ? 700 : 600} ${pt(TOWN_PT[tier])}px WXTheme`;
-    const fNum = `800 ${pt(Math.max(15, TOWN_PT[tier] - 1))}px WXTheme`;
+    const tier = t.t || townTier(t.n), fN = `${tier === 1 ? 700 : 600} ${pt(townPt(tier))}px WXTheme`;
+    const fNum = `800 ${pt(Math.max(15, townPt(tier) - 1))}px WXTheme`;
     const v = valueAt(t.la, t.lo), vs = showNum && v === v ? fmtVal(P, v) : "";
     ctx.font = fN; const nw = ctx.measureText(t.n).width;
     ctx.font = fNum; const vw = vs ? ctx.measureText(vs).width : 0;
-    const W_ = nw + (vs ? pt(5) + vw : 0), hh = pt(TOWN_PT[tier] * 0.52);
+    const W_ = nw + (vs ? pt(5) + vw : 0), hh = pt(townPt(tier) * 0.52);
     const db = [x - pt(4), y - pt(4), x + pt(4), y + pt(4)];
     if (hit(db)) continue;
     const cands = [[pt(10), 0], [-pt(10) - W_, 0], [pt(10), -pt(18)], [pt(10), pt(18)], [-pt(10) - W_, -pt(18)], [-pt(10) - W_, pt(18)]];
@@ -1558,7 +1565,7 @@ function drawCamLabels(ctx, st, D, P, pid, V, LW, LH) {
     if (!at) continue;
     taken.push(db, at[2]);
     dot(x, y, pt(tier === 1 ? 3 : 2.2));
-    haloText(ctx, t.n, x + at[0], y + at[1], fN, "#1b1d22", pt(TOWN_HALO[tier]), "left", "middle");
+    haloText(ctx, t.n, x + at[0], y + at[1], fN, "#1b1d22", pt(townHalo(tier)), "left", "middle");
     if (vs) haloText(ctx, vs, x + at[0] + nw + pt(5), y + at[1], fNum, "#0d0f13", pt(3.2), "left", "middle");
   }
   ctx.restore();
@@ -1619,8 +1626,8 @@ function drawCoast(ctx, st, D, P, V, LW, LH, WT) {
     if (must) { const k = resv.findIndex(b => Math.abs(b[0] + pt(2.5) - x) < 0.01 && Math.abs(b[1] + pt(2.5) - y) < 0.01); if (k >= 0) resv.splice(k, 1); }   // its own dot reserve
     if (!must && (hit(dot, pt(1)) || dots.some(([a, b]) => (a - x) ** 2 + (b - y) ** 2 < pt(wa ? 9 : 11) ** 2))) { WT.log.push(`${name}: dot blocked`); return; }
     const t0 = must && (V.towns || []).find(t => t.name === name);   // a re-placed city keeps its usual number (read at its pin, as before)
-    const tier = townTier(name), fN = `${tier === 1 ? 700 : 600} ${pt(TOWN_PT[tier])}px WXTheme`;
-    const fNumHere = `800 ${pt(Math.max(wa ? 10.5 : 9.5, TOWN_PT[tier]))}px WXTheme`;
+    const tier = townTier(name), fN = `${tier === 1 ? 700 : 600} ${pt(townPt(tier))}px WXTheme`;
+    const fNumHere = `800 ${pt(Math.max(wa ? 10.5 : 9.5, townPt(tier)))}px WXTheme`;
     const v = t0 && t0.fi >= 0 && t0.fj >= 0 && t0.fi < D.h - 1 && t0.fj < D.w - 1 ? sampleRC(D.fill, D.w, t0.fi, t0.fj) : offVal(D, name, T, WT), s_ = isFinite(v) && !(WT.own && WAVE_KEEP[name] === "p") ? fmtVal(P, v) : "";
     ctx.font = fN; const nw = ctx.measureText(name).width; ctx.font = fNumHere; const vw = s_ ? ctx.measureText(s_).width : 0, W_ = nw + (s_ ? gap + vw : 0);
     const c = { r: [pt(5), 0], l: [-pt(5) - W_, 0], a: [-W_ / 2, -pt(9.5)], b: [-W_ / 2, pt(9.5)] };
@@ -1631,7 +1638,7 @@ function drawCoast(ctx, st, D, P, V, LW, LH, WT) {
     taken.push(dot, at[2]); dots.push(d); WT.log.push(`${name}: placed`);
     ctx.beginPath(); ctx.arc(x, y, pt(wa ? 1.8 : 1.6) + pt(wa ? 0.5 : 0.45), 0, 2 * Math.PI); ctx.fillStyle = "#ffffff"; ctx.fill();
     ctx.beginPath(); ctx.arc(x, y, pt(wa ? 1.8 : 1.6), 0, 2 * Math.PI); ctx.fillStyle = TH.dot; ctx.fill();
-    haloText(ctx, name, x + at[0], y + at[1], fN, TH.dot, pt(TOWN_HALO[tier]), "left", "middle");
+    haloText(ctx, name, x + at[0], y + at[1], fN, TH.dot, pt(townHalo(tier)), "left", "middle");
     if (s_) haloText(ctx, s_, x + at[0] + nw + gap, y + at[1], fNumHere, "#0d0f13", pt(3.0), "left", "middle");
   };
   ctx.save();

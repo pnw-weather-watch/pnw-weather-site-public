@@ -7,7 +7,7 @@ import os, sys, json, argparse, time
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import fast_encode as FE
-FIX_VID, FIX_PNG = "pnwt", "static/towns_pnwt_v2.png"
+FIX_VID, FIX_PNG = "pnwt", "static/towns_pnwt_v2_gs.png"   # 11-08: _gs = smaller global-model names (house_style.town_scale)
 
 def town_slots(TM, vid, layer_fig, i0, i1, j0, j1, rs_, passes=False):
     """Town names + number slots for a view on a lat/lon model crop (same code as fast_encode.static): the site's own placement
@@ -47,7 +47,7 @@ def pnwt_fix(models, man, out):
         MD = FE.MODELS[m]
         if m not in man.get("models", {}) or FIX_VID not in man["models"][m]["views"]: print(f"{m}: no {FIX_VID} view, skipped", flush=True); continue
         i0, i1, j0, j1 = man["models"][m]["crop"]
-        fig, slots = town_slots(TM, FIX_VID, layer_fig, i0, i1, j0, j1, MD.get("res", 0.25))
+        with HS.town_scale(m, FIX_VID): fig, slots = town_slots(TM, FIX_VID, layer_fig, i0, i1, j0, j1, MD.get("res", 0.25))
         names = [s_["name"] for s_ in slots]
         if names0 is None:
             fig.savefig(f"{out}/{FIX_PNG}", dpi=FE.DPI, transparent=True); fig.savefig(f"{out}/{FIX_PNG}".replace("/static/", "/static/x2/"), dpi=FE.DPI * FE.X2, transparent=True)

@@ -1546,6 +1546,7 @@ def static(m, out, views_only=None, x2_only=False):
         # towns: placement by the site's own code with "88" numbers; the grid point each number reads comes from sampling
         # lat and lon grids at the same pins (exact for both grid kinds), then mapped to fractional row/col
         fig, ax, ky = layer_fig(vid)
+        _ts = HS.town_scale(m, vid); _ts.__enter__()   # 11-08: smaller names on global-model PNW views
         arts = town_call(ax, vid, (tw_la1, tw_lo1, tw_la))
         tv_la = dict(getattr(ax, "town_values", {}) or {}); pr_la = dict(getattr(ax, "pass_raw", {}) or {})
         fig2, ax2, _ = layer_fig(vid); town_call(ax2, vid, (tw_la1, tw_lo1, tw_lo))
@@ -1574,7 +1575,9 @@ def static(m, out, views_only=None, x2_only=False):
         views[vid]["cut"] = [a_[0] - i0, a_[1] - i0, a_[2] - j0, a_[3] - j0] if a_ else [0, i1 - i0, 0, j1 - j0]
         views[vid].pop("cut_abs", None)
         views[vid]["towns"] = slots
-        sizes[f"towns_{vid}"] = save(fig, f"{out}/static/towns_{vid}.png")
+        _tn = f"static/towns_{vid}_gs.png" if _ts.on else f"static/towns_{vid}.png"
+        if _ts.on: views[vid]["towns_png"] = _tn
+        sizes[f"towns_{vid}"] = save(fig, f"{out}/{_tn}"); _ts.__exit__()
         print(f"{m} {vid}: {len(slots)} town numbers", flush=True)
     # products
     def table(L, cm, ext):
