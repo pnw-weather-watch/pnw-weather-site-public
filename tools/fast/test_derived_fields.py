@@ -59,6 +59,33 @@ class DerivedFields(unittest.TestCase):
         pct = fe.gfs_snowfall_in(np.array([25.4]), np.array([50.0]))
         self.assertAlmostEqual(float(pct[0]), 5.0, places=4)
 
+    def test_gfs_snow_bucket_is_the_short_window_after_f6(self):
+        # Lines copied from the 2026-11-07 12Z pgrb2 idx. The instantaneous flag is not the average.
+        f003 = ["1:0:d=2026110712:CSNOW:surface:3 hour fcst:", "2:1:d=2026110712:CSNOW:surface:0-3 hour ave fcst:"]
+        f012 = ["1:0:d=2026110712:CSNOW:surface:12 hour fcst:", "2:1:d=2026110712:CSNOW:surface:6-12 hour ave fcst:"]
+        f120 = ["9:0:d=2026110712:CSNOW:surface:114-120 hour ave fcst:"]
+        self.assertEqual(fe.gfs_snow_bucket(f003), (0, 3))
+        self.assertEqual(fe.gfs_snow_bucket(f012), (6, 12))
+        self.assertEqual(fe.gfs_snow_bucket(f120), (114, 120))
+        with self.assertRaises(KeyError):
+            fe.gfs_snow_bucket(["1:0:d=2026110712:CSNOW:surface:12 hour fcst:"])
+
+    def test_gfs_snow_total_adds_each_bucket_once(self):
+        # 1 inch of liquid while it is all snow is 10 inches at 10:1.
+        buckets = [
+            (0, 3, 25.4, 1.0),
+            (0, 6, 50.8, 1.0),       # 0-6 already includes 0-3; it is not added on top of F+3
+            (6, 9, 25.4, 0.5),
+            (6, 12, 25.4, 1.0),      # 6-12 replaces the 6-9 piece, it is not added to it
+            (12, 15, 0.0, 1.0),
+        ]
+        totals = {h: float(np.asarray(v).reshape(-1)[0]) for h, v in fe.gfs_snow_totals(buckets).items()}
+        self.assertAlmostEqual(totals[3], 10.0, places=4)
+        self.assertAlmostEqual(totals[6], 20.0, places=4)
+        self.assertAlmostEqual(totals[9], 25.0, places=4)
+        self.assertAlmostEqual(totals[12], 30.0, places=4)
+        self.assertAlmostEqual(totals[15], 30.0, places=4)
+
     def test_gfs_cloud_top_uses_the_coldest_layer_and_2m_when_clear(self):
         high = np.array([[220.0, np.nan]])
         mid = np.array([[250.0, np.nan]])

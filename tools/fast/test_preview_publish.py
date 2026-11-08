@@ -147,6 +147,32 @@ class Graft(unittest.TestCase):
         self.assertEqual(set(man["models"]["aifs"]["products"]["frz"]["keys"]), {"na", "pnwhr"})
         self.assertEqual(graft_encoded_products(man, "gfs", ["t2m", "refc", "asnow"]), [])
 
+    def test_a_missing_field_blocks_only_that_field(self):
+        from fast_cycle import graft_encoded_products, ready_fields
+        steps = []
+        for f in range(3, 363, 3):
+            ranges = {"t2m": [0, 1], "refc": [0, 1], "ir": [0, 1]}
+            if f in (3, 6):
+                ranges["asnow"] = [0, 1]
+            steps.append({"f": f, "ranges": ranges})
+        ready = ready_fields(steps)
+        self.assertEqual(ready, {"t2m", "refc", "ir"})
+        man = {"models": {
+            "hrrr": {"products": {
+                "refc": {"title": "Radar", "fields": ["refc"], "keys": {"na": "k"}},
+                "ir": {"title": "IR", "fields": ["ir"], "keys": {"na": "k"}},
+                "snow": {"title": "Snow", "fields": ["asnow"], "keys": {"na": "k"}},
+            }},
+            "gfs": {"views": {"na": {}, "pac": {}}, "products": {}},
+        }}
+        added = graft_encoded_products(man, "gfs", ready)
+        self.assertEqual(set(added), {"refc", "ir"})
+        self.assertNotIn("snow", man["models"]["gfs"]["products"])
+        for st in steps:
+            st["ranges"]["asnow"] = [0, 1]
+        self.assertIn("asnow", ready_fields(steps))
+        self.assertIn("snow", graft_encoded_products(man, "gfs", ready_fields(steps)))
+
     def test_aifs_frz_skips_a_missing_level(self):
         import numpy as np
         import fast_encode as FE

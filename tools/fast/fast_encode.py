@@ -7,7 +7,7 @@ Colors, levels, titles and layout come from house_style / temp_maps / menu_maps 
   fast_encode.py static --model hrrr [--out D]            layers, LUTs, keys, model entry in manifest.json
   fast_encode.py steps  --model hrrr --cycle 2026102918 --steps 1-48 [--only-missing] [--out D] [--workers 4]
 """
-import os, sys, json, argparse, datetime as dt, time, glob
+import os, sys, json, argparse, datetime as dt, time, glob, re
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 for p in (os.environ.get("WX_FORECAST_TOOLS"), os.path.join(HERE, "..", "forecast"), "/workspace/wx-models-site/live_main/tools/forecast"):
@@ -73,7 +73,10 @@ def as_model(m): return MODELS.get(m, {}).get("as_model", m)   # ifs9 = IFS (sam
 # Products a model offers only when its encoder can fill them. A missing entry is offered on every model.
 # publish_static rebuilds manifest menus from this table, so a prune of live manifest.json does not last.
 # Checked against open-data indexes, 2026-11-06 12Z:
-#   GFS pgrb2 has REFC, SNOD (snow depth; no ASNOW), and TMP at low/middle/high cloud tops. No simulated-IR brightness temp.
+#   GFS pgrb2 has no ASNOW. CSNOW averaged from hour 0 exists only at F+3 and F+6; every later
+#   file averages CSNOW over the same short bucket as APCP (6-9, 6-12, 12-15, ...). Snowfall is
+#   that bucket times 10:1, added to the total at the bucket's start. pgrb2 also has REFC and
+#   TMP at low/middle/high cloud tops. No simulated-IR brightness temp.
 #   IFS and AIFS have t and gh on pressure levels, so the 0 C height is derived. They have no reflectivity, visibility, or IR.
 #   AIFS open data has no 10 fg gust. vis stays on the NOAA models that publish VIS:surface.
 PRODUCT_ONLY = {
@@ -364,13 +367,12 @@ def _asnow(R, m):
     # AIFS (Benjamin 10-31 1:49 AM "verify snow map and just use that"): its open data has sf too, in kg/m2 (mm water), not m;
     # same 10:1 (mm / 25.4 x 10). Checked 00Z 10-31 F24: global mean 0.45 mm vs IFS 0.43 mm.
     if m == "aifs": return np.clip(_ec("sf")(R, m), 0, None) * 0.393701
-    # GFS 0.25 has no ASNOW. Snowfall is the run-total liquid precip times the fraction of that
-    # window the categorical snow flag was on, at 10:1 (same ratio as ECMWF). Checked 2026-11-07 12Z:
-    # CSNOW 0-N hour ave is a 0..1 fraction; SNOD uses 9999 as a missing value and is not snowfall.
+    # GFS 0.25 pgrb2 has no ASNOW, and pgrb2b does not add one. The 0-to-forecast-hour
+    # CSNOW average is only in the F+3 and F+6 files; every later file averages the latest
+    # precip bucket (6-9, 6-12, 12-15, ...). gfs_asnow_from_reader adds those buckets up.
     if m == "gfs":
-        swe = np.asarray(R.acc0("APCP:surface")[2], float)
-        frac = np.asarray(R._idx("CSNOW:surface", R.url, (f"0-{R.s} hour ave fcst",))[2], float)
-        return gfs_snowfall_in(swe, frac)
+        cache = os.environ.get("WX_CACHE") or os.path.join(os.environ.get("TMPDIR", "/tmp"), "wx_gfs_snow")
+        return gfs_asnow_from_reader(R, cache)
     if m not in ("hrrr", "rrfs"): raise KeyError("asnow")
     return np.asarray(R.acc0("ASNOW:surface")[2], float) / 0.0254
 def _prev_step(m, c, s):
@@ -529,13 +531,76 @@ def write_product_keys(model, products, out):
     return written
 
 def gfs_snowfall_in(precip_kg_m2, snow_fraction):
-    """Inches of snow since the run started. precip is kg/m2. snow_fraction is 0..1 (or 0..100) over that window."""
+    """Inches of snow in one window. precip is kg/m2. snow_fraction is 0..1 (or 0..100) over that window."""
     swe = np.asarray(precip_kg_m2, float) / 25.4
     frac = np.asarray(snow_fraction, float)
     if frac.size and np.isfinite(frac).any() and float(np.nanmax(frac)) > 1.5: frac = frac / 100.0
     frac = np.where(np.isfinite(frac), np.clip(frac, 0.0, 1.0), 0.0)
     swe = np.where(np.isfinite(swe) & (swe >= 0.0) & (swe < 100.0), swe, 0.0)
     return np.clip(swe * frac * 10.0, 0.0, None)
+
+_CSNOW_AVE = re.compile(r"(\d+)-(\d+) hour ave fcst")
+
+def gfs_snow_bucket(lines):
+    """(start_hour, end_hour) of the CSNOW average in a GFS pgrb2 idx. Not the instantaneous flag."""
+    for line in lines or []:
+        p = line.split(":")
+        if len(p) < 6 or p[3] != "CSNOW" or p[4] != "surface": continue
+        m = _CSNOW_AVE.fullmatch(p[5])
+        if m: return int(m.group(1)), int(m.group(2))
+    raise KeyError("CSNOW ave")
+
+def gfs_snow_totals(buckets):
+    """Run-total inches at each bucket's end hour.
+
+    buckets are (start_hour, end_hour, precip_kg_m2, snow_fraction). A bucket that
+    starts at 0 is the total through its end (F+3 is 0-3, F+6 is 0-6). A later bucket
+    is added to the total already computed at its start, so 6-12 is added to the 0-6
+    total and is not also added to 6-9.
+    """
+    by_end = {}
+    for start, end, swe, frac in buckets:
+        by_end[int(end)] = (int(start), gfs_snowfall_in(np.asarray(swe, float), np.asarray(frac, float)))
+    def total(hour, seen):
+        if hour in seen: raise KeyError(f"snow window loops at {hour}")
+        start, inc = by_end[hour]
+        if start <= 0: return inc
+        if start not in by_end: raise KeyError(f"snow total at F+{start}")
+        return total(start, seen | {hour}) + inc
+    return {hour: total(hour, set()) for hour in by_end}
+
+def _gfs_idx_lines(R):
+    if getattr(R, "url", None) and R.url not in getattr(R, "idxs", {}):
+        R.acc0("APCP:surface")
+    return R.idxs[R.url]
+
+def _gfs_snow_cache_path(cache, cycle, hour):
+    return os.path.join(cache, f"gfs_asnow_v1_{cycle:%Y%m%d%H}_f{int(hour):03d}.npy")
+
+def gfs_asnow_from_reader(R, cache):
+    """Inches of snow since the GFS run started, on the full grid. Cached per hour."""
+    os.makedirs(cache, exist_ok=True)
+    path = _gfs_snow_cache_path(cache, R.c, R.s)
+    if os.path.exists(path): return np.load(path)
+    start, end = gfs_snow_bucket(_gfs_idx_lines(R))
+    if start == 0:
+        swe = np.asarray(R.acc0("APCP:surface")[2], float)
+    else:
+        swe = np.asarray(R._idx("APCP:surface", R.url, (f"{start}-{end} hour acc fcst",))[2], float)
+    frac = np.asarray(R._idx("CSNOW:surface", R.url, "ave")[2], float)
+    inc = gfs_snowfall_in(swe, frac)
+    if start > 0:
+        prev_path = _gfs_snow_cache_path(cache, R.c, start)
+        if os.path.exists(prev_path):
+            prev = np.load(prev_path)
+        else:
+            import menu_maps as M
+            prev = gfs_asnow_from_reader(M.Reader("gfs", R.c, start), cache)
+        inc = prev + inc
+    tmp = path + ".tmp.npy"
+    np.save(tmp, np.asarray(inc, np.float32))
+    os.replace(tmp, path)
+    return inc
 
 def gfs_cloud_top_c(layers_k, t2m_k):
     """Coldest GFS cloud-top temperature (C). Clear columns use the 2 m temperature. layers_k are Kelvin."""
