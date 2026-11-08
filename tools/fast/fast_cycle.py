@@ -93,8 +93,8 @@ def update_manifest(s3, fn, tries=8):
         else: kw["IfMatch"] = o["ETag"]
         try:
             s3.put_object(**kw)
-            try: publish_catalogs(s3, man)
-            except Exception as e: print("catalog split:", e, flush=True)
+            # Index and catalogs go to the same prefix as this manifest (preview/, preview-prN/, or live).
+            publish_catalogs(s3, man)
             return man
         except Exception as e:
             if "PreconditionFailed" not in str(e) and "412" not in str(e): raise

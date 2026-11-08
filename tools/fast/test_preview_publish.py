@@ -114,6 +114,37 @@ class Prefix(unittest.TestCase):
         self.assertEqual(man["runs"]["hrrr"][-1], "2026110706")
         self.assertIn("2026110500", json.loads(self.raw.store["manifest.json"][0])["runs"]["hrrr"])
 
+    def test_catalogs_follow_the_manifest_on_its_own_prefix(self):
+        from upload_r2 import Prefixed
+        from fast_cycle import update_manifest
+        from promote_preview_to_live import publish_promoted_catalogs
+        man = {"runs": {"hrrr": ["2026110718"]}, "models": {
+            "hrrr": {"name": "NOAA HRRR", "site": "HRRR", "res": "3 km", "grid": "lcc", "products": {"t2m": {"title": "T"}}},
+        }}
+        self.raw.store["models/hrrr.json"] = (b'{"name":"STALE"}', "old")
+        self.raw.store["manifest.index.json"] = (b'{"catalog_v":0}', "old")
+        for prefix in ("preview/", "preview-pr19/"):
+            s3 = Prefixed(self.raw, prefix)
+            self.raw.store[prefix + "manifest.json"] = (json.dumps({"runs": {}, "models": {}}).encode(), "seed")
+            def fn(mn, man=man):
+                mn.clear(); mn.update(json.loads(json.dumps(man)))
+            update_manifest(s3, fn)
+            self.assertIn(prefix + "manifest.index.json", self.raw.store)
+            cat = json.loads(self.raw.store[prefix + "models/hrrr.json"][0])
+            self.assertEqual(cat["name"], "NOAA HRRR")
+            self.assertEqual(cat["products"]["t2m"]["title"], "T")
+            idx = json.loads(self.raw.store[prefix + "manifest.index.json"][0])
+            self.assertEqual(idx["catalog_v"], 1)
+            self.assertEqual(idx["models"]["hrrr"]["catalog"], "models/hrrr.json")
+            self.assertNotIn("products", idx["models"]["hrrr"])
+        self.assertEqual(json.loads(self.raw.store["models/hrrr.json"][0])["name"], "STALE")
+        self.assertIn("preview/models/hrrr.json", self.raw.store)
+        self.raw.store["manifest.json"] = (json.dumps(man).encode(), "live")
+        publish_promoted_catalogs(self.raw, "b")
+        self.assertEqual(json.loads(self.raw.store["models/hrrr.json"][0])["name"], "NOAA HRRR")
+        self.assertEqual(json.loads(self.raw.store["manifest.index.json"][0])["catalog_v"], 1)
+        self.assertEqual(json.loads(self.raw.store["preview-pr19/models/hrrr.json"][0])["name"], "NOAA HRRR")
+
     def test_list_strips_prefix_for_cycle_ids(self):
         page = self.s3.list_objects_v2(Bucket="b", Prefix="runs/hrrr/", Delimiter="/")
         self.assertEqual([o["Prefix"].split("/")[2] for o in page["CommonPrefixes"]], ["2026110700"])
