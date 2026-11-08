@@ -168,10 +168,9 @@ class PnwWindows(unittest.TestCase):
             if not (0 <= fi <= NBM_NY - 1 and 0 <= fj <= NBM_NX - 1):
                 outside += 1
         self.assertEqual(outside, 0)
-        # The same rectangle leaves the HRRR domain, so that model does not list it.
-        self.assertNotIn("pnwwide", REGIONS["model_views"]["hrrr"])
-        self.assertIn("pnwwide", REGIONS["model_views"]["nbm"])
-        self.assertIn("pnwwide", REGIONS["model_views"]["gfs"])
+        # HRRR, RRFS and the 9 km job list this same rectangle. Their off-grid strip is filled at encode time.
+        for m in ("hrrr", "rrfs", "ifs9", "nbm", "gfs"):
+            self.assertIn("pnwwide", REGIONS["model_views"][m], m)
 
 
 if __name__ == "__main__":

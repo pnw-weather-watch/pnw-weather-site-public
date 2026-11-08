@@ -19,6 +19,8 @@ live, prev = {}, {}
 for pg in s3.get_paginator("list_objects_v2").paginate(Bucket=B):
     for o in pg.get("Contents", []):
         k = o["Key"]
+        # preview-pr16/ and the other per-deployment prefixes stay where they are.
+        if k.startswith("preview-"): continue
         if k.startswith("preview/"):
             prev[k[len("preview/"):]] = o
         else:

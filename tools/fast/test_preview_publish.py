@@ -119,6 +119,19 @@ class Prefix(unittest.TestCase):
         keys = [o["Key"] for pg in self.s3.get_paginator("list_objects_v2").paginate(Bucket="b", Prefix="runs/hrrr/2026110700/") for o in pg.get("Contents", [])]
         self.assertEqual(keys, ["runs/hrrr/2026110700/run.json"])
 
+    def test_deployment_prefix_does_not_write_the_shared_preview(self):
+        from upload_r2 import Prefixed, normalize_prefix
+        self.assertEqual(normalize_prefix("preview-pr16"), "preview-pr16/")
+        self.assertEqual(normalize_prefix("preview/"), "preview/")
+        self.assertEqual(normalize_prefix(""), "")
+        with self.assertRaises(SystemExit):
+            normalize_prefix("runs/")
+        iso = Prefixed(self.raw, normalize_prefix("preview-pr16"))
+        iso.put_object(Bucket="b", Key="runs/hrrr/2026110712/a.png", Body=b"z")
+        self.assertIn("preview-pr16/runs/hrrr/2026110712/a.png", self.raw.store)
+        self.assertNotIn("preview/runs/hrrr/2026110712/a.png", self.raw.store)
+        self.assertNotIn("runs/hrrr/2026110712/a.png", self.raw.store)
+
 
 class Graft(unittest.TestCase):
     def test_gfs_and_aifs_gain_products_the_run_encoded(self):
@@ -207,7 +220,9 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("sparse-checkout", text)
         self.assertIn('cron: "7,22,37,52 * * * *"', text)
         self.assertNotIn("#   - cron:", text)
-        self.assertIn("WX_R2_PREFIX: preview/", text)
+        self.assertIn("inputs.prefix || 'preview/'", text)
+        self.assertIn('default: "preview/"', text)
+        self.assertIn("preview-pr16/", text)
         self.assertIn("PNW_R2_ACCESS_KEY_ID", text)
         self.assertIn("PNW_R2_SECRET_ACCESS_KEY", text)
         self.assertNotIn("CF_PAGES_KEY", text)
