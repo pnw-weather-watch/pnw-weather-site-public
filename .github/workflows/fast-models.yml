@@ -4,8 +4,9 @@
 # such as preview-pr16/. Production keeps reading the live keys until someone runs this
 # workflow by hand with promote=true, which copies preview/ onto the live keys and does not encode.
 # Promote does not copy preview-pr16/ or any other preview-<name>/ prefix.
-# Schedule is every 15 min. Each job also polls every 60 s (--watch) and uploads the hours that are out
-# (one frame at a time once the job is caught up). A job that still has hours left re-dispatches itself.
+# Schedule is every 15 min. One job then gives each due model a short turn and polls the source
+# every 45 s. A model that still has hours left re-dispatches with the same prefix and model list.
+# Frames stay on the prefix. Live copies are a separate switch and this workflow does not turn it on.
 # GitHub only runs this schedule from the default branch, and a private repo spends Actions minutes while it watches.
 # Needs repo secrets PNW_R2_ACCESS_KEY_ID and PNW_R2_SECRET_ACCESS_KEY. The Pages API token is the other site and is not read.
 name: fast-models
@@ -18,8 +19,8 @@ on:
         description: "comma list: hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst"
         default: "hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst"
       minutes:
-        description: "time budget per model job"
-        default: "40"
+        description: "time budget for one fair pass across the selected models"
+        default: "20"
       promote:
         description: "Copy preview/ onto the live keys and stop. Leave false to publish into the prefix below."
         type: boolean
@@ -52,48 +53,33 @@ jobs:
   publish:
     if: ${{ github.event_name != 'workflow_dispatch' || (inputs.promote != true && inputs.promote != 'true') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 50
-    strategy:
-      fail-fast: false
-      matrix:
-        model: [hrrr, rrfs, nbm, gfs, ifs, aifs, eps, aens, gfsw, aensm, epsm, oisst]   # 11-03: gfsw = NOAA WaveWatch III, epsm = EPS single members
+    timeout-minutes: 25
     permissions:
       contents: read
       actions: write   # only for the re-dispatch step below
     env:
       WX_CACHE: ${{ github.workspace }}/.wx_cache
-      # 11-02: models to skip (comma list). ECMWF 9 km (ifs9, rides the ifs job) paused; to re-enable set this to "".
+      # 11-02: models to skip (comma list). ECMWF 9 km stays paused until its source and memory check are clear.
       FAST_PAUSED: ifs9
-      ON: ${{ contains(format(',{0},', inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst'), format(',{0},', matrix.model)) }}
     steps:
       - uses: actions/checkout@v4
-        if: env.ON == 'true'
         # Full tree: fast_encode imports regions/stations.json, and a step imports regions/regions.json plus theme/*.json.
       - uses: actions/setup-python@v5
-        if: env.ON == 'true'
         with:
           python-version: "3.13"
           cache: pip
           cache-dependency-path: tools/requirements.txt
       - name: Python packages (same pins as the site) + boto3 for R2
-        if: env.ON == 'true'
         run: pip install -r tools/requirements.txt boto3==1.43.122
       - name: Publish new hours to R2
         id: run
-        if: env.ON == 'true'
         env:
           PNW_R2_ACCESS_KEY_ID: ${{ secrets.PNW_R2_ACCESS_KEY_ID }}
           PNW_R2_SECRET_ACCESS_KEY: ${{ secrets.PNW_R2_SECRET_ACCESS_KEY }}
           WX_R2_PREFIX: ${{ inputs.prefix || 'preview/' }}
-        run: |
-          # 11-03: aensm = AIFS ENS single members (tools/fast/aensm_cycle.py: newest 2 runs, one small file per member per hour)
-          if [ "${{ matrix.model }}" = "oisst" ]; then python tools/fast/oisst_cycle.py; exit 0; fi   # 11-03: NOAA OISST SST anomaly (daily)
-          if [ "${{ matrix.model }}" = "aensm" ]; then python tools/fast/aensm_cycle.py --minutes "${{ inputs.minutes || '40' }}" --workers 4; exit 0; fi
-          # 11-03: epsm = ECMWF EPS single members (tools/fast/epsm_cycle.py: newest 2 00Z/12Z runs, one 2-tile WebP per member per hour)
-          if [ "${{ matrix.model }}" = "epsm" ]; then python tools/fast/epsm_cycle.py --minutes "${{ inputs.minutes || '40' }}" --workers 4; exit 0; fi
-          python tools/fast/fast_cycle.py --models "${{ matrix.model }}" --minutes "${{ inputs.minutes || '40' }}" --workers 4 --watch
-      - name: Re-dispatch (this model still had hours to do when its time budget ran out)
+        run: python tools/fast/frame_scheduler.py --models "${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,epsm,aensm,oisst' }}" --minutes "${{ inputs.minutes || '20' }}" --poll 45
+      - name: Re-dispatch (a model still had hours when the budget ran out)
         if: steps.run.outputs.more == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run fast-models.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}"
+        run: gh workflow run fast-models.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" -f models="${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,epsm,aensm,oisst' }}" -f minutes="${{ inputs.minutes || '20' }}" -f prefix="${{ inputs.prefix || 'preview/' }}" -f promote=false

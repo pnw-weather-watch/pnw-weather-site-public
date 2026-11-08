@@ -108,6 +108,66 @@ def publish_catalogs(s3, man):
     for mid, cat in cats.items():
         s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cat, separators=(",", ":")).encode(), ContentType="application/json")
 
+# Shared preview/ still carries the pre-PR16 HRRR/RRFS grids and no IFS9. Copy those three
+# model records from the live manifest before any new preview encode, and advertise only runs
+# whose stored grid matches. Live objects are not written here.
+PREVIEW_CROP_MODELS = ("hrrr", "rrfs", "ifs9")
+
+def align_preview_manifest(preview, live, run_grids, models=PREVIEW_CROP_MODELS):
+    """Replace preview crop metadata for the widened models and drop runs that are not on that crop."""
+    preview = json.loads(json.dumps(preview or {}))
+    for m in models:
+        src = ((live or {}).get("models") or {}).get(m)
+        if not isinstance(src, dict) or "crop" not in src: continue
+        preview.setdefault("models", {})[m] = json.loads(json.dumps(src))
+        crop = src["crop"]
+        kept = []
+        for cyc in ((preview.get("runs") or {}).get(m) or []):
+            grid = (run_grids or {}).get((m, cyc))
+            if grid is not None and FE.same_grid({"grid": grid}, crop): kept.append(cyc)
+        preview.setdefault("runs", {})[m] = kept
+    return preview
+
+def live_publish_enabled():
+    """Steady-state live copies stay off until Benjamin sets WX_LIVE_PUBLISH=1."""
+    return os.environ.get("WX_LIVE_PUBLISH") == "1"
+
+def note_live_run(man, model, cycle, keep):
+    """Add one cycle to the live run list. Does not drop any other model's runs or delete objects."""
+    runs = man.setdefault("runs", {}).setdefault(model, [])
+    if cycle not in runs: runs.append(cycle)
+    man["runs"][model] = sorted(set(runs))[-keep:]
+    return man
+
+def copy_verified_live(s3, rel_keys, built, model):
+    """Copy one verified frame (and its run.json) onto the live keys, then refresh live catalogs.
+
+    No-op unless WX_LIVE_PUBLISH=1. A widened run whose grid is not the live crop is refused.
+    preview/ is left as it was.
+    """
+    if not live_publish_enabled(): return False
+    prefix = getattr(s3, "prefix", "") or ""
+    raw = getattr(s3, "raw", s3)
+    if not prefix: return False
+    live = json.loads(raw.get_object(Bucket=BUCKET, Key="manifest.json")["Body"].read())
+    crop = ((live.get("models") or {}).get(model) or {}).get("crop")
+    if not FE.same_grid(built, crop):
+        print(f"live skip {model}: frame grid does not match the live crop", flush=True)
+        return False
+    for rel in rel_keys:
+        body = raw.get_object(Bucket=BUCKET, Key=prefix + rel)["Body"].read()
+        ctype = "application/json" if rel.endswith(".json") else "image/webp" if rel.endswith(".webp") else "image/png"
+        raw.put_object(Bucket=BUCKET, Key=rel, Body=body, ContentType=ctype)
+    cyc = built.get("cycle")
+    def fn(mn): note_live_run(mn, model, cyc, FE.MODELS[model]["keep"])
+    class Live:
+        prefix = ""
+        def get_object(self, **kw): return raw.get_object(**kw)
+        def put_object(self, **kw): return raw.put_object(**kw)
+    man = update_manifest(Live(), fn)
+    print(f"live {model} {cyc}: {len(rel_keys)} keys", flush=True)
+    return man
+
 def live_run_ids(s3, model):
     """Cycle ids listed on the live manifest. Empty when this client is not writing under a prefix."""
     if not getattr(s3, "prefix", ""): return []
@@ -195,7 +255,7 @@ def ensure_view_keys(model_entry, model):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--models", default="hrrr,gfs,ifs,aifs"); ap.add_argument("--minutes", type=float, default=40)
     ap.add_argument("--workers", type=int, default=4); ap.add_argument("--out", default=os.path.join(HERE, "data")); ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--watch", action="store_true"); ap.add_argument("--every", type=float, default=60)
+    ap.add_argument("--watch", action="store_true"); ap.add_argument("--every", type=float, default=45)
     a = ap.parse_args(); t_end = time.time() + a.minutes * 60; D = a.out; os.makedirs(D, exist_ok=True)
     s3 = client(); print("R2 prefix:", getattr(s3, "prefix", "") or "(live)", flush=True)
     s3.download_file(BUCKET, "manifest.json", f"{D}/manifest.json")
@@ -241,7 +301,7 @@ def main():
         # (step files + run.json) as soon as it is encoded, under WX_R2_PREFIX when that is set (preview/ in the workflow).
         # The manifest (run list) is rewritten for a new run, at completion and at
         # most every MAN_EVERY s in between (the viewer follows an open run through its run.json), to keep R2 writes low.
-        W = min(a.workers, 2) if m == "ifs9" else a.workers
+        W = 1 if m == "ifs9" else min(int(a.workers), 2)
         chunk = W
         while True:
             if time.time() >= t_end - 60: MORE.add(m); break   # budget ran out with hours left -> ask for a re-dispatch
@@ -264,6 +324,7 @@ def main():
                     except OSError: pass
                 if first or built["complete"] or time.time() - LASTMAN.get(m, 0) >= MAN_EVERY:
                     publish_manifest(s3, D, m, prog=(cyc, built["steps"][-1]["f"] if built["steps"] else None, want[-1], built["complete"]), fields=ready_fields(built.get("steps"))); LASTMAN[m] = time.time()
+                copy_verified_live(s3, files + [key], built, m)
                 print(f"{m} {cyc}: published F+{fresh[0]}" + (f"–F+{fresh[-1]}" if len(fresh) > 1 else "") + f", {len(built['steps'])}/{len(want)} steps", flush=True)
             run, new = FE.steps(m, cyc, nxt, D, W, on_prefix=None if a.dry_run else on_prefix)
             r0 = run

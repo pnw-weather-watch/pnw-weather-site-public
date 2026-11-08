@@ -274,12 +274,11 @@ class WideCrop(unittest.TestCase):
 
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
-            out = FE.fill_conus_outside("t2m", cropped, (0, 5, -1, 5), native.shape, c, 2, get, ready=ready)
+            with self.assertRaises(FE.DonorHeld):
+                FE.fill_conus_outside("t2m", cropped, (0, 5, -1, 5), native.shape, c, 2, get, ready=ready)
         self.assertEqual(called, [])
         self.assertEqual(asked, [("2026110806", 3), ("2026110800", 9), ("2026110718", 15), ("2026110712", 21)])
         self.assertIn("edge donor 2026110806 f002: held", buf.getvalue())
-        # The column past the west edge keeps the boundary cell, not a fetched field.
-        self.assertTrue(np.allclose(out[:, 0], cropped[:, 1]))
 
     def test_stale_cycles_follow_the_newest(self):
         import fast_cycle as FC

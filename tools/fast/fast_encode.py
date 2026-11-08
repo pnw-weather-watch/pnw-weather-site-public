@@ -1091,8 +1091,14 @@ def gfs_reader(c, hour):
         _GFS_READER[key] = M.Reader("gfs", c, int(hour))
     return _GFS_READER[key]
 
+class DonorHeld(Exception):
+    """A widened HRRR/RRFS hour has no real GFS corner donor. Do not publish the smeared frame."""
+
 def fill_conus_outside(name, cropped, crop, native_shape, c, s, get, ready=None):
-    """Fill cells outside the HRRR/RRFS CONUS rectangle. The ramp is inside the domain edge."""
+    """Fill cells outside the HRRR/RRFS CONUS rectangle. The ramp is inside the domain edge.
+
+    A shared field with no posted GFS donor raises DonorHeld. The hour is retried, not stored.
+    """
     ny, nx = native_shape
     i0, i1, j0, j1 = crop
     weight, lat, lon = edge_plan(crop, ny, nx)
@@ -1104,13 +1110,13 @@ def fill_conus_outside(name, cropped, crop, native_shape, c, s, get, ready=None)
         return paint_edge(cropped, held, weight)
     chosen = gfs_donor_for(c, s, ready)
     if chosen is None:
-        return paint_edge(cropped, held, weight, False)
+        raise DonorHeld(f"{name} f{int(s):03d}")
     try:
         raw = np.asarray(get(gfs_reader(*chosen), "gfs"), float)
         donor = sample_ll(raw, lat, lon)
     except Exception as e:
         print(f"edge fill {name} f{int(s):03d}: held ({str(e)[:100]})", flush=True)
-        return paint_edge(cropped, held, weight, False)
+        raise DonorHeld(f"{name} f{int(s):03d}") from e
     return paint_edge(cropped, donor, weight, name in CATEGORICAL_EDGE)
 
 def step_job(args):
@@ -1139,7 +1145,11 @@ def step_job(args):
             if m in ("hrrr", "rrfs") and (i0 < 0 or j0 < 0 or i1 > a.shape[0] or j1 > a.shape[1]):
                 native_shape = a.shape
                 a = take_crop(a, i0, i1, j0, j1)
-                a = fill_conus_outside(name, a, (i0, i1, j0, j1), native_shape, c, s, get)
+                try:
+                    a = fill_conus_outside(name, a, (i0, i1, j0, j1), native_shape, c, s, get)
+                except DonorHeld as e:
+                    print(f"{m} f{s:03d} not published ({e}); retry when a real GFS donor is posted", flush=True)
+                    return s, None, f"held donor: {e}", 0, time.time() - t
             else:
                 a = a[i0:i1, j0:j1]
         if not np.isfinite(a).any(): continue
