@@ -42,8 +42,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: boto3 for R2
-        run: pip install boto3==1.43.122
+      - name: Python packages (catalog publish imports the encoder) + boto3 for R2
+        run: pip install -r tools/requirements.txt boto3==1.43.122
       - name: Promote preview keys to live
         env:
           PNW_R2_ACCESS_KEY_ID: ${{ secrets.PNW_R2_ACCESS_KEY_ID }}

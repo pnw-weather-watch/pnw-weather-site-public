@@ -9,6 +9,28 @@ import os, sys, json, time, argparse, datetime as dt, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import fast_encode as FE
 from upload_r2 import client, BUCKET, CT
+UPLOADS = 16   # R2 puts in flight. The client allows 32 connections.
+
+def content_type(path):
+    return CT.get(os.path.splitext(path)[1], "application/octet-stream")
+
+def upload_many(s3, pairs):
+    """pairs: (local path, key). Sixteen at a time."""
+    from concurrent.futures import ThreadPoolExecutor
+    if not pairs: return
+    def one(pair):
+        local, key = pair
+        s3.upload_file(local, BUCKET, key, ExtraArgs={"ContentType": content_type(key)})
+    with ThreadPoolExecutor(UPLOADS) as ex:
+        list(ex.map(one, pairs))
+
+def ready_batch(m, c, hours):
+    """10-byte range probe, in order. The first hour that is not out ends the batch, so a hole is not encoded."""
+    out = []
+    for s in hours:
+        if not avail(m, c, s): break
+        out.append(s)
+    return out
 
 def avail(m, c, s):
     import temp_maps as TM, menu_maps as M
@@ -71,11 +93,20 @@ def update_manifest(s3, fn, tries=8):
         else: kw["IfMatch"] = o["ETag"]
         try:
             s3.put_object(**kw)
+            # Index and catalogs go to the same prefix as this manifest (preview/, preview-prN/, or live).
+            publish_catalogs(s3, man)
             return man
         except Exception as e:
             if "PreconditionFailed" not in str(e) and "412" not in str(e): raise
             time.sleep(0.5 + random.random() * 2)
     raise SystemExit("manifest.json kept changing; gave up")
+
+def publish_catalogs(s3, man):
+    """Slim index plus one complete catalog per model, from the manifest just written. No extra ingest."""
+    slim, cats = FE.split_manifest(man)
+    s3.put_object(Bucket=BUCKET, Key="manifest.index.json", Body=json.dumps(slim, separators=(",", ":")).encode(), ContentType="application/json")
+    for mid, cat in cats.items():
+        s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cat, separators=(",", ":")).encode(), ContentType="application/json")
 
 def live_run_ids(s3, model):
     """Cycle ids listed on the live manifest. Empty when this client is not writing under a prefix."""
@@ -215,35 +246,32 @@ def main():
         while True:
             if time.time() >= t_end - 60: MORE.add(m); break   # budget ran out with hours left -> ask for a re-dispatch
             have = {x["f"] for x in (json.load(open(f"{rd}/run.json"))["steps"] if os.path.exists(f"{rd}/run.json") else [])}
-            nxt = [s for s in want if s not in have][:chunk]
-            if not nxt or not avail(m, c, nxt[0]): break
-            nxt = [s for s in nxt if avail(m, c, s)] if not avail(m, c, nxt[-1]) else nxt
+            nxt = ready_batch(m, c, [s for s in want if s not in have][:chunk])
+            if not nxt: break
             first = not (r0 or {}).get("steps")
-            run, new = FE.steps(m, cyc, nxt, D, W)   # 9 km: ~3 GB per worker (global 0.1 deg fields)
-            # steps() kept only the unbroken run of the chunk; rebuild the full list with the old steps
-            full = json.load(open(f"{rd}/run.json")); old = {x["f"]: x for x in ((r0 or {}).get("steps", []))}
-            for x in full["steps"]: old[x["f"]] = x
-            ordered = []
-            for s in want:
-                if s in old: ordered.append(old[s])
-                else: break
-            for k_ in ("points", "pts_file"):
-                if k_ in json.load(open(f"{rd}/run.json")): full[k_] = json.load(open(f"{rd}/run.json"))[k_]
-            full.update(steps=ordered, fields=sorted({k for x in ordered for k in x["ranges"]}), complete=len(ordered) == len(want), expected=len(want))
-            json.dump(full, open(f"{rd}/run.json", "w"), indent=1); r0 = full
-            if not new: break
-            files = [f"runs/{m}/{cyc}/single/{f}" for f in os.listdir(f"{rd}/single") if any(f.endswith(f"_f{s:03d}.png") or f.endswith(f"_f{s:03d}.json") for s in new)]
-            if not a.dry_run:
-                from concurrent.futures import ThreadPoolExecutor
-                with ThreadPoolExecutor(16) as ex: list(ex.map(lambda k: s3.upload_file(f"{D}/{k}", BUCKET, k, ExtraArgs={"ContentType": "application/json" if k.endswith(".json") else "image/png"}), files))
+            def on_prefix(built, fresh):
+                files = []
+                single = f"{rd}/single"
+                if os.path.isdir(single):
+                    for fn in os.listdir(single):
+                        if any(fn.endswith(f"_f{s:03d}.webp") or fn.endswith(f"_f{s:03d}.png") or fn.endswith(f"_f{s:03d}.json") for s in fresh):
+                            files.append(f"runs/{m}/{cyc}/single/{fn}")
+                if a.dry_run: return
+                upload_many(s3, [(f"{D}/{k_}", k_) for k_ in files])
                 s3.upload_file(f"{rd}/run.json", BUCKET, key, ExtraArgs={"ContentType": "application/json"})
-                if first or full["complete"] or time.time() - LASTMAN.get(m, 0) >= MAN_EVERY:
-                    publish_manifest(s3, D, m, prog=(cyc, ordered[-1]["f"] if ordered else None, want[-1], full["complete"]), fields=ready_fields(ordered)); LASTMAN[m] = time.time()
-            print(f"{m} {cyc}: uploaded {len(files)} files, {len(ordered)}/{len(want)} steps live", flush=True); WORK[m] = WORK.get(m, 0) + len(new)
-            for f in files: os.remove(f"{D}/{f}")   # keep the runner disk small
-            if full["complete"]:
+                for k_ in files:
+                    try: os.remove(f"{D}/{k_}")
+                    except OSError: pass
+                if first or built["complete"] or time.time() - LASTMAN.get(m, 0) >= MAN_EVERY:
+                    publish_manifest(s3, D, m, prog=(cyc, built["steps"][-1]["f"] if built["steps"] else None, want[-1], built["complete"]), fields=ready_fields(built.get("steps"))); LASTMAN[m] = time.time()
+                print(f"{m} {cyc}: published F+{fresh[0]}" + (f"–F+{fresh[-1]}" if len(fresh) > 1 else "") + f", {len(built['steps'])}/{len(want)} steps", flush=True)
+            run, new = FE.steps(m, cyc, nxt, D, W, on_prefix=None if a.dry_run else on_prefix)
+            r0 = run
+            if not new: break
+            WORK[m] = WORK.get(m, 0) + len(new)
+            if run["complete"]:
                 if not a.dry_run:
-                    try: write_agg(s3, m, cyc, full, f"{rd}/run.json", key)
+                    try: write_agg(s3, m, cyc, run, f"{rd}/run.json", key)
                     except Exception as e: print(m, cyc, "aggregate town files failed (site falls back to per-step files):", e, flush=True)
                 break
 

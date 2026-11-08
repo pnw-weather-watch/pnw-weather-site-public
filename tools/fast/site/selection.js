@@ -253,6 +253,12 @@
     if (/^(asnow|asnow90|ns6|nsnow|esnow|kinc|snod)/.test(name || "") && (hi > 2000 || lo < -50)) return false;
     return true;
   }
+  // Indexes of the next few hours after the one on screen. No wrap, so a cold load does not fetch the whole run.
+  function nextHours(nSteps, index, n) {
+    const keep = n == null ? 3 : n, out = [];
+    for (let d = 1; d <= keep && index + d < nSteps; d++) out.push(index + d);
+    return out;
+  }
   // Wave maps draw a town only when it sits on or within about 10 km of the coast, including Hawaii.
   function coastalTowns(towns, pts, km) {
     return (towns || []).filter(t => Number.isFinite(t.lat) && Number.isFinite(t.lon) && isCoastal(t.lat, t.lon, pts, km));
@@ -293,5 +299,5 @@
   }
 
   return { lookupKey, climParts, resolveSelection, publicName, formatValidPT, WA_PASSES, CA_PASSES, passUnit, formatPassValue, passCaption,
-    passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, showTownLabels, plausibleRange, coastalTowns, decodeCoast, coastPoints };
+    passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, showTownLabels, plausibleRange, nextHours, coastalTowns, decodeCoast, coastPoints };
 });

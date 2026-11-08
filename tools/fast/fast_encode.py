@@ -848,6 +848,57 @@ PACKS = {"wind": ("mslp", "u10", "v10"), "aloft": ("t850", "t700", "frz"), "accu
 IFS9_SKIP = {"swh", "wdu", "wdv"}   # ECMWF waves are 0.25 deg only (separate WAM files): not on the 9 km grid
 SQRT_FIELDS = {"apcp", "asnow", "apcp90", "asnow90", "nq1", "nq6", "ns6", "ltgp", "kinc", "fzinc"}
 def q8(a, lo, hi): return np.clip(np.rint((a - lo) / (hi - lo) * 255), 0, 255).astype(np.uint8)
+FRAME_EXT = "webp"   # lossless WebP for packed frames; the viewer falls back to PNG
+def save_frame(img, path_png):
+    """Lossless WebP, pixel-exact. PNG if this Pillow build cannot write WebP."""
+    webp = path_png[:-4] + ".webp" if path_png.endswith(".png") else path_png + ".webp"
+    try:
+        img.save(webp, format="WEBP", lossless=True, quality=100, method=4)
+        return webp
+    except Exception as e:
+        print(f"webp {webp}: {e}; png fallback", flush=True)
+        img.save(path_png, optimize=True)
+        return path_png
+def contiguous_prefix(order, ready):
+    """Hours from the start of order that are ready. The first gap stops the list."""
+    have = set(ready)
+    out = []
+    for s in order:
+        if s not in have: break
+        out.append(s)
+    return out
+_SLIM = ("name", "site", "res", "grid", "note")
+def split_manifest(man):
+    """Slim index plus one complete catalog per model.
+
+    Each catalog is the whole model record (name, grid, crop, views, products, and
+    every other field). The index keeps the Runs-menu fields and a path to that
+    file. Pass the existing full manifest: nothing is read from model files and
+    no frame is encoded.
+    """
+    if not isinstance(man, dict) or not isinstance(man.get("models"), dict):
+        raise ValueError("manifest has no models")
+    slim = {k: v for k, v in man.items() if k != "models"}
+    slim["catalog_v"] = 1
+    slim["models"] = {}
+    catalogs = {}
+    for mid, M in man["models"].items():
+        if not isinstance(M, dict): continue
+        head = {k: M[k] for k in _SLIM if k in M}
+        head["catalog"] = f"models/{mid}.json"
+        slim["models"][mid] = head
+        catalogs[mid] = json.loads(json.dumps(M))
+    return slim, catalogs
+def write_catalogs(man, out):
+    """Write manifest.index.json and models/<id>.json from a full manifest."""
+    slim, cats = split_manifest(man)
+    os.makedirs(os.path.join(out, "models"), exist_ok=True)
+    with open(os.path.join(out, "manifest.index.json"), "w", encoding="utf-8") as f:
+        json.dump(slim, f, separators=(",", ":"))
+    for mid, cat in cats.items():
+        with open(os.path.join(out, "models", f"{mid}.json"), "w", encoding="utf-8") as f:
+            json.dump(cat, f, separators=(",", ":"))
+    return slim, cats
 def rng(a):
     lo, hi = float(np.floor(np.nanmin(a))), float(np.ceil(np.nanmax(a))); return lo, max(hi, lo + 1)
 
@@ -1110,9 +1161,9 @@ def step_job(args):
         ch = np.zeros(q[got[0]].shape + (3,), np.uint8)
         for k, n in enumerate(names):
             if n in q: ch[..., k] = q.pop(n); packs[n] = [pk, k]
-        p = f"{out}/single/{pk}_f{s:03d}.png"; Image.fromarray(ch, "RGB").save(p, optimize=True); sizes[pk] = os.path.getsize(p)
+        p = save_frame(Image.fromarray(ch, "RGB"), f"{out}/single/{pk}_f{s:03d}.png"); sizes[pk] = os.path.getsize(p)
     for name, a8 in q.items():
-        p = f"{out}/single/{name}_f{s:03d}.png"; Image.fromarray(a8, "L").save(p, optimize=True); sizes[name] = os.path.getsize(p)
+        p = save_frame(Image.fromarray(a8, "L"), f"{out}/single/{name}_f{s:03d}.png"); sizes[name] = os.path.getsize(p)
     ranges["_packs"] = packs
     if getattr(R, "lows", None) is not None or getattr(R, "spag", None):   # ensemble member low centres + 500 mb member lines
         p = f"{out}/single/ens_f{s:03d}.json"; json.dump(dict(n=R.n, lows=getattr(R, "lows", []), spag=getattr(R, "spag", {}), **({"mnum": R.lows_num} if getattr(R, "lows_num", None) else {})), open(p, "w"), separators=(",", ":"))
@@ -2191,7 +2242,7 @@ def static(m, out, views_only=None, x2_only=False):
     print(f"{m} static done, crop {[i0, i1, j0, j1]}", flush=True)
 
 # ------------------------------------------------------------------------------------------------ steps
-def steps(m, cycle, want, out, workers, only_missing=True, deadline=None):
+def steps(m, cycle, want, out, workers, only_missing=True, deadline=None, on_prefix=None):
     import temp_maps as TM, menu_maps as M
     man = json.load(open(f"{out}/manifest.json")); crop = man["models"][m]["crop"]; i0, i1, j0, j1 = crop
     c = dt.datetime.strptime(cycle, "%Y%m%d%H").replace(tzinfo=dt.timezone.utc)
@@ -2203,54 +2254,63 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None):
         run = None
     have = {s_["f"] for s_ in (run or {}).get("steps", [])}
     todo = [s for s in want if not (only_missing and s in have)]
-    from concurrent.futures import ProcessPoolExecutor
-    PT = TM.PT; done = {}; new = []
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    PT = TM.PT; done = {}; new = []; emitted = set()
+    full_want = steps_for(m, c.hour)
+    def assemble():
+        # Gap-free from the first hour. A finished later hour waits until the hole in front of it is filled.
+        meta = {s_["f"]: s_ for s_ in (run or {}).get("steps", [])}
+        for s, ranges0 in done.items():
+            ranges = dict(ranges0)
+            v = c + dt.timedelta(hours=s); vl = v.astimezone(PT)
+            pk = ranges.pop("_packs", {})
+            meta[s] = dict(f=s, valid=v.isoformat(), valid_line=f"Valid {vl:%a %-m-%-d} \u00b7 {vl:%-I %p} PT", badge=[f"F+{s}", f"{v:%HZ %a}".upper()], ranges=ranges)
+            if pk: meta[s]["packs"] = pk
+        ordered = []
+        for s in full_want:
+            if s not in meta: break
+            ordered.append(meta[s])
+        fields = sorted({k for s_ in ordered for k in s_["ranges"]})
+        MM = minfo(m)
+        built = dict(model=m, cycle=cycle, init=c.isoformat(), base=f"runs/{m}/{cycle}", fields=fields, grid=dict(ny=i1 - i0, nx=j1 - j0, i0=i0, j0=j0),
+                     runline=f"{MM['name']} {MM['res']} {c:%HZ} run {c.astimezone(PT):%-m-%-d-%y (%-I %p PT)}", steps=ordered,
+                     complete=len(ordered) == len(full_want), expected=len(full_want), file="single/{name}_f{f:03d}." + FRAME_EXT,
+                     points=[{k: v for k, v in p_.items() if k in ("n", "k", "c")} for p_ in town_points(man, m)], pts_file="single/pts_f{f:03d}.json")
+        if m == "gfsw": built.pop("points"); built.pop("pts_file")
+        json.dump(built, open(rj, "w"), indent=1)
+        return built
+    def emit():
+        if not on_prefix: return
+        prefix = contiguous_prefix(full_want, have | set(done))
+        fresh = [s for s in prefix if s in done and s not in emitted]
+        if not fresh: return
+        emitted.update(fresh)
+        on_prefix(assemble(), fresh)
     with ProcessPoolExecutor(workers) as ex:
         P = town_points(man, m)
-        for s, sizes, ranges, nb, tt in ex.map(step_job, [(m, cycle, s, crop, rd, P) for s in todo]):
+        futs = [ex.submit(step_job, (m, cycle, s, crop, rd, P)) for s in todo]
+        for fut in as_completed(futs):
+            s, sizes, ranges, nb, tt = fut.result()
             if sizes is None or key_field(m) not in (ranges or {}): print(f"{m} f{s:03d} not ready ({str(ranges)[:80]})", flush=True); continue
             done[s] = ranges; new.append(s); print(f"{m} f{s:03d} {len(ranges)} fields {sum(sizes.values())/1e3:.0f} KB grib {nb/1e6:.1f} MB {tt:.1f} s", flush=True)
+            emit()
             if deadline and time.time() > deadline: break
-    meta = {s_["f"]: s_ for s_ in (run or {}).get("steps", [])}
-    for s, ranges in done.items():
-        v = c + dt.timedelta(hours=s); vl = v.astimezone(PT)
-        pk = ranges.pop("_packs", {})
-        meta[s] = dict(f=s, valid=v.isoformat(), valid_line=f"Valid {vl:%a %-m-%-d} \u00b7 {vl:%-I %p} PT", badge=[f"F+{s}", f"{v:%HZ %a}".upper()], ranges=ranges)
-        if pk: meta[s]["packs"] = pk
-    # progressive: publish only the unbroken run of steps from the first one (no holes in the slider).
-    # 11-04: when --steps is a window (e.g. 51-96), keep already-published hours before that window so an
-    # extend does not wipe F3-F48 off the run.
-    prior = [meta[s_["f"]] for s_ in (run or {}).get("steps", []) if s_["f"] not in want and s_["f"] in meta]
-    ordered = list(prior)
-    for s in want:
-        if s in meta: ordered.append(meta[s])
-        else: break
-    ordered = sorted({s_["f"]: s_ for s_ in ordered}.values(), key=lambda x: x["f"])  # unique, time order
-    # re-check unbroken from the model's full cadence (or prior+want)
-    full_want = steps_for(m, c.hour)
-    unbroken = []
-    for s in full_want:
-        hit = next((x for x in ordered if x["f"] == s), None)
-        if hit: unbroken.append(hit)
-        else: break
-    ordered = unbroken
-    fields = sorted({k for s_ in ordered for k in s_["ranges"]})
-    MM = minfo(m)
-    run = dict(model=m, cycle=cycle, init=c.isoformat(), base=f"runs/{m}/{cycle}", fields=fields, grid=dict(ny=i1 - i0, nx=j1 - j0, i0=i0, j0=j0),
-               runline=f"{MM['name']} {MM['res']} {c:%HZ} run {c.astimezone(PT):%-m-%-d-%y (%-I %p PT)}", steps=ordered,
-               complete=len(ordered) == len(full_want), expected=len(full_want), file="single/{name}_f{f:03d}.png",
-               points=[{k: v for k, v in p_.items() if k in ("n", "k", "c")} for p_ in town_points(man, m)], pts_file="single/pts_f{f:03d}.json")
-    if m == "gfsw": run.pop("points"); run.pop("pts_file")   # wave-only model: no town meteogram points
-    json.dump(run, open(rj, "w"), indent=1)
-    return run, new
+    return assemble(), new
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("cmd", choices=["static", "steps"]); ap.add_argument("--model", required=True)
+    ap = argparse.ArgumentParser(); ap.add_argument("cmd", choices=["static", "steps", "catalogs"]); ap.add_argument("--model")
     ap.add_argument("--cycle"); ap.add_argument("--steps"); ap.add_argument("--out", default=os.path.join(HERE, "data"))
+    ap.add_argument("--manifest", help="catalogs: full manifest.json to split (default: <out>/manifest.json)")
     ap.add_argument("--workers", type=int, default=4); ap.add_argument("--all", action="store_true")
     ap.add_argument("--x2-only", action="store_true", help="static: layers (1x + x2) only, no climatology, manifest untouched (use a scratch --out)")
     a = ap.parse_args()
-    if a.cmd == "static": static(a.model, a.out, views_only=a.all or a.x2_only, x2_only=a.x2_only)
+    if a.cmd == "catalogs":
+        src = a.manifest or os.path.join(a.out, "manifest.json")
+        slim, cats = write_catalogs(json.load(open(src, encoding="utf-8")), a.out)
+        print(f"index + {len(cats)} catalogs from {src}", flush=True)
+    elif not a.model:
+        ap.error("--model is required")
+    elif a.cmd == "static": static(a.model, a.out, views_only=a.all or a.x2_only, x2_only=a.x2_only)
     else:
         full = steps_for(a.model, int(a.cycle[8:10]))
         want = full if not a.steps else (lambda x, y: [s for s in full if x <= s <= y])(*map(int, a.steps.split("-")))
