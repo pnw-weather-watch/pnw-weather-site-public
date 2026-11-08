@@ -95,6 +95,18 @@ _GRAFT_EXTRA = {
 _KEY_PRODUCTS = {"refc", "ir", "snow", "frz", "snowlvl"}
 _DONORS = ("hrrr", "rrfs", "ifs", "gfs", "aifs")
 
+def ready_fields(steps):
+    """Fields present on every published hour.
+
+    A hole in one field drops that field only. refc on all 120 hours still publishes
+    when asnow is missing from 118 of them.
+    """
+    common = None
+    for st in steps or []:
+        keys = set((st.get("ranges") or {}))
+        common = keys if common is None else (common & keys)
+    return common or set()
+
 def graft_encoded_products(man, m, fields):
     have = set(fields or [])
     models = man.get("models") or {}
@@ -207,7 +219,7 @@ def main():
                 with ThreadPoolExecutor(16) as ex: list(ex.map(lambda k: s3.upload_file(f"{D}/{k}", BUCKET, k, ExtraArgs={"ContentType": "application/json" if k.endswith(".json") else "image/png"}), files))
                 s3.upload_file(f"{rd}/run.json", BUCKET, key, ExtraArgs={"ContentType": "application/json"})
                 if first or full["complete"] or time.time() - LASTMAN.get(m, 0) >= MAN_EVERY:
-                    publish_manifest(s3, D, m, prog=(cyc, ordered[-1]["f"] if ordered else None, want[-1], full["complete"]), fields=full.get("fields")); LASTMAN[m] = time.time()
+                    publish_manifest(s3, D, m, prog=(cyc, ordered[-1]["f"] if ordered else None, want[-1], full["complete"]), fields=ready_fields(ordered)); LASTMAN[m] = time.time()
             print(f"{m} {cyc}: uploaded {len(files)} files, {len(ordered)}/{len(want)} steps live", flush=True); WORK[m] = WORK.get(m, 0) + len(new)
             for f in files: os.remove(f"{D}/{f}")   # keep the runner disk small
             if full["complete"]:

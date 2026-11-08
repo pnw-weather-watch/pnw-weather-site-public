@@ -59,6 +59,67 @@ class DerivedFields(unittest.TestCase):
         pct = fe.gfs_snowfall_in(np.array([25.4]), np.array([50.0]))
         self.assertAlmostEqual(float(pct[0]), 5.0, places=4)
 
+    def test_gfs_snow_bucket_is_the_short_window_after_f6(self):
+        # Lines copied from the 2026-11-07 12Z pgrb2 idx. The instantaneous flag is not the average.
+        f003 = ["1:0:d=2026110712:CSNOW:surface:3 hour fcst:", "2:1:d=2026110712:CSNOW:surface:0-3 hour ave fcst:"]
+        f012 = ["1:0:d=2026110712:CSNOW:surface:12 hour fcst:", "2:1:d=2026110712:CSNOW:surface:6-12 hour ave fcst:"]
+        f120 = ["9:0:d=2026110712:CSNOW:surface:114-120 hour ave fcst:"]
+        self.assertEqual(fe.gfs_snow_bucket(f003), (0, 3))
+        self.assertEqual(fe.gfs_snow_bucket(f012), (6, 12))
+        self.assertEqual(fe.gfs_snow_bucket(f120), (114, 120))
+        with self.assertRaises(KeyError):
+            fe.gfs_snow_bucket(["1:0:d=2026110712:CSNOW:surface:12 hour fcst:"])
+
+    def test_gfs_six_hour_bucket_does_not_drop_the_total(self):
+        # F9 is 1 inch of liquid, all snow: 10 inches. F12's 6-hour mean is only half snow,
+        # and the extra 3 hours are dry, so stacking apcp(6-12) x f(6-12) would fall to 5.
+        # The trailing 3 hours are dry, so the total stays 10.
+        steps = [
+            (3, 0, 3, 0.0, 0.0),
+            (6, 0, 6, 0.0, 0.0),
+            (9, 6, 9, 25.4, 1.0),
+            (12, 6, 12, 25.4, 0.5),
+        ]
+        totals = fe.gfs_snow_running(steps)
+        self.assertAlmostEqual(float(totals[9]), 10.0, places=4)
+        self.assertAlmostEqual(float(totals[12]), 10.0, places=4)
+        self.assertGreaterEqual(float(totals[12]), float(totals[9]) - 1e-4)
+
+    def test_gfs_full_run_snow_never_decreases_and_matches_ten_to_one(self):
+        # Every 3 h from F+3 through F+384, the same layout as the 2026-11-07 12Z idx:
+        # hour % 6 == 3 is a 3 h bucket; hour % 6 == 0 is the 6 h bucket with the same start.
+        rng = np.random.default_rng(7)
+        hours = list(range(3, 385, 3))
+        true = {}
+        steps = []
+        water = np.zeros((2, 2))
+        for h in hours:
+            swe3 = rng.uniform(0, 6, (2, 2))
+            frac3 = rng.uniform(0, 1, (2, 2))
+            true[h] = fe.gfs_snowfall_in(swe3, frac3)
+            water = water + np.asarray(swe3) * np.clip(frac3, 0, 1)
+            if h % 6 == 3:
+                steps.append((h, h - 3, h, swe3, frac3))
+            else:
+                swe_a, frac_a = steps[-1][3], steps[-1][4]
+                steps.append((h, h - 6, h, swe_a + swe3, (3 * frac_a + 3 * frac3) / 6))
+        totals = fe.gfs_snow_running(steps)
+        expect = np.zeros((2, 2))
+        prev = None
+        for h in hours:
+            expect = expect + true[h]
+            got = np.asarray(totals[h], float)
+            self.assertTrue(np.all(got + 1e-3 >= (0 if prev is None else prev)))
+            self.assertTrue(np.allclose(got, expect, atol=1e-3))
+            prev = got
+        # No melt: WEASD change at 10:1 is the same sum of (snow fraction x liquid).
+        weasd = np.clip(water / 25.4 * 10.0, 0, fe.GFS_SNOW_MAX_IN)
+        self.assertTrue(np.allclose(totals[384], weasd, atol=1e-2))
+        self.assertLess(float(np.max(totals[384])), 500.1)
+        sentinel = fe.gfs_snowfall_in(np.full((2, 2), 9999.0), np.ones((2, 2)))
+        self.assertTrue(np.all(sentinel == 0))
+        self.assertLess(float(np.max(sentinel)) * len(hours), 393662)
+
     def test_gfs_cloud_top_uses_the_coldest_layer_and_2m_when_clear(self):
         high = np.array([[220.0, np.nan]])
         mid = np.array([[250.0, np.nan]])
