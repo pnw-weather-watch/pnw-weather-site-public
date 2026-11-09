@@ -223,7 +223,7 @@ WA_TOWNS = [
     ("Olympia", 47.04, -122.90, "r"), ("Aberdeen", 46.98, -123.82, "l"), ("Longview", 46.14, -122.94, "r"),
     ("Vancouver", 45.64, -122.66, "r"), ("Omak", 48.41, -119.53, "r"), ("Wenatchee", 47.42, -120.31, "r"),
     ("Ellensburg", 46.99, -120.55, "r"), ("Yakima", 46.60, -120.51, "r"), ("Tri-Cities", 46.23, -119.15, "r"),
-    ("Walla Walla", 46.06, -118.34, "r"), ("Moses Lake", 47.13, -119.28, "r"), ("Colville", 48.55, -117.91, "r"),
+    ("Walla Walla", 46.06, -118.34, "r"), ("Moses Lake", 47.13, -119.28, "r"), ("Ritzville", 47.127, -118.380, "r"), ("Colville", 48.55, -117.91, "r"),
     ("Spokane", 47.66, -117.43, "l"), ("Pullman", 46.73, -117.18, "l"),
     ("Victoria", 48.43, -123.36, "l"), ("Mount Vernon", 48.42, -122.33, "r"), ("Oak Harbor", 48.29, -122.64, "l"),
     ("Port Townsend", 48.12, -122.76, "r"), ("Arlington", 48.20, -122.13, "r"), ("Sumas", 49.00, -122.26, "r"),
@@ -351,7 +351,7 @@ REGION_TOWNS = {   # view: (min population per tier, newest-to-oldest), max labe
 REGION_REQUESTED = ("Seattle", "Portland", "Spokane", "Victoria", "Bellingham", "Port Angeles", "Forks", "Neah Bay",
                     "Port Townsend", "Oak Harbor", "Mount Vernon", "Arlington", "Sumas", "Olympia", "Shelton", "Aberdeen",
                     "Chehalis", "Long Beach", "Cannon Beach", "Yakima", "Wenatchee", "Winthrop", "Oroville", "Omak",
-                    "Tri-Cities", "Pendleton", "Walla Walla")
+                    "Tri-Cities", "Pendleton", "Walla Walla", "Ritzville")
 _PLACES = None
 REQUESTED_PTS = {}   # [KIT] name -> (name, lat, lon, side), filled by regions.py from regions/stations.json
 # Upper-air tabs (Benjamin 10-25-26 10:09 PM: "don't need town names when showing upper air stuff"): no town dots, names or
