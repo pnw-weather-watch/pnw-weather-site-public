@@ -294,5 +294,41 @@ class WideCrop(unittest.TestCase):
         self.assertFalse(bool(FE._lon_in(lo, -136, -95)[2]))
 
 
+class NbmCaliforniaWest(unittest.TestCase):
+    def test_nbm_california_west_edge_needs_the_same_pad(self):
+        """NBM stops short of the California view's Pacific. The 320-cell pad covers it."""
+        ca = CAM.Camera(view_dict("ca"))
+        try:
+            pts = samples(ca)
+            to_ij = nbm_ij()
+            fi, fj = [], []
+            for lon, lat in pts:
+                a, b = to_ij(lon, lat)
+                fi.append(a); fj.append(b)
+            fi, fj = np.array(fi), np.array(fj)
+        finally:
+            ca.close()
+        self.assertTrue(np.any(fj < 0))
+        self.assertGreater(fj.min(), -FE.CONUS_OUTSIDE)
+        self.assertLess(fj.min(), -90)
+        crop = FE.crop_bounds(fi, fj, NBM_NY, NBM_NX, outside=FE.CONUS_OUTSIDE)
+        self.assertLess(crop[2], 0)
+        self.assertLessEqual(crop[2], fj.min())
+        self.assertGreaterEqual(crop[3], fj.max())
+        rel_i, rel_j = fi - crop[0], fj - crop[2]
+        self.assertTrue(np.all((rel_i >= 0) & (rel_i < crop[1] - crop[0])))
+        self.assertTrue(np.all((rel_j >= 0) & (rel_j < crop[3] - crop[2])))
+        short = FE.crop_bounds(fi, fj, NBM_NY, NBM_NX, outside=90)
+        self.assertFalse(np.all((fi >= short[0]) & (fi < short[1]) & (fj >= short[2]) & (fj < short[3])))
+
+    def test_nbm_latlon_matches_the_native_southwest_corner(self):
+        lat, lon = FE.nbm_latlon(0, 2, 0, 2)
+        self.assertAlmostEqual(float(lat[0, 0]), 19.229, places=2)
+        lo = float(lon[0, 0])
+        if lo > 180:
+            lo -= 360
+        self.assertAlmostEqual(lo, -126.2766, places=2)
+
+
 if __name__ == "__main__":
     unittest.main()
