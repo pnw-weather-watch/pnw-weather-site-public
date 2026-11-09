@@ -207,6 +207,36 @@
    "models": "hires+nbm+global",
    "from": "11-07 Benjamin: zoomed-out Pacific Northwest, on every model including HRRR, RRFS and ECMWF 9 km. Same 16:9 Lambert window. The 9 km grid covers it. The 3 km CONUS grid covers the cities and about 92 percent of the frame. The rest, a western ocean strip and a northern strip at most about 220 km past the domain, is filled from the nearest GFS hour and blended over 24 cells so there is no line. The same pad fills the California view's offshore side, which was already past the CONUS edge, so that ocean does not turn white halfway. RRFS North America is 3-hourly and several times the download, so RRFS stays on the CONUS grid."
   },
+  "wa": {
+   "label": "Washington",
+   "size": [
+    16,
+    9
+   ],
+   "proj": [
+    "lcc",
+    -120.6,
+    47.35,
+    [
+     46.0,
+     48.5
+    ]
+   ],
+   "ll": [
+    -126.15,
+    -116.45,
+    45.3,
+    49.4
+   ],
+   "box": [
+    -127.6,
+    -115.0,
+    44.6,
+    50.05
+   ],
+   "models": "hires+nbm+global",
+   "from": "11-09 Benjamin: Washington state map on every model. True Lambert shape, all of WA, a small bit of BC/OR/Idaho."
+  },
   "passes": {
    "label": "Cascade Passes",
    "size": [
@@ -540,7 +570,8 @@
   "norca": 0.3,
   "bay": 0.2,
   "orco": 0.4,
-  "bigi": 0.3
+  "bigi": 0.3,
+  "wa": 0.35
  },
  "region_towns": {
   "pnwhr": [
@@ -638,6 +669,14 @@
     500
    ],
    30
+  ],
+  "wa": [
+   [
+    150000,
+    40000,
+    8000
+   ],
+   48
   ]
  },
  "hl": {
@@ -655,7 +694,8 @@
    "orco": 300,
    "bigi": 180,
    "pnwwide": 480,
-   "pnwhr": 400
+   "pnwhr": 400,
+   "wa": 250
   },
   "prominence_mb": {
    "na": 3.0,
@@ -671,7 +711,8 @@
    "orco": 1.5,
    "bigi": 1.5,
    "pnwwide": 2.0,
-   "pnwhr": 2.0
+   "pnwhr": 2.0,
+   "wa": 1.5
   },
   "edge_km": {
    "na": 500,
@@ -687,7 +728,8 @@
    "orco": 300,
    "bigi": 150,
    "pnwwide": 400,
-   "pnwhr": 45
+   "pnwhr": 45,
+   "wa": 200
   }
  },
  "barbs_across": {
@@ -704,12 +746,14 @@
   "norca": 18,
   "bay": 16,
   "orco": 22,
-  "bigi": 14
+  "bigi": 14,
+  "wa": 20
  },
  "model_views": {
   "hrrr": [
    "pnwhr",
    "pnwwide",
+   "wa",
    "passes",
    "ca",
    "socal",
@@ -722,6 +766,7 @@
   "rrfs": [
    "pnwhr",
    "pnwwide",
+   "wa",
    "passes",
    "ca",
    "socal",
@@ -734,6 +779,7 @@
   "nbm": [
    "pnwhr",
    "pnwwide",
+   "wa",
    "passes",
    "ca",
    "socal",
@@ -750,6 +796,7 @@
    "pnwt",
    "pnwhr",
    "pnwwide",
+   "wa",
    "passes",
    "ca",
    "socal",
@@ -768,6 +815,7 @@
    "pnwt",
    "pnwhr",
    "pnwwide",
+   "wa",
    "passes",
    "ca",
    "socal",
@@ -783,6 +831,7 @@
    "pnwt",
    "pnwhr",
    "pnwwide",
+   "wa",
    "passes",
    "ca",
    "socal",
@@ -801,6 +850,7 @@
    "pnwt",
    "pnwhr",
    "pnwwide",
+   "wa",
    "ca",
    "socal",
    "cenca",
@@ -817,6 +867,7 @@
    "pnwt",
    "pnwhr",
    "pnwwide",
+   "wa",
    "ca",
    "socal",
    "cenca",
@@ -833,6 +884,7 @@
    "pnwt",
    "pnwhr",
    "pnwwide",
+   "wa",
    "ca",
    "socal",
    "cenca",
@@ -848,6 +900,7 @@
    "pnw",
    "pnwhr",
    "pnwwide",
+   "wa",
    "ca",
    "socal",
    "cenca",
@@ -864,6 +917,7 @@
    "pnwt",
    "pnwhr",
    "pnwwide",
+   "wa",
    "ca",
    "socal",
    "cenca",
@@ -880,6 +934,7 @@
    "pnwt",
    "pnwhr",
    "pnwwide",
+   "wa",
    "ca",
    "socal",
    "cenca",

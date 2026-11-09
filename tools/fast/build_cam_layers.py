@@ -26,7 +26,7 @@ import camera as CAM
 import house_style as HS
 import fast_encode as FE
 
-VIEWS = ("hiw", "bigi", "pnwhr", "pnwwide", "orco", "capasses", "passes", "socal", "cenca", "norca", "bay")
+VIEWS = ("hiw", "bigi", "pnwhr", "pnwwide", "wa", "orco", "capasses", "passes", "socal", "cenca", "norca", "bay")
 REG = json.load(open(os.path.join(ROOT, "regions", "regions.json")))
 STATIONS = json.load(open(os.path.join(ROOT, "regions", "stations.json")))["stations"]
 OUT = os.path.join(HERE, "site", "cam")
