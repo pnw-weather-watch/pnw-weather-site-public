@@ -716,7 +716,10 @@ def freezing_level_m(temps_k, heights_m, sp_pa=None, levels_hpa=FRZ_LEVELS_HPA):
         take = above & np.isfinite(Z[k]) & ~np.isfinite(top_z)
         top_z = np.where(take, Z[k], top_z)
     out = np.where(~np.isfinite(out) & lowest_set & (lowest_t < t0), lowest_z, out)
-    return np.where(np.isfinite(out), out, top_z)
+    # 11-08: columns that never crossed 0 C used to fall back to the TOP height (bogus ~30k ft over Alaska / BC).
+    # Only a column that is still above freezing at its lowest above-ground level may use the top height.
+    still_warm = lowest_set & np.isfinite(lowest_t) & (lowest_t >= t0)
+    return np.where(np.isfinite(out), out, np.where(still_warm, top_z, lowest_z))
 
 def _frz(R, m):
     if m in NOAA:
@@ -1997,7 +2000,7 @@ def static(m, out, views_only=None, x2_only=False):
             prods[pid].pop("kw", None); prods[pid].pop("cmap_of", None)
             if src == "dsnod": prods[pid]["outline_over"] = t["outline_over"]
     if m == "gfs":
-        if "snow" in prods: prods["snow"]["extra"] = "GFS snow depth (SNOD)  \u00b7  max {hi} in in view"
+        if "snow" in prods: prods["snow"]["extra"] = "GFS precip while snow was falling, 10:1  \u00b7  since the run started  \u00b7  max {hi} in in view"  # 11-08: was SNOD; field is snowfall
         if "ir" in prods: prods["ir"]["extra"] = "GFS cloud-top temperature, coldest low / middle / high top  \u00b7  2 m temp where clear"
     if as_model(m) in ("ifs", "aifs") and "frz" in prods:
         prods["frz"]["extra"] = "0\u00b0C height from the model temperature profile  \u00b7  {lo} to {hi} ft in view"
