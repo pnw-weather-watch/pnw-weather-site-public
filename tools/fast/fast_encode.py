@@ -60,11 +60,16 @@ MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lo
     # Color keys from theme/epsm_cvd_scales.json (deutan/protan neighbour dE >= 3).
     "epsm": dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 12), steps=list(range(6, 121, 6)) + list(range(132, 361, 12)), keep=2, grid_from="eps",
                  note="0.5 deg single members; CVD-safe keys"),
+    # 11-09 (Benjamin t351u): AIFS ENS single members, same viewer as EPS members (picker 1-50, 0.5 deg files).
+    # AIFS ENS has no gust: the wind map is MSLP + 10 m wind. Static layers/clim reuse AIFS ENS (same crop).
+    "aensm": dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 6, 12, 18), steps=list(range(6, 121, 6)) + list(range(132, 361, 12)), keep=2, grid_from="aens",
+                 note="0.5 deg single members"),
 }
 MINFO = {"aens": dict(name="ECMWF AIFS Ensemble", site="AIFS ENS", res="0.25\u00b0 \u00b7 50 members", credit_as="aifs"),
          "nbm": dict(name="NOAA NBM", site="NBM", res="2.5 km", noaa=True),
          "eps": dict(name="ECMWF Ensemble", site="ECMWF EPS", res="0.25\u00b0 \u00b7 50 members", credit_as="ifs"),
          "epsm": dict(name="ECMWF EPS Member", site="ECMWF EPS member", res="0.5\u00b0 \u00b7 single member", credit_as="ifs"),
+         "aensm": dict(name="ECMWF AIFS Ensemble Member", site="AIFS ENS member", res="0.5\u00b0 \u00b7 single member", credit_as="aifs"),
          "ifs9": dict(name="ECMWF IFS", site="ECMWF 9 km", res="9 km (0.1\u00b0)", credit_as="ifs"),
          "gfsw": dict(name="NOAA WaveWatch III", site="NOAA WW3", res="0.25\u00b0", noaa=True),
          "oisst": dict(name="NOAA OISST v2.1", site="NOAA OISST", res="0.25\u00b0 daily", noaa=True)}
@@ -2028,6 +2033,24 @@ def static(m, out, views_only=None, x2_only=False):
                 P.pop("cmap_of", None); P["_cm"] = HS.cmap(P["colors"], P["colors"][0], P["colors"][-1]); P["under"] = None; P["over"] = P["colors"][-1]
                 P["keyver"] = "_cvd"
         prods = {k: base[k] for k in ("gust10", "slp", "snow", "z500anom") if k in base}
+    if m == "aensm":   # 11-09: same four-slot member menu as EPS; wind instead of gust (no 10fg in AIFS ENS open data)
+        sc = json.load(open(os.path.join(HERE, "..", "..", "theme", "epsm_cvd_scales.json")))
+        base = {k: dict(ALLP[k]) for k in ("slp", "aifswind", "z500anom", "snow") if k in ALLP}
+        base["slp"]["fields"] = ["mslp"]; base["slp"]["title"] = "Sea-Level Pressure (member)"; base["slp"]["extra"] = "AIFS ENS single member  \u00b7  isobars every 4 mb"
+        if "aifswind" in base:
+            base["aifswind"]["title"] = "MSLP + 10 m Wind (member)"
+            base["aifswind"]["extra"] = "AIFS ENS single member  \u00b7  isobars every 4 mb  \u00b7  barbs in kt  \u00b7  up to {hi} mph in view"
+        if "z500anom" in base:
+            base["z500anom"]["title"] = "500 mb Height Anomaly (member)"; base["z500anom"]["extra"] = "AIFS ENS single member  \u00b7  vs 1991-2020 normal  \u00b7  {lo} to {hi} m in view"
+        if "snow" in base:
+            base["snow"]["fields"] = ["asnow"]; base["snow"]["fill"] = "asnow"; base["snow"]["title"] = "Snowfall Total (member)"
+            base["snow"]["extra"] = "AIFS ENS single member  \u00b7  ECMWF snowfall water x 10 (10:1)  \u00b7  max {hi} in in view"
+        for pid, P in base.items():
+            if pid in sc:
+                P["levels"] = sc[pid]["levels"]; P["colors"] = sc[pid]["colors"]; P["ticks"] = sc[pid]["ticks"]
+                P.pop("cmap_of", None); P["_cm"] = HS.cmap(P["colors"], P["colors"][0], P["colors"][-1]); P["under"] = None; P["over"] = P["colors"][-1]
+                P["keyver"] = "_cvd"
+        prods = {k: base[k] for k in ("aifswind", "slp", "snow", "z500anom") if k in base}
     if m == "ifs9":   # 9 km: no waves (0.25 deg only) and no anomalies (would need 0.1 deg climatology files: more R2 space)
         prods = {k: v for k, v in prods.items() if not v.get("clim") and not set(v["fields"]) & IFS9_SKIP}
     if m == "nbm":   # National Blend: its own period fields (1/6 h precip, 6 h snow, 3 h thunder, 12 h max/min)
