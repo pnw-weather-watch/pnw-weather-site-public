@@ -928,7 +928,9 @@ def sample_pts(a, P):
 # HRRR / RRFS CONUS is 3 km. Two frames hang past its west edge: the wide Pacific Northwest
 # view (about 7 percent, at most ~75 cells / 220 km north and west) and the California view
 # (the offshore left side, out to about 270 cells). The pad covers both, or the California
-# ocean would be GFS for a while and then white. Cells past the native edge are stored on the
+# ocean would be GFS for a while and then white. NBM (2.5 km NDFD) has the same California
+# offshore miss (about 206 cells past its west edge); without a pad the LUT samples the
+# westernmost NBM column and the Pacific looks shifted. Cells past the native edge are stored on the
 # same Lambert index, with a negative column origin. They are filled from GFS at the nearest
 # 3-hour valid time. If that cycle is not posted yet, the newest of the three previous cycles
 # that has the same valid time is used. Otherwise the boundary is held. The join is a ramp
@@ -1041,14 +1043,26 @@ def conus_latlon(i0, i1, j0, j1):
     ll = pc.transform_points(hp, sw[0] + jj * 3000.0, sw[1] + ii * 3000.0)
     return ll[..., 1], ll[..., 0]
 
-def edge_plan(crop, ny, nx):
-    key = (tuple(crop), int(ny), int(nx))
+def nbm_latlon(i0, i1, j0, j1):
+    """Lat/lon of NBM CONUS cell centers, including cells past the native west edge."""
+    import cartopy.crs as ccrs
+    rad = 6371200.0
+    globe = ccrs.Globe(ellipse="sphere", semimajor_axis=rad, semiminor_axis=rad)
+    hp = ccrs.LambertConformal(globe=globe, **MODELS["nbm"]["lcc"])
+    pc = ccrs.PlateCarree()
+    sw = hp.transform_point(-126.2766, 19.229, pc)
+    ii, jj = np.mgrid[i0:i1, j0:j1]
+    ll = pc.transform_points(hp, sw[0] + jj * 2539.703, sw[1] + ii * 2539.703)
+    return ll[..., 1], ll[..., 0]
+
+def edge_plan(crop, ny, nx, grid="hrrr"):
+    key = (tuple(crop), int(ny), int(nx), grid)
     if key in _EDGE_PLAN: return _EDGE_PLAN[key]
     i0, i1, j0, j1 = crop
     weight = conus_edge_weight(i0, i1, j0, j1, ny, nx)
     lat = lon = None
     if np.any(weight > 1e-6):
-        lat, lon = conus_latlon(i0, i1, j0, j1)
+        lat, lon = nbm_latlon(i0, i1, j0, j1) if grid == "nbm" else conus_latlon(i0, i1, j0, j1)
     _EDGE_PLAN[key] = (weight, lat, lon)
     return _EDGE_PLAN[key]
 
@@ -1094,11 +1108,11 @@ def gfs_reader(c, hour):
         _GFS_READER[key] = M.Reader("gfs", c, int(hour))
     return _GFS_READER[key]
 
-def fill_conus_outside(name, cropped, crop, native_shape, c, s, get, ready=None):
-    """Fill cells outside the HRRR/RRFS CONUS rectangle. The ramp is inside the domain edge."""
+def fill_conus_outside(name, cropped, crop, native_shape, c, s, get, ready=None, grid="hrrr"):
+    """Fill cells outside the HRRR/RRFS or NBM CONUS rectangle. The ramp is inside the domain edge."""
     ny, nx = native_shape
     i0, i1, j0, j1 = crop
-    weight, lat, lon = edge_plan(crop, ny, nx)
+    weight, lat, lon = edge_plan(crop, ny, nx, grid=grid)
     if not np.any(weight > 1e-6): return cropped
     if name in QUIET_EDGE_FIELDS:
         return paint_edge(cropped, np.zeros(cropped.shape, np.float32), weight)
@@ -1139,10 +1153,11 @@ def step_job(args):
         else:
             if MODELS[m]["grid"] == "ll": a = roll_ll(a)
             a = np.asarray(a, float)
-            if m in ("hrrr", "rrfs") and (i0 < 0 or j0 < 0 or i1 > a.shape[0] or j1 > a.shape[1]):
+            if m in ("hrrr", "rrfs", "nbm") and (i0 < 0 or j0 < 0 or i1 > a.shape[0] or j1 > a.shape[1]):
                 native_shape = a.shape
                 a = take_crop(a, i0, i1, j0, j1)
-                a = fill_conus_outside(name, a, (i0, i1, j0, j1), native_shape, c, s, get)
+                a = fill_conus_outside(name, a, (i0, i1, j0, j1), native_shape, c, s, get,
+                                       grid="nbm" if m == "nbm" else "hrrr")
             else:
                 a = a[i0:i1, j0:j1]
         if not np.isfinite(a).any(): continue
@@ -1473,7 +1488,7 @@ def static(m, out, views_only=None, x2_only=False):
         plt.close(fig)
     allfi = np.concatenate([l[0].ravel() for l in luts.values()]); allfj = np.concatenate([l[1].ravel() for l in luts.values()])
     # HRRR and RRFS: keep wide-frame samples that fall just past the CONUS edge so the fill has cells.
-    outside = CONUS_OUTSIDE if m in ("hrrr", "rrfs") else 0
+    outside = CONUS_OUTSIDE if m in ("hrrr", "rrfs", "nbm") else 0
     i0, i1, j0, j1 = crop_bounds(allfi, allfj, ny_, nx_, [v["cut_abs"] for v in views.values() if v.get("cut_abs")], outside=outside)
     mp0 = f"{out}/manifest.json"
     if os.path.exists(mp0):   # keep the published crop when it is a superset (runs already in R2 stay valid)
