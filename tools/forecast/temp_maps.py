@@ -287,7 +287,9 @@ def ecmwf_orog(m, c):
     return model_orog((m, c), ld)
 
 
-PASS_COLOR, PASS_NAME_SIZE, PASS_NUM_SIZE = "#3b2a5c", 8.0, 9.5   # deep plum, small italic name: reads as "not a town"
+PASS_COLOR, PASS_NAME_SIZE, PASS_NUM_SIZE = "#3b2a5c", 8.0, 9.5   # deep plum, italic: reads as "not a town"
+# On maps drawn under town_scale (the Washington view), pass_labels uses the smallest town
+# tier (TOWN_PT[3] / TOWN_HALO_W[3]) so names and numbers match other small-town labels.
 
 
 _TREES = {}
@@ -526,9 +528,11 @@ def region_towns(ax, vid, field=None, fmt=fmt_int, pass_corr=None):
 
 def pass_labels(ax, field, fmt, taken, r, pt, axbb, pass_corr=None):
     """pass_corr = (rate F/ft, (lat, lon, model ground ft)) height-corrects the values to the real summit (temps / dewpoint only)."""
-    """Small plum triangle + italic name + bold value at each mountain pass (Washington view, maps with town numbers only).
-    Value = model at the pass point, NOT corrected to the real summit height (3 km / 9 km terrain is lower and smoother).
-    Tries right, left, above, below the triangle; a pass that cannot clear every town label, number and other pass is dropped (logged)."""
+    """Plum triangle + italic name + bold value at each mountain pass (Washington view, maps with town numbers only).
+    Name and number sizes match the smallest town tier (HS.TOWN_PT[3]), so they stay readable next to other
+    small-town labels after town_scale. Value = model at the pass point, NOT corrected to the real summit height
+    (3 km / 9 km terrain is lower and smoother). Tries right, left, above, below and a few diagonals; a pass that
+    cannot clear every town label, number and other pass is dropped (logged)."""
     pc = ccrs.PlateCarree(); tr = pc._as_mpl_transform(ax); arts = []
     vals = town_values(*field, [(la, lo) for _, la, lo, _ in WA_PASSES.values()])
     ax.pass_raw = {k: float(v) for k, v in zip(WA_PASSES, vals)}
@@ -547,15 +551,20 @@ def pass_labels(ax, field, fmt, taken, r, pt, axbb, pass_corr=None):
         mk = ax.plot(lo, la, "^", ms=4.6, mfc=PASS_COLOR, mec="white", mew=0.9, transform=pc, zorder=7.2)[0]
         taken.append(matplotlib.transforms.Bbox([[x - 4, y - 4], [x + 4, y + 4]]))
         s_ = fmt(v)
+        name_pt = HS.TOWN_PT[3]   # smallest town tier; follows town_scale on the Washington view
+        num_pt = max(REGION_NUM_SIZE, HS.TOWN_PT[3])
+        halo_w = HS.TOWN_HALO_W[3]
         tn = ax.annotate(lab, (lo, la), xycoords=tr, xytext=(0, 0), textcoords="offset points", ha="left", va="center",
-                         color=PASS_COLOR, fontproperties=HS.font(600, PASS_NAME_SIZE), style="italic",
-                         path_effects=HS.halo("white", 2.4), zorder=7.2)
+                         color=PASS_COLOR, fontproperties=HS.font(600, name_pt), style="italic",
+                         path_effects=HS.halo("white", halo_w), zorder=7.2)
         tv = None if s_ is None else ax.annotate(s_, (lo, la), xycoords=tr, xytext=(0, 0), textcoords="offset points", ha="left",
-                                                 va="center", color=TOWN_NUM_COLOR, fontproperties=HS.font(800, PASS_NUM_SIZE),
+                                                 va="center", color=TOWN_NUM_COLOR, fontproperties=HS.font(800, num_pt),
                                                  path_effects=HS.halo("white", TOWN_NUM_HALO), zorder=7.4)
         nw = tn.get_window_extent(r).width * pt; vw = 0 if tv is None else tv.get_window_extent(r).width * pt + 3
         ok = False
-        for gx, gy in ((6, 0), (-6 - nw - vw, 0), (-(nw + vw) / 2, 9), (-(nw + vw) / 2, -9)):
+        above = max(11.0, name_pt)
+        for gx, gy in ((6, 0), (-6 - nw - vw, 0), (-(nw + vw) / 2, above), (-(nw + vw) / 2, -above),
+                       (6, above * 0.7), (6, -above * 0.7), (-6 - nw - vw, above * 0.7), (-6 - nw - vw, -above * 0.7)):
             tn.xyann = (gx, gy)
             if tv is not None: tv.xyann = (gx + nw + 3, gy)
             bbs = [tn.get_window_extent(r)] + ([tv.get_window_extent(r)] if tv is not None else [])

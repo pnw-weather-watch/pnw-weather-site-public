@@ -137,6 +137,8 @@ class WaView(unittest.TestCase):
         try:
             with HS.town_scale("hrrr", "wa"):
                 arts = TM.towns(ax, "wa", field, TM.fmt_int) or []
+                want_name = HS.TOWN_PT[3]
+                want_num = max(TM.REGION_NUM_SIZE, HS.TOWN_PT[3])
             texts = [a.get_text() for a in arts]
             italic = {a.get_text() for a in arts if getattr(a, "get_style", lambda: "normal")() == "italic"}
             for city in ("Seattle", "Spokane", "Portland", "Ritzville"):
@@ -144,6 +146,21 @@ class WaView(unittest.TestCase):
             for lab in want:
                 self.assertIn(lab, texts, f"pass {lab} missing from the Washington map")
                 self.assertIn(lab, italic, f"pass {lab} is not italic")
+            self.assertGreater(want_name, 8.0)
+            last_italic = False
+            sized = 0
+            for a in arts:
+                style = getattr(a, "get_style", lambda: "normal")()
+                if style == "italic" and a.get_text() in want:
+                    self.assertAlmostEqual(a.get_fontsize(), want_name, delta=0.05)
+                    last_italic = True
+                elif last_italic:
+                    self.assertAlmostEqual(a.get_fontsize(), want_num, delta=0.05)
+                    last_italic = False
+                    sized += 1
+                else:
+                    last_italic = False
+            self.assertEqual(sized, len(want))
             for gone in ("Loup Loup", "Cayuse"):
                 self.assertNotIn(gone, texts)
         finally:
