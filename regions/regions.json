@@ -235,7 +235,8 @@
     50.05
    ],
    "models": "hires+nbm+global",
-   "from": "11-09 Benjamin: Washington state map on every model. True Lambert shape, all of WA, a small bit of BC/OR/Idaho."
+   "passes": "WA_PASSES",
+   "from": "11-09 Benjamin: Washington state map on every model. True Lambert shape, all of WA, a small bit of BC/OR/Idaho. 11-09 later: same mountain passes as Cascade Passes / the Pass Forecaster."
   },
   "passes": {
    "label": "Cascade Passes",

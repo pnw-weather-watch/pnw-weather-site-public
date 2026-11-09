@@ -113,6 +113,42 @@ class WaView(unittest.TestCase):
         for n in ("Seattle", "Spokane", "Portland"):
             self.assertIn(n, names)
 
+    def test_washington_map_includes_cascade_passes(self):
+        """Same WA_PASSES list as Cascade Passes / the Pass Forecaster, drawn as italic pass labels."""
+        import cartopy.crs as ccrs
+        import numpy as np
+        import matplotlib.pyplot as plt
+        import temp_maps as TM
+        import regions
+        self.assertEqual(self.v.get("passes"), "WA_PASSES")
+        self.assertEqual(self.R["views"]["passes"].get("passes"), "WA_PASSES")
+        regions.apply(TM, ccrs)
+        want = [row[0] for row in TM.WA_PASSES.values()]
+        self.assertEqual(
+            want,
+            ["Snoqualmie", "Stevens", "White", "Chinook", "Blewett", "Sherman", "Satus", "Wauconda", "Disautel"],
+        )
+        for gone in ("Loup Loup", "Cayuse", "Washington"):
+            self.assertNotIn(gone, want)
+        lats = np.linspace(44.0, 51.0, 29)
+        lons = np.linspace(-128.0, -115.0, 40)
+        field = (lats, lons, np.full((len(lats), len(lons)), 42.0))
+        fig, ax, _ = TM.frame("wa")
+        try:
+            with HS.town_scale("hrrr", "wa"):
+                arts = TM.towns(ax, "wa", field, TM.fmt_int) or []
+            texts = [a.get_text() for a in arts]
+            italic = {a.get_text() for a in arts if getattr(a, "get_style", lambda: "normal")() == "italic"}
+            for city in ("Seattle", "Spokane", "Portland", "Ritzville"):
+                self.assertIn(city, texts, f"{city} dropped from the Washington map")
+            for lab in want:
+                self.assertIn(lab, texts, f"pass {lab} missing from the Washington map")
+                self.assertIn(lab, italic, f"pass {lab} is not italic")
+            for gone in ("Loup Loup", "Cayuse"):
+                self.assertNotIn(gone, texts)
+        finally:
+            plt.close(fig)
+
 
 if __name__ == "__main__":
     unittest.main()

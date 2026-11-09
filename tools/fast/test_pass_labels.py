@@ -40,6 +40,12 @@ class PassLabels(unittest.TestCase):
         )
         self.assertEqual(len(js), 9)
 
+    def test_washington_view_uses_the_cascade_pass_list(self):
+        with open(REGIONS, encoding="utf-8") as f:
+            R = json.load(f)
+        self.assertEqual(R["views"]["wa"].get("passes"), "WA_PASSES")
+        self.assertEqual(R["views"]["passes"].get("passes"), "WA_PASSES")
+
     def test_california_passes_match_regions(self):
         with open(REGIONS, encoding="utf-8") as f:
             R = json.load(f)

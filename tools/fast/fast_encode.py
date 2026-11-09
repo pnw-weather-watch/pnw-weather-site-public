@@ -1565,8 +1565,13 @@ def static(m, out, views_only=None, x2_only=False):
             first = TOWN_SETS.get(vid, []); names = {t[0] for t in first}
             TM.WA_TOWNS = [t for t in first + [t for t in keepT if t[0] not in names] + EXTRA_TOWNS.get(vid, []) if ins(t[1], t[2])]
             TM.WA_PASSES = {k: v for k, v in {**keepP, **(BC_PASSES_FAST if vid in ("bc", "lm") else {})}.items() if ins(v[1], v[2])}
+            # wa is in REGION_TOWNS (statewide map). Pop it so zoomed frames still use WA_TOWNS + pass_labels,
+            # not region_places("wa"), which would replace the Cascade Passes town/pass set.
+            keepR = TM.REGION_TOWNS.pop("wa", None)
             try: return TM.towns(ax, "wa", field, lambda v: None if not np.isfinite(v) else "88") or []
-            finally: TM.WA_TOWNS, TM.WA_PASSES = keepT, keepP
+            finally:
+                TM.WA_TOWNS, TM.WA_PASSES = keepT, keepP
+                if keepR is not None: TM.REGION_TOWNS["wa"] = keepR
         return TM.towns(ax, vid, field, lambda v: None if not np.isfinite(v) else "88") or []
     extended = MD["grid"] == "lcc" and (i0 < 0 or j0 < 0 or i1 > ny_ or j1 > nx_)
     if extended:

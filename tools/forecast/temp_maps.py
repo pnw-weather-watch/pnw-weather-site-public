@@ -411,7 +411,7 @@ def towns(ax, vid, field=None, fmt=fmt_int, pass_corr=None):
     and a name that cannot be placed at all is dropped (logged).
     Pacific NW views (REGION_TOWNS): tiered by population (region_places); with a field, the same numbers (region_towns).
     Returns the text artists (so isobar labels can be cleared around them) and stores the sampled values on ax.town_values."""
-    if vid in REGION_TOWNS and os.environ.get("REGION_TOWNS", "1") != "0": return region_towns(ax, vid, field, fmt)
+    if vid in REGION_TOWNS and os.environ.get("REGION_TOWNS", "1") != "0": return region_towns(ax, vid, field, fmt, pass_corr)
     if vid != "wa": return []
     ax.apply_aspect()   # cartopy fixes the map's aspect only at draw time: lay labels out on the final axes box, not the slot
     pc = ccrs.PlateCarree(); tr = pc._as_mpl_transform(ax); arts = []
@@ -461,13 +461,15 @@ def towns(ax, vid, field=None, fmt=fmt_int, pass_corr=None):
 REGION_NUM_SIZE = 9.5   # bold value next to the city name on the Pacific NW frames (a bit smaller than the WA view's 10.5)
 
 
-def region_towns(ax, vid, field=None, fmt=fmt_int):
+def region_towns(ax, vid, field=None, fmt=fmt_int, pass_corr=None):
     """City names on the Pacific NW frames: small dot + name, tiered (region_places).
     field = (LA, LO, F) in map units adds the model value at the city point, same numbers and formats as the Washington view
     (Benjamin 10-25-26 10:08 PM: "dropping more towns is fine"). With numbers on, each city tries "Name 54" inline (preferred
     side, other sides, diagonal nudges), then the number centered under the name; if neither fits, the city is dropped (no
     name-only fallback; logged). A city whose value is missing (off the model grid) keeps its name only (logged).
-    Without a field (upper air, products without town numbers) it is names only, as before."""
+    Without a field (upper air, products without town numbers) it is names only, as before.
+    The Washington view then adds WA_PASSES (same list as Cascade Passes / the Pass Forecaster): italic plum name + triangle
+    + model value, collision-checked against the towns already placed so big cities stay."""
     ax.apply_aspect()   # see towns()
     pc = ccrs.PlateCarree(); tr = pc._as_mpl_transform(ax); arts = []
     fig = ax.figure; r = fig.canvas.get_renderer(); pt = 72.0 / fig.dpi; axbb = ax.get_window_extent(r)
@@ -515,6 +517,10 @@ def region_towns(ax, vid, field=None, fmt=fmt_int):
           + (f"; no model value, name only: {', '.join(nonum)}" if nonum else ""), flush=True)
     ax.region_town_names = [a.get_text() for a in arts if a.get_text() in {p[0] for p in places}]
     ax.region_towns_dropped = skipped
+    # 11-09 (Benjamin: add Washington mountain passes to the Washington maps too). Same WA_PASSES list and pass_labels
+    # style as the Cascade Passes view. Towns are placed first so Seattle / Spokane / Portland are never dropped for a pass.
+    if vid == "wa" and nums_on and os.environ.get("PASS_LABELS", "1") != "0":
+        arts += pass_labels(ax, field, fmt, labels + dots, r, pt, axbb, pass_corr)
     return arts
 
 
