@@ -8,6 +8,7 @@ import os, sys, json, tempfile, subprocess, datetime as dt, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from upload_r2 import client, BUCKET
 from fast_cycle import update_manifest, union_live_runs
+import auto_promote_live as AP
 import oisst as O
 
 def newest():
@@ -34,7 +35,9 @@ def main():
         for f in sorted(os.listdir(f"{rd}/single")): s3.upload_file(f"{rd}/single/{f}", BUCKET, f"runs/oisst/{cyc}/single/{f}", ExtraArgs={"ContentType": "image/png"})
         s3.upload_file(f"{rd}/run.json", BUCKET, f"runs/oisst/{cyc}/run.json", ExtraArgs={"ContentType": "application/json"})
         print("uploaded oisst", cyc, flush=True)
-    def fn(mn): mn.setdefault("runs", {})["oisst"] = union_live_runs(s3, "oisst", [cyc], 1)
+    def fn(mn):
+        mn.setdefault("runs", {})["oisst"] = union_live_runs(s3, "oisst", [cyc], 1)
+        AP.ensure_catalog_crop(mn, "oisst")
     man = update_manifest(s3, fn); print("manifest runs.oisst", man["runs"]["oisst"], flush=True)
     pre = [o["Prefix"].split("/")[2] for o in s3.list_objects_v2(Bucket=BUCKET, Prefix="runs/oisst/", Delimiter="/").get("CommonPrefixes", [])]
     for old in [r for r in pre if r != cyc]:

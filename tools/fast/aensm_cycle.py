@@ -9,6 +9,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE); sys
 import aens_members as AM
 from upload_r2 import client, BUCKET
 from fast_cycle import update_manifest, union_live_runs
+import auto_promote_live as AP
 KEEP = 2
 
 def src_has(c, s):
@@ -71,7 +72,9 @@ def main():
     pre = sorted(o["Prefix"].split("/")[2] for o in s3.list_objects_v2(Bucket=BUCKET, Prefix="runs/aensm/", Delimiter="/").get("CommonPrefixes", []))
     present = [r for r in pre if r2_json(s3, f"runs/aensm/{r}/run.json")]
     kept = union_live_runs(s3, "aensm", present, KEEP)
-    def fn(mn): mn.setdefault("runs", {})["aensm"] = kept
+    def fn(mn):
+        mn.setdefault("runs", {})["aensm"] = kept
+        AP.ensure_catalog_crop(mn, "aensm")
     update_manifest(s3, fn); print("manifest runs.aensm", kept, flush=True)
     for old in [r for r in pre if r not in kept]:
         while True:
