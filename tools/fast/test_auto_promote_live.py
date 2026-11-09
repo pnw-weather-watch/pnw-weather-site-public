@@ -30,4 +30,38 @@ class T(unittest.TestCase):
         self.assertEqual(man["progress"]["ifs"], {"a6": [12, 360], "a7": [2, 48]})
         A.apply_manifest(man, {}, "ifs", "a7", run(48, True), 6)
         self.assertNotIn("a7", man["progress"]["ifs"])
+
+    def test_aensm_catalog_crop_copied_from_aens(self):
+        man = {"models": {"aens": {"crop": [8, 361, 560, 1421]}}}
+        crop = A.ensure_catalog_crop(man, "aensm")
+        self.assertEqual(crop, [8, 361, 560, 1421])
+        self.assertEqual(man["models"]["aensm"]["crop"], [8, 361, 560, 1421])
+        # already set: do not overwrite
+        man["models"]["aens"]["crop"] = [0, 1, 0, 1]
+        self.assertEqual(A.ensure_catalog_crop(man, "aensm"), [8, 361, 560, 1421])
+
+    def test_aensm_crop_can_come_from_preview_manifest(self):
+        man = {"models": {}}
+        prev = {"models": {"aens": {"crop": [10, 20, 30, 40]}}}
+        self.assertEqual(A.ensure_catalog_crop(man, "aensm", prev), [10, 20, 30, 40])
+
+    def test_epsm_and_oisst_donors(self):
+        man = {"models": {"eps": {"crop": [1, 2, 3, 4]}, "gfs": {"crop": [5, 6, 7, 8]}}}
+        self.assertEqual(A.ensure_catalog_crop(man, "epsm"), [1, 2, 3, 4])
+        self.assertEqual(A.ensure_catalog_crop(man, "oisst"), [5, 6, 7, 8])
+
+    def test_aensm_run_grid_matches_donor_crop(self):
+        crop = [8, 361, 560, 1421]
+        g = {"ny": 353, "nx": 861}   # aensm run.json records size only, not i0/j0
+        cand = {"grid": g, "steps": [{"f": 6}], "complete": True, "expected": 60}
+        self.assertTrue(A.same_grid(cand, crop))
+        self.assertTrue(A.decide("aensm", "2026110900", cand, [], None, crop)[0])
+
+    def test_apply_manifest_writes_aensm_crop(self):
+        man = {"models": {"aens": {"crop": [8, 361, 560, 1421]}}}
+        prev = {}
+        cand = {"grid": {"ny": 353, "nx": 861}, "steps": [{"f": 6}], "complete": True, "expected": 60}
+        A.apply_manifest(man, prev, "aensm", "2026110900", cand, 2)
+        self.assertEqual(man["models"]["aensm"]["crop"], [8, 361, 560, 1421])
+        self.assertEqual(man["runs"]["aensm"], ["2026110900"])
 if __name__ == "__main__": unittest.main()

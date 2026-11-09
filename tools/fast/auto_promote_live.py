@@ -29,6 +29,38 @@ def same_grid(run, crop):
     if "j0" in g and g.get("j0") != crop[2]: return False
     return True
 
+# Member maps and OISST reuse another model's stored crop. Without this catalog
+# entry, live_crop is missing and same_grid always fails, so they never promote.
+CROP_FROM = {"aensm": "aens", "epsm": "eps", "oisst": "gfs"}
+
+def ensure_catalog_crop(man, m, fallback_man=None):
+    """Guarantee models[m].crop exists so the grid check can pass. Pure enough to unit-test.
+
+    Prefers a crop already on this model, then the sibling donor on `man`, then the
+    same two places on `fallback_man` (usually the preview manifest).
+    """
+    if not isinstance(man, dict):
+        return None
+    models = man.setdefault("models", {})
+    entry = models.setdefault(m, {})
+    if entry.get("crop"):
+        return entry["crop"]
+    donor = CROP_FROM.get(m)
+    cands = []
+    if donor:
+        cands.append((models.get(donor) or {}).get("crop"))
+    if fallback_man:
+        fb = (fallback_man.get("models") or {})
+        cands.append((fb.get(m) or {}).get("crop"))
+        if donor:
+            cands.append((fb.get(donor) or {}).get("crop"))
+    for crop in cands:
+        if crop:
+            entry["crop"] = list(crop)
+            return entry["crop"]
+    return None
+
+
 def frames(run):
     """Unbroken frame count from the start, using the run's own expected hour list order."""
     return len((run or {}).get("steps") or [])
@@ -72,6 +104,7 @@ def list_keys(s3, prefix):
 
 def apply_manifest(man, prev_man, m, cyc, cand, keep):
     """Mutates the live manifest dict for model m. Pure; unit tested."""
+    ensure_catalog_crop(man, m, prev_man)
     runs = man.setdefault("runs", {})
     cur = list(runs.get(m) or [])
     new = sorted(set(cur) | {cyc})
@@ -89,7 +122,7 @@ def apply_manifest(man, prev_man, m, cyc, cand, keep):
 def promote(s3, m, dry=False, log=print):
     live_man, _ = get_json(s3, "manifest.json")
     prev_man = try_json(s3, PRE + "manifest.json") or {}
-    live_crop = ((live_man.get("models") or {}).get(m) or {}).get("crop")
+    live_crop = ensure_catalog_crop(live_man, m, prev_man)
     live_runs = list((live_man.get("runs") or {}).get(m) or [])
     prev_runs = sorted((prev_man.get("runs") or {}).get(m) or [])
     newest_live = max(live_runs) if live_runs else None
