@@ -99,6 +99,20 @@ class WaView(unittest.TestCase):
         finally:
             cam.close()
 
+    def test_ritzville_is_on_the_washington_town_list(self):
+        import cartopy.crs as ccrs
+        import temp_maps as TM
+        import regions
+        rec = next(t for t in TM.WA_TOWNS if t[0] == "Ritzville")
+        self.assertAlmostEqual(rec[1], 47.127, places=3)
+        self.assertAlmostEqual(rec[2], -118.380, places=3)
+        self.assertIn("Ritzville", TM.REGION_REQUESTED)
+        regions.apply(TM, ccrs)
+        names = [t[0] for t in TM.region_places("wa")]
+        self.assertIn("Ritzville", names)
+        for n in ("Seattle", "Spokane", "Portland"):
+            self.assertIn(n, names)
+
 
 if __name__ == "__main__":
     unittest.main()
