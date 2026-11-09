@@ -108,6 +108,65 @@ def publish_catalogs(s3, man):
     for mid, cat in cats.items():
         s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cat, separators=(",", ":")).encode(), ContentType="application/json")
 
+# Shared preview/ may still carry an older crop. Copy the live records for these models
+# before a new preview encode, and list only runs whose stored grid matches.
+PREVIEW_CROP_MODELS = ("hrrr", "rrfs", "ifs9")
+
+def align_preview_manifest(preview, live, run_grids, models=PREVIEW_CROP_MODELS):
+    """Replace preview crop metadata for the widened models and drop runs that are not on that crop."""
+    preview = json.loads(json.dumps(preview or {}))
+    for m in models:
+        src = ((live or {}).get("models") or {}).get(m)
+        if not isinstance(src, dict) or "crop" not in src: continue
+        preview.setdefault("models", {})[m] = json.loads(json.dumps(src))
+        crop = src["crop"]
+        kept = []
+        for cyc in ((preview.get("runs") or {}).get(m) or []):
+            grid = (run_grids or {}).get((m, cyc))
+            if grid is not None and FE.same_grid({"grid": grid}, crop): kept.append(cyc)
+        preview.setdefault("runs", {})[m] = kept
+    return preview
+
+def live_publish_enabled():
+    """Optional per-frame live copy. The approved path is auto_promote_live.py; this stays off unless WX_LIVE_PUBLISH=1."""
+    return os.environ.get("WX_LIVE_PUBLISH") == "1"
+
+def note_live_run(man, model, cycle, keep):
+    """Add one cycle to the live run list. Does not drop any other model's runs or delete objects."""
+    runs = man.setdefault("runs", {}).setdefault(model, [])
+    if cycle not in runs: runs.append(cycle)
+    man["runs"][model] = sorted(set(runs))[-keep:]
+    return man
+
+def copy_verified_live(s3, rel_keys, built, model):
+    """Copy one verified frame (and its run.json) onto the live keys, then refresh live catalogs.
+
+    No-op unless WX_LIVE_PUBLISH=1. A run whose grid is not the live crop is refused.
+    preview/ is left as it was.
+    """
+    if not live_publish_enabled(): return False
+    prefix = getattr(s3, "prefix", "") or ""
+    raw = getattr(s3, "raw", s3)
+    if not prefix: return False
+    live = json.loads(raw.get_object(Bucket=BUCKET, Key="manifest.json")["Body"].read())
+    crop = ((live.get("models") or {}).get(model) or {}).get("crop")
+    if not FE.same_grid(built, crop):
+        print(f"live skip {model}: frame grid does not match the live crop", flush=True)
+        return False
+    for rel in rel_keys:
+        body = raw.get_object(Bucket=BUCKET, Key=prefix + rel)["Body"].read()
+        ctype = "application/json" if rel.endswith(".json") else "image/webp" if rel.endswith(".webp") else "image/png"
+        raw.put_object(Bucket=BUCKET, Key=rel, Body=body, ContentType=ctype)
+    cyc = built.get("cycle")
+    def fn(mn): note_live_run(mn, model, cyc, FE.MODELS[model]["keep"])
+    class Live:
+        prefix = ""
+        def get_object(self, **kw): return raw.get_object(**kw)
+        def put_object(self, **kw): return raw.put_object(**kw)
+    man = update_manifest(Live(), fn)
+    print(f"live {model} {cyc}: {len(rel_keys)} keys", flush=True)
+    return man
+
 def live_run_ids(s3, model):
     """Cycle ids listed on the live manifest. Empty when this client is not writing under a prefix."""
     if not getattr(s3, "prefix", ""): return []
@@ -269,6 +328,7 @@ def main():
                     except OSError: pass
                 if first or built["complete"] or time.time() - LASTMAN.get(m, 0) >= MAN_EVERY:
                     publish_manifest(s3, D, m, prog=(cyc, built["steps"][-1]["f"] if built["steps"] else None, want[-1], built["complete"]), fields=ready_fields(built.get("steps"))); LASTMAN[m] = time.time()
+                copy_verified_live(s3, files + [key], built, m)
                 print(f"{m} {cyc}: published F+{fresh[0]}" + (f"–F+{fresh[-1]}" if len(fresh) > 1 else "") + f", {len(built['steps'])}/{len(want)} steps", flush=True)
             run, new = FE.steps(m, cyc, nxt, D, W, on_prefix=None if a.dry_run else on_prefix)
             r0 = run

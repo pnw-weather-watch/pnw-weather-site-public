@@ -262,7 +262,9 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("CF_PAGES_KEY", text)
         self.assertIn("promote_preview_to_live.py", text)
         self.assertIn("regions/stations.json", text)
-        self.assertIn("--watch", text)
+        self.assertIn("frame_scheduler.py", text)
+        self.assertIn("--poll 45", text)
+        self.assertIn('-f prefix="${{ inputs.prefix || \'preview/\' }}"', text)
 
 
 if __name__ == "__main__":
