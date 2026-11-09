@@ -34,7 +34,9 @@ TOWN_HALO_W = {1: 4.8, 2: 3.8, 3: 3.2}
 GLOBAL_PNW_TOWN_SCALE = {1: 0.54, 2: 0.72, 3: 0.82}   # 11-08 2:42 PM: same as HRRR/RRFS (Benjamin)
 GLOBAL_PNW_VIEWS = frozenset({"pnw", "pnwhr", "pnwt", "pnwwide",
     # 11-08 2:54 PM (Benjamin): California, Oregon and Hawaii views too, all models
-    "ca", "socal", "cenca", "norca", "bay", "orco", "hiw", "bigi"})   # capasses left as is (pass labels need the encoder path)
+    "ca", "socal", "cenca", "norca", "bay", "orco", "hiw", "bigi",
+    # 11-09 (Benjamin): Washington state map; tight-view scale like orco/pnwhr
+    "wa"})   # capasses left as is (pass labels need the encoder path)
 GLOBAL_PNW_MODELS = frozenset({"gfs", "ifs", "aifs", "eps", "aens", "nbm", "gfsw", "ifs9", "epsm", "oisst"})
 # 11-08 (Benjamin 2:40 PM): HRRR/RRFS PNW views get small names too; big cities only a touch bigger than the rest.
 # Saved as static/towns_<view>_hr.png (own set; California views unchanged).
