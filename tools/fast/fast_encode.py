@@ -1156,7 +1156,9 @@ def step_job(args):
             if m in ("hrrr", "rrfs", "nbm") and (i0 < 0 or j0 < 0 or i1 > a.shape[0] or j1 > a.shape[1]):
                 native_shape = a.shape
                 a = take_crop(a, i0, i1, j0, j1)
-                a = fill_conus_outside(name, a, (i0, i1, j0, j1), native_shape, c, s, get,
+                # NBM getters call NbmReader.get(); the GFS donor is menu_maps.Reader (FIELDS / .f).
+                donor_get = (FIELDS[name][0] if name in FIELDS else get)
+                a = fill_conus_outside(name, a, (i0, i1, j0, j1), native_shape, c, s, donor_get,
                                        grid="nbm" if m == "nbm" else "hrrr")
             else:
                 a = a[i0:i1, j0:j1]
