@@ -1436,6 +1436,11 @@ def static(m, out, views_only=None, x2_only=False):
                 proj=ccrs.LambertConformal(central_longitude=p[1], central_latitude=p[2], standard_parallels=tuple(p[3])),
                 extent=tuple(h["extent"]), ll=tuple(h["ll"]), box=tuple(h["box"]))
     pc = ccrs.PlateCarree(); MD = MODELS[m]; vids = MD["views"]
+    if isinstance(views_only, (list, tuple, set)):
+        want = tuple(views_only)
+        vids = tuple(v for v in vids if v in want)
+        if not vids:
+            raise SystemExit(f"{m}: none of {list(want)} are in this model's views {list(MD['views'])}")
     la, lo, oro = model_grid(m); ny_, nx_ = la.shape
     if MD["grid"] == "lcc":
         rad = MD.get("radius", 6371229.0)
