@@ -268,11 +268,7 @@ async function boot() {
   // ifs9 stays in the Runs menu when its publisher is paused and no cycle is in R2 yet.
   const LISTED_WITHOUT_RUNS = new Set(["ifs9"]);
   const listed = () => {
-    // 11-09: aensm may have a live crop-only catalog stub so auto-promote can
-    // check the grid. Keep the AIFS member viewer out of the live picker until
-    // Benjamin approves shipping preview/aensm-member-viewer.
-    const LIVE_HIDE = new Set(["aensm"]);
-    const order = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "aensm", "epsm", "gfsw", "oisst"].filter(m => !LIVE_HIDE.has(m) && S.man.models[m] && (S.man.models[m].site || (S.man.models[m].products && Object.keys(S.man.models[m].products).length)) && ((S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)));
+    const order = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "aensm", "epsm", "gfsw", "oisst"].filter(m => S.man.models[m] && ((S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)));
     const all = []; for (const m of order) for (const c of [...(S.man.runs[m] || [])].reverse()) all.push(`${m}/${c}`);
     return [order, all];
   };
