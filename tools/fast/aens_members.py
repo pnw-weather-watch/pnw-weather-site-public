@@ -44,7 +44,9 @@ def one(args):
             lon = (lo0 + d * np.arange(ni) + 180) % 360 - 180; v = FE.roll_ll(v[:, np.argsort(lon)])[i0:i1:2, j0:j1:2]   # same crop as EpsReader, every 2nd point
             k = key(x); M.setdefault(int(x["number"]), {})[k] = CONV[k](v)
     mem = sorted(k for k, v in M.items() if len(v) == len(RNG))
-    if len(mem) < 40: return s, None, f"only {len(mem)} members"
+    import ens_member_check as EMC
+    ok, issues = EMC.check_numbers(mem)
+    if not ok: return s, None, "; ".join(issues)
     q = lambda a, lo, hi, *m: np.clip(np.round((np.sqrt(np.clip((a - lo) / (hi - lo), 0, 1)) if m and m[0] == 2 else (a - lo) / (hi - lo)) * 255), 0, 255).astype(np.uint8)
     size = 0
     for n in mem:
@@ -54,6 +56,18 @@ def one(args):
         rgb = np.concatenate([t0, t1], 0)   # image row 0 = first (southern) grid row of tile 0
         d_ = f"{out}/m{n:02d}"; os.makedirs(d_, exist_ok=True); p = f"{d_}/{FILE}_f{s:03d}.webp"
         Image.fromarray(rgb, "RGB").save(p, "WEBP", lossless=True, quality=100, method=4, exact=True); size += os.path.getsize(p)
+    paths = [f"{out}/m{n:02d}/{FILE}_f{s:03d}.webp" for n in mem]
+    ok, issues = EMC.check_files_unique(paths)
+    if not ok: return s, None, "; ".join(issues)
+    fi = min(M[mem[0]]["mslp"].shape[0] - 1, 80); fj = min(M[mem[0]]["mslp"].shape[1] - 1, 233)
+    lo, hi = RNG["mslp"]; stored, rawv = {}, {}
+    for n in mem:
+        im = np.array(Image.open(f"{out}/m{n:02d}/{FILE}_f{s:03d}.webp")); h = im.shape[0] // TILES
+        packed = lo + float(im[min(fi, h - 1), fj, 0]) / 255.0 * (hi - lo)
+        src = float(M[n]["mslp"][fi, fj]); src_q = float(np.clip(np.round((src - lo) / (hi - lo) * 255), 0, 255))
+        stored[n] = packed; rawv[n] = lo + src_q / 255.0 * (hi - lo)
+    ok, issues = EMC.check_point_match(stored, rawv, tol=0.01, name="mslp")
+    if not ok: return s, None, "; ".join(issues)
     return s, dict(members=mem, shape=list(t0.shape[:2]), size=size, grib=nb, sec=round(time.time() - t, 1)), None
 
 def step_meta(c, s):
@@ -64,7 +78,7 @@ def step_meta(c, s):
 def run_json(c, steps_meta, mems, crop):
     import temp_maps as TM; PT = TM.PT; i0, i1, j0, j1 = crop
     return dict(model="aensm", cycle=f"{c:%Y%m%d%H}", init=c.isoformat(), base=f"runs/aensm/{c:%Y%m%d%H}", fields=list(RNG), grid=dict(ny=i1 - i0, nx=j1 - j0),
-                half=[(i1 - i0 + 1) // 2, (j1 - j0 + 1) // 2], tiles=TILES, members=mems,
+                half=[(i1 - i0 + 1) // 2, (j1 - j0 + 1) // 2], tiles=TILES, members=mems, num=list(mems),
                 runline=f"ECMWF AIFS ENS member {{mem}} 0.5\u00b0 {c:%HZ} run {c.astimezone(PT):%-m-%-d-%y (%-I %p PT)}", steps=steps_meta,
                 complete=len(steps_meta) == len(STEPS), expected=len(STEPS), file="m{mem}/{name}_f{f:03d}.webp")
 
@@ -95,6 +109,10 @@ def main():
         steps.append(step_meta(c, s))
     mems = sorted(set.intersection(*[set(d["members"]) for d in done.values()])) if done else []
     run = run_json(c, steps, mems, crop); run["complete"] = len(steps) == len(want); run["expected"] = len(want)
+    import ens_member_check as EMC
+    run["member_check"] = EMC.check_encoded_run(rd, "aensm")
     json.dump(run, open(f"{rd}/run.json", "w"), indent=1)
+    if not run["member_check"]["ok"]:
+        print(f"aensm {a.cycle}: MEMBER CHECK FAIL {run['member_check']['issues']}", flush=True)
     print(f"aensm {a.cycle}: {len(steps)}/{len(want)} steps, {len(mems)} members, files {tot[0]/1e6:.1f} MB, grib {tot[1]/1e9:.2f} GB", flush=True)
 if __name__ == "__main__": main(); sys.stdout.flush(); os._exit(0)
