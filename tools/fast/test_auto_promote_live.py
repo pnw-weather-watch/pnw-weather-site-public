@@ -64,4 +64,11 @@ class T(unittest.TestCase):
         A.apply_manifest(man, prev, "aensm", "2026110900", cand, 2)
         self.assertEqual(man["models"]["aensm"]["crop"], [8, 361, 560, 1421])
         self.assertEqual(man["runs"]["aensm"], ["2026110900"])
+
+    def test_member_gate_blocks_short_ensemble(self):
+        import ens_member_check as EMC
+        ok, why = EMC.member_promote_ok("epsm", {"members": list(range(1, 41))})
+        self.assertFalse(ok)
+        ok, why = EMC.member_promote_ok("epsm", {"members": list(range(1, 51))})
+        self.assertTrue(ok, why)
 if __name__ == "__main__": unittest.main()

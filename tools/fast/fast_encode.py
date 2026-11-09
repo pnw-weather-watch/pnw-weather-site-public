@@ -181,7 +181,10 @@ class EpsReader:
         self.c, self.s, self.bytes, self.crop = c, s, 0, crop
         url, zp, zs = ENS_SRC[kind]; base = url.format(d=f"{c:%Y%m%d}", h=c.hour, s=s)
         idx = [json.loads(l) for l in TM.get(base + ".index").decode().splitlines()]
-        mem = [x for x in idx if x.get("type") in ("pf", "cf")]
+        mem_cf = [x for x in idx if x.get("type") == "cf"]
+        mem = [x for x in idx if x.get("type") == "pf"]   # member numbers 1..50; control (type=cf, number=0) stays separate
+        self.control_n = len(mem_cf)
+        self.member_issues = []
         def fetch(x): return x, TM.get(base + ".grib2", (x["_offset"], x["_offset"] + x["_length"] - 1))
         def decode(blob):
             self.bytes += len(blob); g = ec.codes_new_from_message(blob)
@@ -212,15 +215,20 @@ class EpsReader:
                 if par == "2t": a["c"] += v <= 273.15
                 if par == "gh" and crop: gh_members.append(self._crop(v).astype(np.float32))
                 if MP: memo(par, self._crop(v * (1.8 if par == "2t" else 1.0) - (459.67 if par == "2t" else 0.0)), num_(x))   # 2 m temp in deg F
-            if len(acc) < 2 or min(a["n"] for a in acc.values()) < 40: raise RuntimeError(f"eps f{s}: only {[(k, a['n']) for k, a in acc.items()]} members")
+            if len(acc) < 2 or min(a["n"] for a in acc.values()) < 50: raise RuntimeError(f"eps f{s}: only {[(k, a['n']) for k, a in acc.items()]} members (need 50)")
             self.n = acc["2t"]["n"]; self.A = acc
             if not crop: return
             # extras: one param at a time (cropped member stacks, float32)
             for name, (par, lev, kind_, sc, off) in ENS_EXTRA.items():
+                xs = []
                 for p_ in (par if isinstance(par, tuple) else (par,)):   # first listed param this step carries (e.g. tcwv before tcw)
-                    xs = sorted([x for x in mem if x["param"] == p_ and (lev is None or x.get("levelist") == lev)], key=num_)
-                    if len(xs) >= 40: break
-                if len(xs) < 40: continue
+                    cand = sorted([x for x in mem if x["param"] == p_ and (lev is None or x.get("levelist") == lev)], key=num_)
+                    nums = [num_(x) for x in cand]
+                    if nums == list(range(1, 51)):
+                        xs = cand; break
+                    if cand:
+                        self.member_issues.append(f"{name}/{p_}: {len(cand)} members {nums[:8]} != 1..50")
+                if len(xs) != 50: continue
                 if kind == "aens" and name in ("tp", "sf"): sc = sc / 1000.0   # AIFS ENS precip / snow water come in kg/m2 (mm), IFS ENS in m
                 try: st = np.stack([self._crop(decode(blob) * sc + off).astype(np.float32) for x, blob in ex.map(fetch, xs)])
                 except Exception as e: print(f"{kind} f{s:03d} {name}: {str(e)[:100]}", flush=True); continue
@@ -1191,11 +1199,23 @@ def step_job(args):
         p = save_frame(Image.fromarray(a8, "L"), f"{out}/single/{name}_f{s:03d}.png"); sizes[name] = os.path.getsize(p)
     ranges["_packs"] = packs
     if getattr(R, "lows", None) is not None or getattr(R, "spag", None):   # ensemble member low centres + 500 mb member lines
-        p = f"{out}/single/ens_f{s:03d}.json"; json.dump(dict(n=R.n, lows=getattr(R, "lows", []), spag=getattr(R, "spag", {}), **({"mnum": R.lows_num} if getattr(R, "lows_num", None) else {})), open(p, "w"), separators=(",", ":"))
-        sizes["ens"] = os.path.getsize(p)
+        import ens_member_check as EMC
+        ens_doc = dict(n=R.n, lows=getattr(R, "lows", []), spag=getattr(R, "spag", {}), **({"mnum": R.lows_num} if getattr(R, "lows_num", None) else {}))
+        ok, issues = EMC.check_ens_json(ens_doc)
+        if ok:
+            p = f"{out}/single/ens_f{s:03d}.json"; json.dump(ens_doc, open(p, "w"), separators=(",", ":"))
+            sizes["ens"] = os.path.getsize(p)
+        else:
+            print(f"ens_f{s:03d} MEMBER CHECK FAIL: {issues}", flush=True)
     if getattr(R, "M", None):   # ensemble members at MEM_POINTS: {"n": [places], "s": {field: scale}, "v": {field: [[place values] per member]}}
-        p = f"{out}/single/mem_f{s:03d}.json"; json.dump(dict(n=R.mem_names, s={k: MEM_SCALE[k] for k in R.M}, v=R.M, num=R.MN), open(p, "w"), separators=(",", ":"))
-        sizes["mem"] = os.path.getsize(p)
+        import ens_member_check as EMC
+        mem_doc = dict(n=R.mem_names, s={k: MEM_SCALE[k] for k in R.M}, v=R.M, num=R.MN)
+        ok, issues = EMC.check_mem_json(mem_doc)
+        if ok:
+            p = f"{out}/single/mem_f{s:03d}.json"; json.dump(mem_doc, open(p, "w"), separators=(",", ":"))
+            sizes["mem"] = os.path.getsize(p)
+        else:
+            print(f"mem_f{s:03d} MEMBER CHECK FAIL: {issues}", flush=True)
     if ptv:   # town / pass values for meteograms (one small JSON per step, order = run.json "points")
         p = f"{out}/single/pts_f{s:03d}.json"; json.dump(ptv, open(p, "w"), separators=(",", ":")); sizes["pts"] = os.path.getsize(p)
     return s, sizes, ranges, getattr(R, "bytes", 0), time.time() - t
@@ -1736,7 +1756,7 @@ def static(m, out, views_only=None, x2_only=False):
         "aifswind": dict(title="MSLP + 10 m Wind", fields=["mslp", "u10", "v10"], fill="wspd", key="10 m wind (mph)", ticks=HS.WIND_TICKS,
                          **table(HS.WIND_LEVELS, CM["aifswind"], "max"), spd_sigma=1.5, isobars=dict(every=4, sigma=6.0 if m == "hrrr" else 2.5 if m == "ifs9" else 1.0,
                          color=HS.ISOBAR_COLOR, lw=HS.ISOBAR_LW, halo=HS.ISOBAR_HALO), barbs=dict(color=HS.BARB_COLOR, length=HS.BARB_LENGTH, lw=HS.BARB_LW),
-                         extra="isobars every 4 mb  \u00b7  barbs in kt  \u00b7  up to {hi} mph in view", pct=[0.5, 99.5]),
+                         extra="instantaneous 10 m wind  \u00b7  isobars every 4 mb  \u00b7  barbs in kt  \u00b7  up to {hi} mph in view", pct=[0.5, 99.5]),
         "t850": dict(title="850 mb Temperature", fields=["t850"], key="850 mb temp (\u00b0C)", ticks=HS.T850_TICKS, tickfmt=True,
                      **table(HS.T850_LEVELS, CM["t850"], "both"), freeze=0, extra="0\u00b0C line dashed  \u00b7  {lo} to {hi}\u00b0C in view", pct=[0.5, 99.5], towns="none"),
         "t700": dict(title="700 mb Temperature", fields=["t700"], key="700 mb temp (\u00b0C)", ticks=HS.T850_TICKS, tickfmt=True,
@@ -2061,7 +2081,7 @@ def static(m, out, views_only=None, x2_only=False):
         base["slp"]["fields"] = ["mslp"]; base["slp"]["title"] = "Sea-Level Pressure (member)"; base["slp"]["extra"] = "AIFS ENS single member  \u00b7  isobars every 4 mb"
         if "aifswind" in base:
             base["aifswind"]["title"] = "MSLP + 10 m Wind (member)"
-            base["aifswind"]["extra"] = "AIFS ENS single member  \u00b7  isobars every 4 mb  \u00b7  barbs in kt  \u00b7  up to {hi} mph in view"
+            base["aifswind"]["extra"] = "AIFS ENS single member  \u00b7  instantaneous 10 m wind (no gust field)  \u00b7  isobars every 4 mb  \u00b7  barbs in kt  \u00b7  up to {hi} mph in view"
         if "z500anom" in base:
             base["z500anom"]["title"] = "500 mb Height Anomaly (member)"; base["z500anom"]["extra"] = "AIFS ENS single member  \u00b7  vs 1991-2020 normal  \u00b7  {lo} to {hi} m in view"
         if "snow" in base:
@@ -2328,6 +2348,11 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None, on_pre
                      complete=len(ordered) == len(full_want), expected=len(full_want), file="single/{name}_f{f:03d}." + FRAME_EXT,
                      points=[{k: v for k, v in p_.items() if k in ("n", "k", "c")} for p_ in town_points(man, m)], pts_file="single/pts_f{f:03d}.json")
         if m == "gfsw": built.pop("points"); built.pop("pts_file")
+        if m in ("eps", "aens"):
+            import ens_member_check as EMC
+            built["member_check"] = EMC.check_encoded_run(rd, m)
+            if not built["member_check"]["ok"]:
+                print(f"{m} {cycle}: MEMBER CHECK FAIL {built['member_check']['issues']}", flush=True)
         json.dump(built, open(rj, "w"), indent=1)
         return built
     def emit():

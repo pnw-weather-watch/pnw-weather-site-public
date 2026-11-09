@@ -136,6 +136,11 @@ def promote(s3, m, dry=False, log=print):
             ref = try_json(s3, f"runs/{m}/{cyc}/run.json"); ok, why = decide(m, cyc, cand, [cyc], ref, live_crop)
         else:
             ok, why = decide(m, cyc, cand, live_runs, live_newest_run, live_crop)
+        if ok:
+            import ens_member_check as EMC
+            mok, mwhy = EMC.member_promote_ok(m, cand, fetch_json=lambda key: try_json(s3, PRE + key))
+            if not mok:
+                ok, why = False, mwhy
         log(f"{m} {cyc}: {'eligible' if ok else 'skip'} ({why})" + (f" frames={frames(cand)} complete={bool(cand.get('complete'))}" if cand else ""))
         if ok: elig.append((cyc, cand))
     res = dict(model=m, live_newest=newest_live, live_frames=frames(live_newest_run), preview_runs=prev_runs)
