@@ -151,9 +151,10 @@
     if (unit === null) return null;
     const fmt = P && P.fmt;
     let num;
-    if (fmt === "in2") num = v < 0.005 ? "0" : v.toFixed(2);
+    const under = P && P.min_show !== undefined && v < P.min_show;
+    if (fmt === "in2") num = (under || v < 0.005) ? "0" : v.toFixed(2);
     else if (fmt === "in1" || fmt === "in1s") {
-      if (Math.abs(v) < 0.05) num = "0";
+      if (under || Math.abs(v) < 0.05) num = "0";
       else {
         const a = Math.abs(v) < 10 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(0);
         num = fmt === "in1s" && v < 0 ? "-" + a : a;
