@@ -1237,6 +1237,10 @@ function preload(run, pid, i) {   // 11-08: outward from the hour on screen (i+1
 }
 
 function fmtVal(P, v) {   // temp_maps fmt_int / fmt_vis
+  // 11-09: town/pass numbers use the same min_show floor as the fill (sea()). Snow
+  // shading starts at levels[0] = 0.1; the old in1 zero-cut was 0.05, so 0.05-0.1
+  // printed as "0.1" on unshaded land (Blewett on GFS snow, Sherman on IFS9 snow).
+  if (P && P.min_show !== undefined && v < P.min_show && (P.fmt === "in1" || P.fmt === "in1s" || P.fmt === "in2")) return "0";
   if (P.fmt === "in2") return v < 0.005 ? "0" : v.toFixed(2);
   if (P.fmt === "in1s") return Math.abs(v) < 0.05 ? "0" : (v > 0 ? "+" : "") + (Math.abs(v) < 10 ? v.toFixed(1) : v.toFixed(0));
   if (P.fmt === "in1") return v < 0.05 ? "0" : v < 10 ? v.toFixed(1) : v.toFixed(0);

@@ -563,13 +563,22 @@ def pass_labels(ax, field, fmt, taken, r, pt, axbb, pass_corr=None):
         nw = tn.get_window_extent(r).width * pt; vw = 0 if tv is None else tv.get_window_extent(r).width * pt + 3
         ok = False
         above = max(11.0, name_pt)
-        for gx, gy in ((6, 0), (-6 - nw - vw, 0), (-(nw + vw) / 2, above), (-(nw + vw) / 2, -above),
-                       (6, above * 0.7), (6, -above * 0.7), (-6 - nw - vw, above * 0.7), (-6 - nw - vw, -above * 0.7)):
-            tn.xyann = (gx, gy)
-            if tv is not None: tv.xyann = (gx + nw + 3, gy)
-            bbs = [tn.get_window_extent(r)] + ([tv.get_window_extent(r)] if tv is not None else [])
-            if not any(_hits(b, taken) for b in bbs) and all(axbb.contains(b.x0, b.y0) and axbb.contains(b.x1, b.y1) for b in bbs):
-                ok = True; break
+        # 11-09: Wauconda and Sherman nearly touched on the WA 2 m temp view because
+        # _hits default pad is only 1.5 px. Require a clear gap and try farther
+        # offsets before giving up. Fall back to the tight pad so a pass is not dropped.
+        gap = 8.0
+        cands = ((6, 0), (-6 - nw - vw, 0), (-(nw + vw) / 2, above), (-(nw + vw) / 2, -above),
+                 (6, above * 0.7), (6, -above * 0.7), (-6 - nw - vw, above * 0.7), (-6 - nw - vw, -above * 0.7),
+                 (-(nw + vw) / 2, above * 1.65), (-(nw + vw) / 2, -above * 1.65),
+                 (6, above * 1.35), (6, -above * 1.35), (-6 - nw - vw, above * 1.35), (-6 - nw - vw, -above * 1.35))
+        for pad in (gap, 1.5):
+            for gx, gy in cands:
+                tn.xyann = (gx, gy)
+                if tv is not None: tv.xyann = (gx + nw + 3, gy)
+                bbs = [tn.get_window_extent(r)] + ([tv.get_window_extent(r)] if tv is not None else [])
+                if not any(_hits(b, taken, pad=pad) for b in bbs) and all(axbb.contains(b.x0, b.y0) and axbb.contains(b.x1, b.y1) for b in bbs):
+                    ok = True; break
+            if ok: break
         if not ok:   # keep the triangle (location still shown), drop the label
             print(f"pass label dropped (no room): {key} {s_}", flush=True); tn.remove()
             if tv is not None: tv.remove()

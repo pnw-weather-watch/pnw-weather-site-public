@@ -148,18 +148,20 @@ class DerivedFields(unittest.TestCase):
             self.assertGreater(os.path.getsize(os.path.join(d, "static/x2/key_gfs_refc_na.png")), 1000)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_freezing_level_850_and_700_below_freezing(self):
         # 11-08 (Weather Bot): 850 and 700 mb both below freezing, lower levels below ground (Alaska / interior BC).
         # Must NOT fall back to the top-of-profile height (that was the bogus ~30k ft).
         shape = (1, 1)
         T, Z = [], []
+        z_of = {850: 1400.0, 700: 3000.0, 600: 4200.0, 500: 5500.0, 400: 7200.0, 300: 9000.0}
         for lev in fe.FRZ_LEVELS_HPA:
-            if lev >= 850:
-                T.append(np.full(shape, 255.0)); Z.append(np.full(shape, {850: 1400.0, 700: 3000.0, 600: 4200.0, 500: 5500.0, 400: 7200.0, 300: 9000.0}[lev]))
+            if lev <= 850:
+                T.append(np.full(shape, 255.0)); Z.append(np.full(shape, z_of[lev]))
             else:
                 T.append(np.full(shape, 250.0)); Z.append(np.full(shape, -200.0))  # below ground
         z = fe.freezing_level_m(T, Z, sp_pa=np.full(shape, 85000.0))  # ~850 hPa surface
         self.assertTrue(np.allclose(z, 1400.0), msg=f"got {z}; must be the 850 mb height, not the top")
+
+
+if __name__ == "__main__":
+    unittest.main()
