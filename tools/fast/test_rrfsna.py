@@ -103,6 +103,30 @@ class RrfsnaRegistration(unittest.TestCase):
         self.assertIn('outside = CONUS_OUTSIDE if m in ("hrrr", "rrfs", "nbm") else 0', src)
         self.assertIn('if m in ("hrrr", "rrfs") and "pnwhr" in TM.VIEWS:', src)
 
+    def test_viewer_keeps_wide_views_on_rrfs_and_loads_rrfsna(self):
+        src = open(os.path.join(os.path.dirname(__file__), "site", "viewer.js"), encoding="utf-8").read()
+        self.assertIn('const RRFS_WIDE_VIEWS = new Set(["na", "pac", "pnw", "pnwt", "pnwwide"])', src)
+        self.assertIn("function rrfsMenuViews()", src)
+        self.assertIn("async function ensureRrfsGrid(vid)", src)
+        self.assertIn("V = rrfsMenuViews()", src)
+        self.assertIn("if (await ensureRrfsGrid(S.view)) setLists()", src)
+        self.assertIn("await ensureRrfsGrid(d.view)", src)
+        self.assertIn("if (rrfsMenuViews()[d.view]) S.view = d.view", src)
+        # Compare has no model/view list of its own; frames are this viewer.
+        cmp = open(os.path.join(os.path.dirname(__file__), "site", "compare.js"), encoding="utf-8").read()
+        self.assertNotIn("rrfsna", cmp)
+        self.assertIn("each with its own Runs (model + run) / product / view / hour", cmp)
+
+    def test_meteograms_list_rrfsna_and_route_wide_places(self):
+        src = open(os.path.join(os.path.dirname(__file__), "site", "meteograms.js"), encoding="utf-8").read()
+        self.assertIn('{ id: "rrfsna", label: "RRFS 13 km"', src)
+        self.assertIn('credit: "Data: NOAA/NCEP RRFS (public domain)."', src)
+        self.assertIn("products: det(\"rrfsna\")", src)
+        self.assertIn("hrs: 84", src)
+        self.assertIn("async function routeRrfsTown(sec, town)", src)
+        self.assertIn("sec = await routeRrfsTown(sec, town)", src)
+        self.assertIn('if (sec.id !== "rrfs") return pts', src)
+
 
 if __name__ == "__main__":
     unittest.main()

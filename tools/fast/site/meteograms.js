@@ -21,14 +21,14 @@ const NA_XSEC = "Needs model levels at each town (vertical profiles). The fast d
 const NA_SMOKE = "Smoke is not in the fast data yet.";
 const det = (m) => [
   [`${m}_surface_summary`, "Surface Summary", "summary"],
-  [`${m}_smoke_xsec_low`, "Low Level Smoke X-Sec", null, m === "rrfs" ? "Operational RRFS has no smoke on levels (not in free data)." : NA_SMOKE],
+  [`${m}_smoke_xsec_low`, "Low Level Smoke X-Sec", null, m === "rrfs" || m === "rrfsna" ? "Operational RRFS has no smoke on levels (not in free data)." : NA_SMOKE],
   [`${m}_multirun_t2m`, "Multi-run 2m Temperature", "mr_t2m"],
   [`${m}_multirun_qpf6`, "Multi-run 6-Hour QPF", "mr_qpf6"],
   [`${m}_multirun_snow6`, "Multi-run 6-Hour Snow", "mr_snow6"],
   [`${m}_multirun_qpf`, "Multi-run Total QPF", "mr_qpf"],
   [`${m}_multirun_snow`, "Multi-run Total Snow", "mr_snow"],
-  [`${m}_smoke_xsec`, "Smoke X-Sec", null, m === "rrfs" ? "Operational RRFS has no smoke on levels (not in free data)." : NA_SMOKE],
-  ...(m === "rrfs" ? [[`rrfs_smoke_sfc`, "Near-Surface Smoke", null, NA_SMOKE]] : []),
+  [`${m}_smoke_xsec`, "Smoke X-Sec", null, m === "rrfs" || m === "rrfsna" ? "Operational RRFS has no smoke on levels (not in free data)." : NA_SMOKE],
+  ...(m === "rrfs" || m === "rrfsna" ? [[`${m}_smoke_sfc`, "Near-Surface Smoke", null, NA_SMOKE]] : []),
   [`${m}_winter_summary`, "Winter Weather Summary", "winter"],
   [`${m}_winter_thermal`, "Winter Thermal Environment", null, NA_XSEC],
   [`${m}_temp_xsec`, "Temp X-Sec", null, NA_XSEC],
@@ -78,6 +78,7 @@ const SECTIONS = [   // the old page's three models first, then the fast site's 
   { id: "eps", label: "ECMWF EPS", tag: "EPS", rl: "ECMWF ENS 0.25\u00b0, 50 members", credit: ECMWF_CREDIT, products: ens("eps") },
   { id: "hrrr", label: "HRRR", tag: "HRRR", rl: "HRRR 3 km", credit: "Data: NOAA HRRR (public domain)", products: det("hrrr"), hrs: 48 },
   { id: "rrfs", label: "RRFS", tag: "RRFS", rl: "RRFS 3 km", credit: "Data: NOAA RRFS (public domain)", products: det("rrfs"), hrs: 60 },
+  { id: "rrfsna", label: "RRFS 13 km", tag: "RRFS", rl: "RRFS 13 km", credit: "Data: NOAA/NCEP RRFS (public domain).", products: det("rrfsna"), hrs: 84 },
   { id: "nbm", label: "NBM", tag: "NBM", rl: "NBM 2.5 km", extra: true, credit: "Data: NOAA National Blend of Models (public domain)", products: glob("nbm").filter((p) => !/qpf24|snow$/.test(p[0]) || p[0].endsWith("_snow")) },
   { id: "gfs", label: "GFS", tag: "GFS", rl: "GFS 0.25\u00b0", extra: true, credit: "Data: NOAA GFS (public domain)", products: glob("gfs") },
   { id: "ifs", label: "ECMWF", tag: "ECMWF", rl: "ECMWF IFS 0.25\u00b0", extra: true, credit: ECMWF_CREDIT, products: glob("ifs") },
@@ -520,6 +521,7 @@ function daily(S_, fn) {   // per PT day (only days with >= 4 values), members k
 const memEmpty = (sec, what) => ({ empty: ["Not generated yet", `${what} need the ensemble members at each town. They are stored from the first ${sec.label} run encoded after 10-30 evening, at 47 places (the old site's towns, the mountain passes and a few more). Check back after the next ${sec.label} run.`], sug: "mem" });
 
 async function build(sec, prod, town) {
+  sec = await routeRrfsTown(sec, town);
   const m = sec.id, runs = runsOf(m);
   // 10-31: EPS 06/18Z runs stop at 144 h; these charts are 240-360 h (old-site EPS layout), so the newest 00/12Z run comes first
   // here (the 06/18Z runs still count in the multi-run charts and in the map page's meteogram / Pass table)
@@ -693,9 +695,29 @@ function drawSpec(spec) {
   if (spec.fig === "panels") return figPanels(spec);
   return figFrame(spec);
 }
-async function townsFor(sec) {
-  for (const c of runsOf(sec.id)) { try { const R = await loadRun(sec.id, c); if (R.points) return R.points; } catch (e) { /* next */ } }
+async function pointsOf(m) {
+  for (const c of runsOf(m)) { try { const R = await loadRun(m, c); if (R.points) return R.points; } catch (e) { /* next */ } }
   return [];
+}
+async function townsFor(sec) {
+  const pts = await pointsOf(sec.id);
+  if (sec.id !== "rrfs") return pts;
+  const extra = await pointsOf("rrfsna");
+  if (!extra.length) return pts;
+  const have = new Set(pts.map((p) => p.n));
+  return pts.concat(extra.filter((p) => !have.has(p.n)));
+}
+// Places only the 13 km NA grid covers (Hawaii, far-offshore) stay listed under RRFS
+// and load rrfsna. Towns on both grids keep the 3 km CONUS run.
+async function routeRrfsTown(sec, town) {
+  if (sec.id !== "rrfs" || !town || !town.pt) return sec;
+  const pn = town.pt.n;
+  const own = await pointsOf("rrfs");
+  if (own.some((p) => p.n === pn)) return sec;
+  const wide = await pointsOf("rrfsna");
+  if (!wide.some((p) => p.n === pn)) return sec;
+  return { id: "rrfsna", label: "RRFS 13 km", tag: sec.tag, rl: "RRFS 13 km",
+    credit: "Data: NOAA/NCEP RRFS (public domain).", products: sec.products, hrs: 84 };
 }
 function readHash() { const q = new URLSearchParams(location.hash.slice(1)); S.sec = q.get("s") || ""; S.town = q.get("w") || ""; S.prod = q.get("p") || ""; }
 function writeHash() { const q = new URLSearchParams({ s: S.sec, w: S.town, p: S.prod }); history.replaceState(null, "", "#" + q.toString()); }
