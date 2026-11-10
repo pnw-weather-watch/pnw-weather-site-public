@@ -1,11 +1,12 @@
 # Fast-style model data -> R2 bucket pnw-models-data. This is the only model workflow in the repo:
-# HRRR, RRFS, NBM, GFS, IFS, AIFS, EPS, AIFS ENS, WW3, AIFS ENS members, EPS members, OISST, and RRFS 13 km NA (rrfsna, last so it cannot take turns from the hourly models) are jobs here.
+# HRRR, RRFS, NBM, GFS, IFS, AIFS, EPS, AIFS ENS, WW3, AIFS ENS members, EPS members, OISST, RRFS 13 km NA (rrfsna, last so it cannot take turns from the hourly models), and ECMWF 9 km (ifs9, its own small leg) are jobs here.
 # Writes go to preview/ keys (WX_R2_PREFIX) unless a dispatch sets prefix to a deployment area
 # such as preview-pr16/. Production keeps reading the live keys until someone runs this
 # workflow by hand with promote=true, which copies preview/ onto the live keys and does not encode.
 # Promote does not copy preview-pr16/ or any other preview-<name>/ prefix.
-# Schedule is every 15 min. Three publish legs run in parallel (hourly = hrrr,rrfs,nbm;
-# synoptic = gfs,ifs,aifs,eps,aens,gfsw; members/daily = aensm,epsm,oisst,rrfsna last)
+# Schedule is every 15 min. Four publish legs run in parallel (hourly = hrrr,rrfs,nbm;
+# synoptic = gfs,ifs,aifs,eps,aens,gfsw; members/daily = aensm,epsm,oisst,rrfsna last;
+# ifs9 = ECMWF 9 km alone, so its 9 km / 144-step volume does not take turns from synoptic)
 # so they do not share a concurrency group and a re-dispatch of one cannot cancel
 # another leg's pending cron. Each job gives due models a turn long enough to encode
 # (frame_scheduler.py; 6 minutes for hourly models so it outlasts the encoder's 2-minute
@@ -14,8 +15,8 @@
 # that same leg, with the same prefix. Manifest and catalog writes use If-Match retries.
 # Auto-promote of verified preview runs stays on (AUTO_PROMOTE_LIVE=false stops it).
 # GitHub only runs this schedule from the default branch. Public-repo minutes stay
-# within the free allowance: at most three concurrent publish jobs, 20-minute budgets,
-# 30-minute timeouts, and unused legs are not started.
+# within the free allowance: three shared legs plus one single-model ifs9 job, 20-minute
+# budgets, 30-minute timeouts, and unused legs are not started.
 # Needs repo secrets PNW_R2_ACCESS_KEY_ID and PNW_R2_SECRET_ACCESS_KEY. The Pages API token is the other site and is not read.
 name: fast-models
 on:
@@ -24,8 +25,8 @@ on:
   workflow_dispatch:
     inputs:
       models:
-        description: "comma list: hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna"
-        default: "hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna"
+        description: "comma list: hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna,ifs9"
+        default: "hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna,ifs9"
       minutes:
         description: "time budget for one fair pass across the selected models (each hourly turn is 6 minutes)"
         default: "20"
@@ -65,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
       - id: pick
         env:
-          MODELS: ${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna' }}
+          MODELS: ${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna,ifs9' }}
         run: |
           python3 - <<'PY'
           import json, os, sys
@@ -109,7 +110,7 @@ jobs:
       - name: Pick this leg's models
         id: filter
         env:
-          REQUESTED: ${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna' }}
+          REQUESTED: ${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna,ifs9' }}
           LEG: ${{ matrix.leg }}
         run: |
           python3 - <<'PY'

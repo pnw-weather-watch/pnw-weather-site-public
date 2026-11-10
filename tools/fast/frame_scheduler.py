@@ -10,9 +10,9 @@ front of the next pass (and the re-dispatch). The queue still locks each model a
 sleeps 45 seconds (inside the 30-60 second window) before the next round.
 
 OISST is daily. EPS members and AIFS-ENS members publish a member-hour only when that
-hour's source index is already the check inside their own tools. IFS9 stays paused
-unless it is removed from FAST_PAUSED, and then it runs as one worker only when
-MemAvailable is at least 4 GB.
+hour's source index is already the check inside their own tools. IFS9 has its own
+publish leg so the 9 km volume does not take turns from synoptic; it runs as one
+worker only when MemAvailable is at least 4 GB, and FAST_PAUSED can still skip it.
 
 Live copies are not part of this loop. fast_cycle writes the requested prefix.
 WX_LIVE_PUBLISH=1 is the only switch that also copies a verified frame onto the live keys.
@@ -38,11 +38,14 @@ LOW_PRIORITY = ("rrfsna",)
 OWN_SCRIPT = {"oisst": "oisst_cycle.py", "epsm": "epsm_cycle.py", "aensm": "aensm_cycle.py"}
 DEFAULT_MODELS = HOURLY + MEMBERS + DAILY + LOW_PRIORITY
 # Parallel workflow legs. rrfsna stays last in members so it cannot take turns from aensm/epsm/oisst.
-LEG_ORDER = ("hourly", "synoptic", "members")
+# ifs9 is its own small leg: a 9 km / 144-step run would starve in synoptic's 20-minute
+# budget (and would slow GFS/IFS/AIFS/EPS there). Unused legs are not started.
+LEG_ORDER = ("hourly", "synoptic", "members", "ifs9")
 LEGS = {
     "hourly": ("hrrr", "rrfs", "nbm"),
     "synoptic": ("gfs", "ifs", "aifs", "eps", "aens", "gfsw"),
     "members": ("aensm", "epsm", "oisst", "rrfsna"),
+    "ifs9": ("ifs9",),
 }
 
 
