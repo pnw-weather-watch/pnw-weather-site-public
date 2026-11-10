@@ -345,10 +345,11 @@ def main():
     s3 = client(); print("R2 prefix:", getattr(s3, "prefix", "") or "(live)", flush=True)
     s3.download_file(BUCKET, "manifest.json", f"{D}/manifest.json")
     models = a.models.split(",")
-    # ECMWF 9 km (ifs9) rides the ECMWF job (no workflow change): after "ifs", once its static layers are in the manifest
-    if "ifs" in models and "ifs9" not in models: models.insert(models.index("ifs") + 1, "ifs9")
+    # ifs9 used to ride the ifs job so the workflow list did not have to name it. It now
+    # has its own publish leg; auto-inserting it here would steal the ifs turn and could
+    # double-encode ifs9 when that leg runs at the same time.
     # 11-02 (Benjamin 10:32 AM): models listed in env FAST_PAUSED (comma list, set in fast-models.yml) are skipped entirely.
-    # ECMWF 9 km is paused: its source kept answering 503 and the ECMWF job hit the 50 min timeout. Re-enable: remove ifs9 there.
+    # ECMWF 9 km can still be paused by listing ifs9 in FAST_PAUSED.
     paused = {x.strip() for x in os.environ.get("FAST_PAUSED", "").split(",") if x.strip()}
     if paused & set(models): print("paused (FAST_PAUSED):", sorted(paused & set(models)), flush=True); models = [x for x in models if x not in paused]
     def stale_cycles(m, crop):

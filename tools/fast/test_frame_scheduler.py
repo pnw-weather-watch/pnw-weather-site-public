@@ -78,15 +78,40 @@ class Plan(unittest.TestCase):
         self.assertEqual(fs.LEGS["synoptic"], ("gfs", "ifs", "aifs", "eps", "aens", "gfsw"))
         self.assertEqual(fs.LEGS["members"], ("aensm", "epsm", "oisst", "rrfsna"))
         self.assertEqual(fs.LEGS["members"][-1], "rrfsna")
-        all_models = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "aifs", "eps", "aens", "gfsw", "aensm", "epsm", "oisst", "rrfsna"]
-        self.assertEqual(fs.legs_for_models(all_models), ["hourly", "synoptic", "members"])
+        self.assertEqual(fs.LEGS["ifs9"], ("ifs9",))
+        all_models = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "aifs", "eps", "aens", "gfsw", "aensm", "epsm", "oisst", "rrfsna", "ifs9"]
+        self.assertEqual(fs.legs_for_models(all_models), ["hourly", "synoptic", "members", "ifs9"])
         self.assertEqual(fs.models_for_leg("hourly", all_models), ["hrrr", "rrfs", "nbm"])
         self.assertEqual(fs.models_for_leg("synoptic", ["gfs", "hrrr", "ifs"]), ["gfs", "ifs"])
+        self.assertEqual(fs.models_for_leg("ifs9", all_models), ["ifs9"])
         self.assertEqual(fs.legs_for_models(["hrrr", "rrfs"]), ["hourly"])
         self.assertEqual(fs.legs_for_models(["rrfsna", "aensm"]), ["members"])
+        self.assertEqual(fs.legs_for_models(["ifs9"]), ["ifs9"])
         # carry-over order is preserved; rrfsna is still last after next_models
         self.assertEqual(fs.models_for_leg("members", ["rrfsna", "aensm"]), ["rrfsna", "aensm"])
         self.assertEqual(fs.next_models(["rrfsna", "aensm"], [], {"rrfsna", "aensm"}), ["aensm", "rrfsna"])
+
+    def test_every_scheduled_manifest_model_is_in_exactly_one_leg(self):
+        """A model with encoder cycles must be scheduled, and only in one publish leg."""
+        import pathlib
+        import re
+        import fast_encode as FE
+        scheduled = sorted(m for m, cfg in FE.MODELS.items() if isinstance(cfg, dict) and "cycles" in cfg)
+        owned = {}
+        for leg, models in fs.LEGS.items():
+            for m in models:
+                self.assertNotIn(m, owned, f"{m} is in both {owned.get(m)} and {leg}")
+                owned[m] = leg
+        self.assertEqual(sorted(owned), scheduled)
+        self.assertEqual(set(fs.DEFAULT_MODELS), set(owned))
+        self.assertEqual(owned["ifs9"], "ifs9")
+        yml = pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "fast-models.yml"
+        text = yml.read_text()
+        lists = re.findall(r"hrrr,rrfs,nbm,[a-z0-9,]+", text)
+        self.assertGreaterEqual(len(lists), 4)
+        for blob in lists:
+            missing = [m for m in scheduled if m not in blob.split(",")]
+            self.assertEqual(missing, [], f"workflow list {blob!r} missing {missing}")
 
     def test_a_second_lock_does_not_steal_the_model(self):
         with tempfile.TemporaryDirectory() as d:
