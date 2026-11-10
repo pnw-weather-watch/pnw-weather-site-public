@@ -1208,7 +1208,13 @@ def step_job(args):
             if bad.any():
                 w = gaussian_filter((~bad).astype(float), 1.5); a = np.where(bad, gaussian_filter(np.where(bad, 0, a), 1.5) / np.maximum(w, 1e-6), a)
         if P and name in PT_FIELDS: ptv[name] = sample_pts(a, P)
-        a = np.where(np.isfinite(a), a, np.nanmin(a))
+        if MODELS[m]["grid"] == "rotll":
+            # RRFS NA bitmap-missing cells: the LUT drops them (idx=-1, no data, basemap shows,
+            # like the unshaded area past a CONUS edge). Store the nearest valid value in them so
+            # bilinear samples on the last valid cells do not blend toward the field minimum.
+            a = fill_nearest_valid(a)
+        else:
+            a = np.where(np.isfinite(a), a, np.nanmin(a))
         if name == "prt": ranges[name] = [0.0, 255.0]; q[name] = np.clip(a, 0, 255).astype(np.uint8); continue
         if name in SQRT_FIELDS:   # precip totals: square-root steps (fine for light amounts); viewer decodes lo + (q/255)^2 (hi - lo)
             lo_, hi_ = rng(a); ranges[name] = [lo_, hi_, 2]; q[name] = q8(np.sqrt(np.clip((a - lo_) / (hi_ - lo_), 0, 1)), 0, 1); continue
@@ -1406,11 +1412,13 @@ EXTRA_TOWNS = {
             ("Sandpoint", 48.277, -116.553, "r"), ("Moscow", 46.732, -117.000, "r"), ("Hermiston", 45.840, -119.289, "r")],
 }
 
+GRID_VALID = {}
+
 def model_grid(m):
     """(la2d, lo2d, orog_ft or None, kind) on the model's own grid (lo2d in -180..180 for lcc, 0..360 for ll)."""
     import menu_maps as M
     if MODELS[m].get("grid_from"):   # same 0.25 grid as another model
-        la, lo, oro = model_grid(MODELS[m]["grid_from"]); return la, lo, oro
+        src = MODELS[m]["grid_from"]; la, lo, oro = model_grid(src); GRID_VALID[m] = GRID_VALID.get(src); return la, lo, oro
     _patch_models(M)
     if m == "nbm":
         c = latest_published(m)
@@ -1420,16 +1428,19 @@ def model_grid(m):
         raise RuntimeError("no NBM run found")
     c = latest_published(m) or (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=12)).replace(hour=0, minute=0, second=0, microsecond=0)
     for _ in range(4):   # the newest cycle may not be posted yet: fall back one cycle at a time
-        try: R = M.Reader(m, c, MODELS[m]["steps"][0]); la, lo, _ = R.f("t2m"); break
+        try: R = M.Reader(m, c, MODELS[m]["steps"][0]); la, lo, t2 = R.f("t2m"); break
         except Exception:
             c -= dt.timedelta(hours=6)
             while c.hour not in MODELS[m]["cycles"]: c -= dt.timedelta(hours=6)
     la, lo = np.asarray(la, float), np.asarray(lo, float)
+    t2 = np.asarray(t2, float)
     try: oro = np.asarray(R.f("orog")[2], float) * 3.28084
     except Exception: oro = None
     if MODELS[m]["grid"] == "ll":
         lo = np.mod(roll_ll(lo[None, :])[0], 360); la, lo = np.meshgrid(la, lo, indexing="ij")
         if oro is not None: oro = roll_ll(oro)
+        t2 = roll_ll(t2)
+    GRID_VALID[m] = np.isfinite(t2)
     return la, lo, oro
 
 def latest_published(m):
@@ -1486,6 +1497,36 @@ def _lon_in(lo, west, east):
     if west <= east: return (lo >= west) & (lo <= east)
     return (lo >= west) | (lo <= east)
 
+def fill_nearest_valid(a):
+    """NaN cells take the value of the nearest finite cell (encode-only; never shown, see LUT)."""
+    bad = ~np.isfinite(a)
+    if not bad.any() or bad.all(): return a
+    from scipy.ndimage import distance_transform_edt
+    idx = distance_transform_edt(bad, return_distances=False, return_indices=True)
+    return a[tuple(idx)]
+
+def invalidate_missing_lut(fi, fj, ang, valid):
+    """Drop LUT samples that land on bitmap-missing native cells.
+
+    The viewer already paints idx=-1 (NaN fi/fj, or far outside the stored grid)
+    as no data, the same way it leaves the area past a CONUS edge unshaded.
+    Filling those cells with the field minimum painted a false purple/cold rim
+    around the RRFS NA domain on the wide Pacific and North America views.
+    """
+    if valid is None or np.asarray(valid).all():
+        return fi, fj, ang
+    ny, nx = valid.shape
+    on = np.isfinite(fi) & np.isfinite(fj) & (fi >= -0.5) & (fi <= ny - 0.5) & (fj >= -0.5) & (fj <= nx - 0.5)
+    ri = np.clip(np.rint(np.where(np.isfinite(fi), fi, 0)), 0, ny - 1).astype(int)
+    ci = np.clip(np.rint(np.where(np.isfinite(fj), fj, 0)), 0, nx - 1).astype(int)
+    miss = on & ~valid[ri, ci]
+    if not miss.any():
+        return fi, fj, ang
+    fi, fj = np.array(fi, float, copy=True), np.array(fj, float, copy=True)
+    fi[miss] = np.nan
+    fj[miss] = np.nan
+    return fi, fj, ang
+
 def static(m, out, views_only=None, x2_only=False):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -1536,7 +1577,7 @@ def static(m, out, views_only=None, x2_only=False):
         # branch passed a row and a column into transform_points and cartopy rejected it.
         g = CAM.sample_grid(cam, STRIDE, MD.get("res", 0.25), to_ij=to_ij if MD["grid"] in ("lcc", "rotll") else None)
         fi, fj, ang = g["fi"], g["fj"], g["ang"]
-        luts[vid] = (fi, fj, ang)
+        luts[vid] = invalidate_missing_lut(fi, fj, ang, GRID_VALID.get(m))
         views[vid] = dict(label=V["label"], fig=[int(round(W)), int(round(H))], size_in=[float(x) for x in fig.get_size_inches()],
                           panel=[px, py, pw, ph], stride=STRIDE, nx=g["nx"], ny=g["ny"], barbs_across=HS.BARBS_ACROSS.get(vid, 20),
                           bounds=list(cam.bounds()), anchors=cam.anchors())

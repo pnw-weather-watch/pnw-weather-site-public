@@ -86,6 +86,18 @@ class RrfsnaRegistration(unittest.TestCase):
         self.assertIn("rotll_earth_relative", src)
         self.assertIn("if M.get(\"rotated_ll\"): u, w = rotll_earth_relative", src)
 
+    
+    def test_missing_domain_cells_stay_transparent(self):
+        src = open(os.path.join(os.path.dirname(__file__), "fast_encode.py"), encoding="utf-8").read()
+        self.assertIn("def invalidate_missing_lut", src)
+        self.assertIn("luts[vid] = invalidate_missing_lut(fi, fj, ang, GRID_VALID.get(m))", src)
+        self.assertIn('if MODELS[m]["grid"] == "rotll":\n            # RRFS NA bitmap-missing cells', src)
+        self.assertIn("a = fill_nearest_valid(a)", src)
+        a = np.array([[np.nan, 1.0], [2.0, np.nan]])
+        b = FE.fill_nearest_valid(a)
+        self.assertTrue(np.isfinite(b).all())
+        self.assertEqual(float(np.nanmin(b)), 1.0)
+
     def test_conus_edge_pad_does_not_apply(self):
         src = open(os.path.join(os.path.dirname(__file__), "fast_encode.py"), encoding="utf-8").read()
         self.assertIn('outside = CONUS_OUTSIDE if m in ("hrrr", "rrfs", "nbm") else 0', src)
