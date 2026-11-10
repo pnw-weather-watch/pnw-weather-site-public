@@ -56,6 +56,17 @@ class Plan(unittest.TestCase):
         self.assertEqual(fs.next_models(models, served, {"hrrr"}), ["hrrr"])
         self.assertEqual(fs.next_models(models, served, set()), [])
 
+    def test_rrfsna_stays_last_on_carry_over(self):
+        """A due rrfsna cycle must not jump ahead of HRRR/GFS even if it missed a turn."""
+        self.assertEqual(fs.cadence("rrfsna"), "hour")
+        self.assertEqual(fs.slice_span("rrfsna", 2), fs.SLICE_MINUTES)
+        self.assertEqual(fs.DEFAULT_MODELS[-1], "rrfsna")
+        models = ["hrrr", "rrfs", "rrfsna", "nbm", "gfs"]
+        served = ["hrrr", "rrfs"]
+        more = {"hrrr", "rrfs", "rrfsna", "nbm", "gfs"}
+        self.assertEqual(fs.next_models(models, served, more), ["nbm", "gfs", "hrrr", "rrfs", "rrfsna"])
+        self.assertEqual(fs.next_models(models, served, {"rrfsna", "nbm"}), ["nbm", "rrfsna"])
+
     def test_redispatch_keeps_the_prefix_and_the_model_list(self):
         args = fs.redispatch_args(["gfs", "ifs", "hrrr"], 20, "preview-pr19/")
         self.assertIn("models=gfs,ifs,hrrr", args)

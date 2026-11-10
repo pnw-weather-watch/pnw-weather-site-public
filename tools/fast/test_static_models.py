@@ -84,7 +84,13 @@ class StaticModels(unittest.TestCase):
         for model, views in REGIONS["model_views"].items():
             self.assertIn(model, FE.MODELS, model)
             md = FE.MODELS[model]
-            to_ij = lambert_to_ij(model) if md["grid"] == "lcc" else None
+            if md["grid"] == "lcc":
+                to_ij = lambert_to_ij(model)
+            elif md["grid"] == "rotll":
+                spec = md["rotll"]
+                to_ij = lambda lon, lat, spec=spec: FE.rotll_to_ij(lon, lat, spec)
+            else:
+                to_ij = None
             res = md.get("res", 0.25)
             for vid in views:
                 g = CAM.sample_grid(self.cams[vid], FE.STRIDE, res, to_ij=to_ij)
@@ -122,7 +128,7 @@ class StaticModels(unittest.TestCase):
     def test_static_source_uses_one_mesh_for_lambert(self):
         with open(os.path.join(os.path.dirname(__file__), "fast_encode.py"), encoding="utf-8") as f:
             src = f.read()
-        self.assertIn('to_ij=to_ij if MD["grid"] == "lcc" else None', src)
+        self.assertIn('to_ij=to_ij if MD["grid"] in ("lcc", "rotll") else None', src)
         self.assertNotIn("gxp[None, :] / pw) * (x1 - x0); PY", src)
 
 

@@ -268,7 +268,7 @@ async function boot() {
   // ifs9 stays in the Runs menu when its publisher is paused and no cycle is in R2 yet.
   const LISTED_WITHOUT_RUNS = new Set(["ifs9"]);
   const listed = () => {
-    const order = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "aensm", "epsm", "gfsw", "oisst"].filter(m => S.man.models[m] && ((S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)));
+    const order = ["hrrr", "rrfs", "rrfsna", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "aensm", "epsm", "gfsw", "oisst"].filter(m => S.man.models[m] && ((S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)));
     const all = []; for (const m of order) for (const c of [...(S.man.runs[m] || [])].reverse()) all.push(`${m}/${c}`);
     return [order, all];
   };
@@ -322,13 +322,17 @@ async function boot() {
   const f0 = Q.get("f"), steps = S.runs[S.run].steps; S.i = f0 ? Math.max(0, steps.findIndex(s => s.f == +f0)) : S.run.startsWith("oisst/") ? steps.length - 1 : 0;   // 11-03: daily analyses open on the newest day
   const vq = Date.parse(Q.get("valid") || ""); if (!f0 && vq) { let b = 0; steps.forEach((x, k) => { if (Math.abs(Date.parse(x.valid) - vq) < Math.abs(Date.parse(steps[b].valid) - vq)) b = k; }); S.i = b; }   // old-site links
   if (S.i < 0) S.i = 0;
+  { const mate = rrfsMate(S.run.split("/")[0]);
+    if (mate && S.man.models[mate]) try { await ensureModel(mate); } catch (e) { /* partner catalog optional for the view union */ } }
   setLists();
+  if (await ensureRrfsGrid(S.viewPrefer || S.view)) setLists();
   $("step").value = S.i;
   $("run").onchange = async e => {   // keep the same valid time when switching runs/models (nearest step)
     const vt = Date.parse(S.runs[S.run].steps[S.i].valid); const next = e.target.value; if (!next) return;
     try { await ensureModel(next.split("/")[0]); await loadRun(next); }
     catch (err) { showErr(err); return; }
     S.run = next; setLists();
+    try { if (await ensureRrfsGrid(S.view)) setLists(); } catch (err) { showErr(err); return; }
     const st = S.runs[S.run].steps; let b = 0; st.forEach((x, k) => { if (Math.abs(Date.parse(x.valid) - vt) < Math.abs(Date.parse(st[b].valid) - vt)) b = k; });
     S.i = b; $("step").value = b; memUI(); syncUrl(); draw(); loadNote(); };
   memUI();
@@ -343,7 +347,9 @@ async function boot() {
   $("obsbtn") && ($("obsbtn").onclick = obsOpen);
   $("mgbtn") && ($("mgbtn").onclick = () => mgOpen("town")); $("pfbtn") && ($("pfbtn").onclick = () => mgOpen("pass")); $("pfcabtn") && ($("pfcabtn").onclick = () => mgOpen("capass"));
   $("prod").onchange = e => { S.prod = e.target.value; S.lastTab[S.tab || tabOf(S.prod)] = S.prod; syncUrl(); draw(); };
-  $("view").onchange = e => { S.view = S.viewPrefer = e.target.value; resetZoom(); syncUrl(); draw(); };
+  $("view").onchange = async e => { S.view = S.viewPrefer = e.target.value; resetZoom();
+    try { if (await ensureRrfsGrid(S.view)) setLists(); } catch (err) { showErr(err); return; }
+    syncUrl(); draw(); };
   const sl = $("step"), endDrag = () => { if (S.dragging) { S.dragging = false; draw(); } };
   sl.addEventListener("pointerdown", () => { S.dragging = true; });
   sl.addEventListener("touchstart", () => { S.dragging = true; }, { passive: true });
@@ -431,7 +437,7 @@ async function onCompareMsg(e) {
   if (d.run && d.run !== S.run) { try { await ensureModel(d.run.split("/")[0]); await loadRun(d.run); S.run = d.run; $("run").value = d.run; } catch (err) { return; } }
   const P = PRODS(), has = new Set(S.runs[S.run].fields);
   if (d.prod && P[d.prod] && P[d.prod].fields.every(x => has.has(x))) { S.prod = d.prod; S.tab = null; }
-  if (d.view) { S.viewPrefer = d.view; if (VIEWS()[d.view]) S.view = d.view; }
+  if (d.view) { S.viewPrefer = d.view; await ensureRrfsGrid(d.view); if (rrfsMenuViews()[d.view]) S.view = d.view; }
   setLists();
   const lead = typeof d.i === "number";   // shared slider (compare page): this frame leads, so its new state is passed on to the other map
   if (lead) { S.i = Math.max(0, Math.min(S.runs[S.run].steps.length - 1, d.i)); $("step").value = S.i; d.valid = null; }
@@ -516,6 +522,60 @@ function VIEWS() {
   }
   return out;
 }
+// When RRFS is selected, wider cameras stay in the view menu and load the 13 km
+// NA grid (rrfsna). Tight CONUS cameras stay on 3 km rrfs. Compare frames and
+// Save Image use this same viewer, so they follow the swap too.
+const RRFS_WIDE_VIEWS = new Set(["na", "pac", "pnw", "pnwt", "pnwwide"]);
+function rrfsMate(m) { return m === "rrfs" ? "rrfsna" : m === "rrfsna" ? "rrfs" : null; }
+function rrfsMenuViews() {
+  const V = VIEWS();
+  const mate = rrfsMate((S.run || "").split("/")[0]);
+  if (!mate || !S.man || !S.man.models[mate]) return V;
+  const raw = S.man.models[mate].views || {};
+  const cams = (window.WXCAM && WXCAM.views) || {};
+  const extra = {};
+  for (const [id, v] of Object.entries(raw)) {
+    if (V[id]) continue;
+    extra[id] = Object.assign({}, v, { label: (cams[id] && cams[id].label) || v.label || id, _id: id });
+  }
+  if (!Object.keys(extra).length) return V;
+  const order = ["na", "pac", "pnw", "pnwt", "pnwwide", "pnwhr", "wa", "passes", "ca", "socal", "cenca", "norca", "bay", "orco", "capasses"];
+  const merged = {}, seen = new Set();
+  for (const id of [...order, ...Object.keys(V), ...Object.keys(extra)]) {
+    if (seen.has(id)) continue;
+    if (V[id]) { merged[id] = V[id]; seen.add(id); }
+    else if (extra[id]) { merged[id] = extra[id]; seen.add(id); }
+  }
+  return merged;
+}
+function pickRrfsRun(mate, cycle) {
+  const cs = (S.man && S.man.runs && S.man.runs[mate]) || [];
+  if (!cs.length) return null;
+  if (cycle && cs.includes(cycle)) return mate + "/" + cycle;
+  return mate + "/" + cs[cs.length - 1];
+}
+async function ensureRrfsGrid(vid) {
+  if (!vid || !S.run) return false;
+  const [m, c] = S.run.split("/");
+  if (!rrfsMate(m)) return false;
+  const want = RRFS_WIDE_VIEWS.has(vid) ? "rrfsna" : "rrfs";
+  if (m === want) return false;
+  try { await ensureModel(want); } catch (e) { return false; }
+  if (!((S.man.models[want] || {}).views || {})[vid]) return false;
+  const next = pickRrfsRun(want, c);
+  if (!next) return false;
+  try { await loadRun(next); } catch (e) { return false; }
+  const cur = S.runs[S.run], vt = cur && cur.steps && cur.steps[S.i] ? Date.parse(cur.steps[S.i].valid) : null;
+  S.run = next;
+  if ($("run") && [...$("run").options].some(o => o.value === next)) $("run").value = next;
+  if (vt && S.runs[next] && S.runs[next].steps) {
+    const st = S.runs[next].steps; let b = 0;
+    st.forEach((x, k) => { if (Math.abs(Date.parse(x.valid) - vt) < Math.abs(Date.parse(st[b].valid) - vt)) b = k; });
+    S.i = b;
+    if ($("step")) $("step").value = b;
+  }
+  return true;
+}
 function camSample(C, arr, x, y) {
   const [px, py, pw, ph] = C.panel;
   const u = Math.min(C.nx - 1.001, Math.max(0, (x - px) / pw * (C.nx - 1)));
@@ -576,7 +636,7 @@ const hasWaves = m => { const P = allProds(S.man.models[m] || {}); return WAVE_T
 const runInTab = (r, tab) => { const m = r.split("/")[0]; if (Q.get("embed")) return true; return tab === "wav" ? hasWaves(m) : !OCEAN.includes(m); };
 S.lastTab = {};
 function setLists() {   // products this run carries (all their fields present), views this model has
-  const R_ = S.runs[S.run], has = new Set(R_.fields), P = PRODS(), V = VIEWS();
+  const R_ = S.runs[S.run], has = new Set(R_.fields), P = PRODS(), V = rrfsMenuViews();
   const usable = (f) => R_.steps.some(st => st.ranges && st.ranges[f] && WXSelect.plausibleRange(f, st.ranges[f]));
   const prods = Object.entries(P).filter(([k, p]) => p.fields.every(f => has.has(f) && usable(f)));
   const tabs = [...TABS, ["other", "Other", []]].map(([id, label, ids]) => [id, label,
@@ -1192,7 +1252,8 @@ function creditLines(pid, P, towns) {
   const m = S.run.split("/")[0], name = (MD() && MD().name) || "", ec = /^ECMWF/.test(name) || /^(ifs|ifs9|aifs|eps|aens|aensm|epsm)$/.test(m);
   const L = [];
   if (P.clim === "pr" || /^qpf(a|pct)$/.test(pid)) L.push("Normals: PRISM Group, Oregon State University, https://prism.oregonstate.edu (accessed 30 Oct 2026); NOAA CPC & GPCP via NOAA PSL.");
-  const a = [ec ? `Data: \u00a9 ${CREDIT_YEAR} ECMWF (www.ecmwf.int), CC BY 4.0. Modified.` : (pid === "t2m" ? "" : "Data: NOAA (public domain).")];
+  const data = m === "rrfsna" ? "Data: NOAA/NCEP RRFS (public domain)." : (ec ? `Data: \u00a9 ${CREDIT_YEAR} ECMWF (www.ecmwf.int), CC BY 4.0. Modified.` : (pid === "t2m" ? "" : "Data: NOAA (public domain)."));
+  const a = [data];
   if (towns) a.push("Places: GeoNames (geonames.org), CC BY 4.0."); a.push("Coastlines: GSHHG / NOAA NCEI."); a.push("Basemap: Natural Earth.");
   L.push(a.filter(Boolean).join("  "));
   try { const fe = document.getElementById("licsrc"); if (fe) fe.textContent = ec ? `Data: \u00a9 ${CREDIT_YEAR} ECMWF (www.ecmwf.int), CC BY 4.0 \u00b7 ` : ""; } catch (e) {}   // 11-04: GFS/NOAA pages never credit ECMWF
@@ -2408,7 +2469,7 @@ const MG = { open: null, town: Q.get("town") || "Seattle", run: null, cache: new
 const PTZ = "America/Los_Angeles";
 const fmtPT = (iso, o) => new Intl.DateTimeFormat("en-US", Object.assign({ timeZone: PTZ }, o)).format(new Date(iso));
 function mgRuns() {   // newest run of each model that carries town points
-  const order = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens"], out = [];
+  const order = ["hrrr", "rrfs", "rrfsna", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens"], out = [];
   for (const m of order) for (const c of [...(S.man.runs[m] || [])].reverse()) { const r = `${m}/${c}`; if (S.runs[r] && !S.runs[r].points) continue; out.push(r); break; }
   return out;
 }

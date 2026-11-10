@@ -41,6 +41,7 @@ MODELS = {
 }
 HRRR = "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.{d}/conus/hrrr.t{h:02d}z.wrfsfcf{s:02d}.grib2"
 RRFS = "https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{d}/{h:02d}/rrfs.t{h:02d}z.2dfld.3km.f{s:03d}.conus.grib2"
+RRFSNA = "https://noaa-rrfs-ops-pds.s3.amazonaws.com/rrfs.{d}/{h:02d}/rrfs.t{h:02d}z.2dfld.13km.f{s:03d}.na.grib2"
 # High-res (NOAA, public domain: no credit line needed). HRRR wrfsfc has 2 m and 850 mb fields; RRFS 2dfld only 2 m.
 HIRES = {
     "hrrr": dict(site="HRRR", name="NOAA HRRR", res="3 km", url=HRRR, hours=48, products=("t2m", "t850"), lov=-97.5, latin=38.5),

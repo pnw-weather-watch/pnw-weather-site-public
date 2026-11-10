@@ -34,6 +34,7 @@ MODELS = {
     "hrrr": dict(site="HRRR", name="NOAA HRRR", res="3 km", kind="idx", url=TM.HRRR, lambert=True,
                  prs=TM.HRRR.replace("wrfsfcf", "wrfprsf")),   # pressure levels (25 mb spacing) live in the prs file
     "rrfs": dict(site="RRFS", name="NOAA RRFS", res="3 km", kind="idx", url=TM.RRFS, lambert=True),
+    "rrfsna": dict(site="RRFS 13 km", name="NOAA RRFS", res="13 km", kind="idx", url=TM.RRFSNA, rotated_ll=True),
 }
 HIRES = ("hrrr", "rrfs")
 # canonical field -> (ECMWF param, level, kind) and (NOAA idx "VAR:level")
@@ -43,10 +44,10 @@ EC = {"gust": ("10fg", None, "sfc"), "t2m": ("2t", None, "sfc"), "td2m": ("2d", 
 NO = {"gust": "GUST:surface", "t2m": "TMP:2 m above ground", "td2m": "DPT:2 m above ground", "u10": "UGRD:10 m above ground",
       "v10": "VGRD:10 m above ground", "msl": "PRMSL:mean sea level", "sp": "PRES:surface", "prate": "PRATE:surface",
       "pwat": "PWAT:entire atmosphere (considered as a single layer)", "orog": "HGT:surface", "crain": "CRAIN:surface", "csnow": "CSNOW:surface", "cfrzr": "CFRZR:surface", "cicep": "CICEP:surface"}
-NO_HIRES_MSL = {"hrrr": "MSLMA:mean sea level", "rrfs": "MSLET:mean sea level"}   # 10-25-26: RRFS 2dfld has no MSLMA, only MSLET (Eta reduction)
-NO_BY = {"tcc": {"gfs": "TCDC:entire atmosphere", "hrrr": "TCDC:entire atmosphere", "rrfs": "TCDC:entire atmosphere (considered as a single layer)"},
-         "vis": {"gfs": "VIS:surface", "hrrr": "VIS:surface", "rrfs": "VIS:surface"},
-         "ir": {"hrrr": "SBT124:top of atmosphere", "rrfs": "SBTA1613:top of atmosphere"}}   # 10.7 um GOES imager ch4 / ABI band 13
+NO_HIRES_MSL = {"hrrr": "MSLMA:mean sea level", "rrfs": "MSLET:mean sea level", "rrfsna": "MSLET:mean sea level"}   # 10-25-26: RRFS 2dfld has no MSLMA, only MSLET (Eta reduction)
+NO_BY = {"tcc": {"gfs": "TCDC:entire atmosphere", "hrrr": "TCDC:entire atmosphere", "rrfs": "TCDC:entire atmosphere (considered as a single layer)", "rrfsna": "TCDC:entire atmosphere (considered as a single layer)"},
+         "vis": {"gfs": "VIS:surface", "hrrr": "VIS:surface", "rrfs": "VIS:surface", "rrfsna": "VIS:surface"},
+         "ir": {"hrrr": "SBT124:top of atmosphere", "rrfs": "SBTA1613:top of atmosphere", "rrfsna": "SBTA1613:top of atmosphere"}}   # 10.7 um GOES imager ch4 / ABI band 13
 LEVELS = (1000, 925, 850, 700, 500, 300, 250)
 
 
@@ -90,20 +91,26 @@ class Reader:
             if ":" in name:
                 v, lev = name.split(":"); key = f"{ {'T': 'TMP', 'U': 'UGRD', 'V': 'VGRD', 'Z': 'HGT', 'Q': 'SPFH'}[v]}:{lev} mb"
             else:
-                key = NO_HIRES_MSL[self.m] if (name == "msl" and self.m in HIRES) else (NO_BY[name].get(self.m) if name in NO_BY else NO.get(name))
+                key = NO_HIRES_MSL[self.m] if (name == "msl" and self.m in NO_HIRES_MSL) else (NO_BY[name].get(self.m) if name in NO_BY else NO.get(name))
                 if key is None: raise KeyError(name)
             src = self.prs if " mb" in key else self.url
             r = self._idx(key, src)
-            if M.get("lambert") and name.split(":")[0] in ("u10", "U") :
-                vv = self._idx(key.replace("UGRD", "VGRD"), src); u, w = TM.earth_relative(r[2], vv[2], r[1], self.m)
+            if (M.get("lambert") or M.get("rotated_ll")) and name.split(":")[0] in ("u10", "U") :
+                vv = self._idx(key.replace("UGRD", "VGRD"), src)
+                if M.get("rotated_ll"): u, w = rotll_earth_relative(r[2], vv[2], r[0], r[1])
+                else: u, w = TM.earth_relative(r[2], vv[2], r[1], self.m)
                 self.cache[name.replace("u10", "v10").replace("U:", "V:")] = (r[0], r[1], w); r = (r[0], r[1], u)
-            elif M.get("lambert") and name.split(":")[0] in ("v10", "V"):
+            elif (M.get("lambert") or M.get("rotated_ll")) and name.split(":")[0] in ("v10", "V"):
                 self.f(name.replace("v10", "u10").replace("V:", "U:")); return self.cache[name]
         self.cache[name] = r
         return r
 
     def acc0(self, key):
-        """NOAA run-total accumulation 'VAR:level' from 0 h to this step (0 at step 0)."""
+        """NOAA run-total accumulation 'VAR:level' from 0 h to this step (0 at step 0).
+
+        Most hours use '0-N hour acc fcst'. At exact 24 h marks (F24/F48/F72) RRFS NA
+        labels the same run total '0-N day acc fcst' (verified on 00Z 20261110).
+        """
         n = f"acc0:{key}"
         def go():
             self.cache[n] = self._idx(key, self.url, ("0-%d hour acc fcst" % self.s, "0-%d day acc fcst" % (self.s // 24))); return self.cache[n]
@@ -129,6 +136,14 @@ class Reader:
                 a = int(p[1]); b = int(idx[k + 1].split(":")[1]) - 1 if k + 1 < len(idx) else None
                 blob = get(url, (a, b if b is not None else a + 40_000_000)); self.bytes += len(blob)
                 g = ec.codes_new_from_message(blob); v = ec.codes_get_values(g)
+                # Rotated NA RRFS (and any other bitmapped grid) stores inactive points as missingValue (9999).
+                # Leave them as NaN so encode ranges are real weather, not 17539 F / 22368 mph.
+                try:
+                    if ec.codes_get(g, "bitmapPresent"):
+                        mv = ec.codes_get(g, "missingValue")
+                        v = np.where(v == mv, np.nan, v)
+                except Exception:
+                    pass
                 if ec.codes_get(g, "gridType") == "regular_ll":
                     ni, nj = ec.codes_get(g, "Ni"), ec.codes_get(g, "Nj")
                     la0, la1 = ec.codes_get(g, "latitudeOfFirstGridPointInDegrees"), ec.codes_get(g, "latitudeOfLastGridPointInDegrees")
@@ -315,7 +330,21 @@ def isobars_hl(fig, ax, LA, LO, P, vid):
     return lab, mk
 
 
+def rotll_earth_relative(u, v, la, lo):
+    """Grid-relative rotated lat-lon winds -> east/north, from the local +i (column) direction."""
+    import numpy as np
+    la, lo = np.asarray(la, float), np.asarray(lo, float)
+    dlat = np.empty_like(la); dlon = np.empty_like(lo)
+    dlat[:, :-1] = la[:, 1:] - la[:, :-1]; dlat[:, -1] = la[:, -1] - la[:, -2]
+    dlon[:, :-1] = np.mod(lo[:, 1:] - lo[:, :-1] + 180.0, 360.0) - 180.0
+    dlon[:, -1] = np.mod(lo[:, -1] - lo[:, -2] + 180.0, 360.0) - 180.0
+    theta = np.arctan2(dlat, dlon * np.cos(np.deg2rad(la)))
+    ct, st = np.cos(theta), np.sin(theta)
+    return ct * u - st * v, st * u + ct * v
+
+
 def credit(m):
+    if m == "rrfsna": return "Data: NOAA/NCEP RRFS (public domain).  Basemap: Natural Earth."
     if m in ("gfs",) + HIRES: return "Data: NOAA (public domain).  Basemap: Natural Earth."
     return TM.CREDIT.format(name=MODELS[m]["name"])
 

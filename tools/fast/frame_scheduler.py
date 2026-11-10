@@ -32,8 +32,11 @@ IFS9_MIN_KB = 4_000_000
 HOURLY = ("hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "gfsw")
 MEMBERS = ("epsm", "aensm")
 DAILY = ("oisst",)
+# rrfsna is 00/06/12/18Z only and encodes four wide views; keep it last so a new
+# NA cycle cannot jump ahead of HRRR/GFS/RRFS on carry-over.
+LOW_PRIORITY = ("rrfsna",)
 OWN_SCRIPT = {"oisst": "oisst_cycle.py", "epsm": "epsm_cycle.py", "aensm": "aensm_cycle.py"}
-DEFAULT_MODELS = HOURLY + MEMBERS + DAILY
+DEFAULT_MODELS = HOURLY + MEMBERS + DAILY + LOW_PRIORITY
 
 
 def mem_available_kb(text):
@@ -95,11 +98,17 @@ def turn_fits(span_minutes, now, deadline):
 
 
 def next_models(models, served, more):
-    """Carry-over order: models that missed a turn first, then served models still due."""
+    """Carry-over order: models that missed a turn first, then served models still due.
+
+    LOW_PRIORITY models (rrfsna) stay at the end even when they missed a turn, so a
+    new 00/06/12/18Z NA cycle cannot jump in front of HRRR/GFS/RRFS.
+    """
     served_set, more_set = set(served), set(more)
-    missed = [m for m in models if m not in served_set and m in more_set]
-    again = [m for m in models if m in served_set and m in more_set]
-    return missed + again
+    low = set(LOW_PRIORITY)
+    missed = [m for m in models if m not in served_set and m in more_set and m not in low]
+    again = [m for m in models if m in served_set and m in more_set and m not in low]
+    delayed = [m for m in models if m in low and m in more_set]
+    return missed + again + delayed
 
 def slice_command(model, workers, minutes):
     script = OWN_SCRIPT.get(model, "fast_cycle.py")

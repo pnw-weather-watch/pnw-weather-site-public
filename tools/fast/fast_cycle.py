@@ -66,7 +66,7 @@ LASTMAN = {}
 MAN_EVERY = 300   # s between manifest rewrites while a run is coming in (run.json is updated every chunk)
 # --watch: minutes after the cycle time when the first step is usually out (measured 10-31 from R2 upload times and the
 # NOAA / ECMWF open-data files); watching starts WATCH_EARLY min before that, and stops WATCH_SPAN h after it or when complete
-DUE_MIN = {"hrrr": 45, "rrfs": 60, "nbm": 55, "gfs": 200, "ifs": 330, "ifs9": 420, "aifs": 320, "eps": 380, "aens": 350, "gfsw": 215}
+DUE_MIN = {"hrrr": 45, "rrfs": 60, "rrfsna": 90, "nbm": 55, "gfs": 200, "ifs": 330, "ifs9": 420, "aifs": 320, "eps": 380, "aens": 350, "gfsw": 215}
 WATCH_EARLY, WATCH_SPAN = 60, 6
 
 def run_due(s3, m):
@@ -88,7 +88,7 @@ def update_manifest(s3, fn, tries=8):
     import random
     for i in range(tries):
         o = s3.get_object(Bucket=BUCKET, Key="manifest.json"); man = json.loads(o["Body"].read()); fn(man)
-        kw = dict(Bucket=BUCKET, Key="manifest.json", Body=json.dumps(man).encode(), ContentType="application/json")
+        kw = dict(Bucket=BUCKET, Key="manifest.json", Body=json.dumps(man, allow_nan=False).encode(), ContentType="application/json")
         if o.get("_wx_live_fallback"): kw["IfNoneMatch"] = "*"
         else: kw["IfMatch"] = o["ETag"]
         try:
@@ -104,9 +104,9 @@ def update_manifest(s3, fn, tries=8):
 def publish_catalogs(s3, man):
     """Slim index plus one complete catalog per model, from the manifest just written. No extra ingest."""
     slim, cats = FE.split_manifest(man)
-    s3.put_object(Bucket=BUCKET, Key="manifest.index.json", Body=json.dumps(slim, separators=(",", ":")).encode(), ContentType="application/json")
+    s3.put_object(Bucket=BUCKET, Key="manifest.index.json", Body=json.dumps(slim, separators=(",", ":"), allow_nan=False).encode(), ContentType="application/json")
     for mid, cat in cats.items():
-        s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cat, separators=(",", ":")).encode(), ContentType="application/json")
+        s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cat, separators=(",", ":"), allow_nan=False).encode(), ContentType="application/json")
 
 # Shared preview/ may still carry an older crop. Copy the live records for these models
 # before a new preview encode, and list only runs whose stored grid matches.

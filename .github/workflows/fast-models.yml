@@ -1,5 +1,5 @@
 # Fast-style model data -> R2 bucket pnw-models-data. This is the only model workflow in the repo:
-# HRRR, RRFS, NBM, GFS, IFS, AIFS, EPS, AIFS ENS, WW3, AIFS ENS members, EPS members, and OISST are jobs here.
+# HRRR, RRFS, NBM, GFS, IFS, AIFS, EPS, AIFS ENS, WW3, AIFS ENS members, EPS members, OISST, and RRFS 13 km NA (rrfsna, last so it cannot take turns from the hourly models) are jobs here.
 # Writes go to preview/ keys (WX_R2_PREFIX) unless a dispatch sets prefix to a deployment area
 # such as preview-pr16/. Production keeps reading the live keys until someone runs this
 # workflow by hand with promote=true, which copies preview/ onto the live keys and does not encode.
@@ -18,8 +18,8 @@ on:
   workflow_dispatch:
     inputs:
       models:
-        description: "comma list: hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst"
-        default: "hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst"
+        description: "comma list: hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna"
+        default: "hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna"
       minutes:
         description: "time budget for one fair pass across the selected models (each hourly turn is 6 minutes)"
         default: "20"
@@ -79,16 +79,16 @@ jobs:
           PNW_R2_ACCESS_KEY_ID: ${{ secrets.PNW_R2_ACCESS_KEY_ID }}
           PNW_R2_SECRET_ACCESS_KEY: ${{ secrets.PNW_R2_SECRET_ACCESS_KEY }}
           WX_R2_PREFIX: ${{ inputs.prefix || 'preview/' }}
-        run: python tools/fast/frame_scheduler.py --models "${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst' }}" --minutes "${{ inputs.minutes || '20' }}" --poll 45
+        run: python tools/fast/frame_scheduler.py --models "${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna' }}" --minutes "${{ inputs.minutes || '20' }}" --poll 45
       - name: Promote verified preview runs to live (on; set repo variable AUTO_PROMOTE_LIVE=false to stop)
         # Only after a scheduled/chained publish into the shared preview/. Never replaces a fuller live run with a partial one.
         if: ${{ always() && vars.AUTO_PROMOTE_LIVE != 'false' && (inputs.prefix || 'preview/') == 'preview/' }}
         env:
           PNW_R2_ACCESS_KEY_ID: ${{ secrets.PNW_R2_ACCESS_KEY_ID }}
           PNW_R2_SECRET_ACCESS_KEY: ${{ secrets.PNW_R2_SECRET_ACCESS_KEY }}
-        run: python tools/fast/auto_promote_live.py --models "${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst' }}"
+        run: python tools/fast/auto_promote_live.py --models "${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna' }}"
       - name: Re-dispatch (a model still had hours when the budget ran out)
         if: steps.run.outputs.more == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run fast-models.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" -f models="${{ steps.run.outputs.more_models || inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst' }}" -f minutes="${{ inputs.minutes || '20' }}" -f prefix="${{ inputs.prefix || 'preview/' }}" -f promote=false
+        run: gh workflow run fast-models.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" -f models="${{ steps.run.outputs.more_models || inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst,rrfsna' }}" -f minutes="${{ inputs.minutes || '20' }}" -f prefix="${{ inputs.prefix || 'preview/' }}" -f promote=false
