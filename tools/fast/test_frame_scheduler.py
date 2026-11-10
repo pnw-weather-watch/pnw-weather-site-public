@@ -73,6 +73,21 @@ class Plan(unittest.TestCase):
         self.assertIn("prefix=preview-pr19/", args)
         self.assertIn("promote=false", args)
 
+    def test_parallel_legs_split_the_default_models(self):
+        self.assertEqual(fs.LEGS["hourly"], ("hrrr", "rrfs", "nbm"))
+        self.assertEqual(fs.LEGS["synoptic"], ("gfs", "ifs", "aifs", "eps", "aens", "gfsw"))
+        self.assertEqual(fs.LEGS["members"], ("aensm", "epsm", "oisst", "rrfsna"))
+        self.assertEqual(fs.LEGS["members"][-1], "rrfsna")
+        all_models = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "aifs", "eps", "aens", "gfsw", "aensm", "epsm", "oisst", "rrfsna"]
+        self.assertEqual(fs.legs_for_models(all_models), ["hourly", "synoptic", "members"])
+        self.assertEqual(fs.models_for_leg("hourly", all_models), ["hrrr", "rrfs", "nbm"])
+        self.assertEqual(fs.models_for_leg("synoptic", ["gfs", "hrrr", "ifs"]), ["gfs", "ifs"])
+        self.assertEqual(fs.legs_for_models(["hrrr", "rrfs"]), ["hourly"])
+        self.assertEqual(fs.legs_for_models(["rrfsna", "aensm"]), ["members"])
+        # carry-over order is preserved; rrfsna is still last after next_models
+        self.assertEqual(fs.models_for_leg("members", ["rrfsna", "aensm"]), ["rrfsna", "aensm"])
+        self.assertEqual(fs.next_models(["rrfsna", "aensm"], [], {"rrfsna", "aensm"}), ["aensm", "rrfsna"])
+
     def test_a_second_lock_does_not_steal_the_model(self):
         with tempfile.TemporaryDirectory() as d:
             a, b = fs.ModelLock("hrrr", d), fs.ModelLock("hrrr", d)
@@ -88,10 +103,12 @@ class CropsAndLive(unittest.TestCase):
         preview = {"models": {"hrrr": {"crop": [1, 2, 3, 4], "grid": "lcc"}, "gfs": {"crop": [0, 1, 0, 1]}},
                    "runs": {"hrrr": ["old", "new"], "gfs": ["g"]}}
         wide = [0, 10, -2, 8]
+        nbm_live = [326, 1524, -210, 1289]
         live = {"models": {
             "hrrr": {"name": "H", "crop": wide, "grid": "lcc", "views": {"pnwwide": {}}},
             "rrfs": {"name": "R", "crop": wide, "grid": "lcc"},
             "ifs9": {"name": "I", "crop": [1, 2, 3, 4], "grid": "ll"},
+            "nbm": {"name": "N", "crop": nbm_live, "grid": "lcc", "views": {"wa": {}}},
         }}
         grids = {("hrrr", "new"): {"ny": 10, "nx": 10, "i0": 0, "j0": -2}}
         out = fc.align_preview_manifest(preview, live, grids)
@@ -102,6 +119,25 @@ class CropsAndLive(unittest.TestCase):
         self.assertEqual(out["runs"]["gfs"], ["g"])
         self.assertEqual(out["models"]["ifs9"]["grid"], "ll")
         self.assertEqual(out["runs"]["ifs9"], [])
+        self.assertIn("nbm", fc.PREVIEW_CROP_MODELS)
+        self.assertEqual(out["models"]["nbm"]["crop"], nbm_live)
+
+    def test_preview_nbm_takes_the_live_west_edge_crop(self):
+        """Preview NBM must encode on the live crop so complete runs can auto-promote."""
+        nbm_live = [326, 1524, -210, 1289]
+        nbm_old = [326, 1524, 0, 1289]
+        preview = {"models": {"nbm": {"crop": nbm_old, "grid": "lcc"}},
+                   "runs": {"nbm": ["old0", "new210"]}}
+        live = {"models": {"nbm": {"name": "NOAA NBM", "crop": nbm_live, "grid": "lcc", "views": {"wa": {}}}}}
+        grids = {
+            ("nbm", "old0"): {"ny": 1198, "nx": 1289, "i0": 326, "j0": 0},
+            ("nbm", "new210"): {"ny": 1198, "nx": 1499, "i0": 326, "j0": -210},
+        }
+        out = fc.align_preview_manifest(preview, live, grids)
+        self.assertEqual(out["models"]["nbm"]["crop"], nbm_live)
+        self.assertEqual(out["runs"]["nbm"], ["new210"])
+        self.assertTrue(fs.preview_lut_sync_needed(preview, live, "nbm"))
+        self.assertFalse(fs.preview_lut_sync_needed(out, live, "nbm"))
 
     def test_live_copy_stays_off_and_refuses_a_shifted_grid(self):
         raw = FakeRaw()

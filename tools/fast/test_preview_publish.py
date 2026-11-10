@@ -246,6 +246,46 @@ class Graft(unittest.TestCase):
             FE._frz(One(), "aifs")
 
 
+class CatalogConcurrency(unittest.TestCase):
+    def test_touched_models_and_index_merge_keep_the_other_leg(self):
+        from fast_cycle import merge_catalog_index, touched_models
+        before = {"runs": {"hrrr": ["a"], "gfs": ["g1"]}, "models": {"hrrr": {"name": "H"}, "gfs": {"name": "G"}}}
+        after = {"runs": {"hrrr": ["a", "b"], "gfs": ["g1"]}, "models": {"hrrr": {"name": "H"}, "gfs": {"name": "G"}}}
+        self.assertEqual(touched_models(before, after), ["hrrr"])
+        slim = {"catalog_v": 1, "runs": {"hrrr": ["a", "b"], "gfs": ["STALE"]},
+                "models": {"hrrr": {"name": "H", "catalog": "models/hrrr.json"},
+                           "gfs": {"name": "STALE", "catalog": "models/gfs.json"}}}
+        idx = {"catalog_v": 1, "runs": {"hrrr": ["a"], "gfs": ["g1"]},
+               "models": {"hrrr": {"name": "H", "catalog": "models/hrrr.json"},
+                          "gfs": {"name": "G", "catalog": "models/gfs.json"}}}
+        merged = merge_catalog_index(idx, slim, ["hrrr"])
+        self.assertEqual(merged["runs"]["hrrr"], ["a", "b"])
+        self.assertEqual(merged["runs"]["gfs"], ["g1"])
+        self.assertEqual(merged["models"]["gfs"]["name"], "G")
+
+    def test_parallel_catalog_publish_does_not_drop_the_other_model(self):
+        from upload_r2 import Prefixed
+        from fast_cycle import publish_catalogs
+        raw = FakeRaw()
+        man_h = {"runs": {"hrrr": ["h1"], "gfs": ["OLD"]}, "models": {
+            "hrrr": {"name": "NOAA HRRR", "site": "HRRR", "res": "3 km"},
+            "gfs": {"name": "STALE"},
+        }}
+        man_g = {"runs": {"hrrr": ["OLD"], "gfs": ["g1"]}, "models": {
+            "hrrr": {"name": "STALE"},
+            "gfs": {"name": "GFS", "site": "GFS", "res": "25 km"},
+        }}
+        raw.store["preview/manifest.index.json"] = (b'{"catalog_v":1,"runs":{},"models":{}}', "seed")
+        s3 = Prefixed(raw, "preview/")
+        publish_catalogs(s3, man_h, models=["hrrr"])
+        publish_catalogs(s3, man_g, models=["gfs"])
+        idx = json.loads(raw.store["preview/manifest.index.json"][0])
+        self.assertEqual(idx["runs"]["hrrr"], ["h1"])
+        self.assertEqual(idx["runs"]["gfs"], ["g1"])
+        self.assertEqual(json.loads(raw.store["preview/models/hrrr.json"][0])["name"], "NOAA HRRR")
+        self.assertEqual(json.loads(raw.store["preview/models/gfs.json"][0])["name"], "GFS")
+
+
 class Workflow(unittest.TestCase):
     def test_schedule_checkout_and_preview_switch(self):
         with open(os.path.join(ROOT, ".github", "workflows", "fast-models.yml"), encoding="utf-8") as f:
@@ -265,6 +305,17 @@ class Workflow(unittest.TestCase):
         self.assertIn("frame_scheduler.py", text)
         self.assertIn("--poll 45", text)
         self.assertIn('-f prefix="${{ inputs.prefix || \'preview/\' }}"', text)
+        self.assertIn("matrix:", text)
+        self.assertIn("hourly", text)
+        self.assertIn("synoptic", text)
+        self.assertIn("members", text)
+        self.assertIn("fast-models-${{ matrix.leg }}-${{ inputs.prefix || 'preview/' }}", text)
+        self.assertIn("cancel-in-progress: false", text)
+        self.assertNotIn("group: fast-models\n", text)
+        self.assertIn("timeout-minutes: 30", text)
+        self.assertIn('default: "20"', text)
+        self.assertIn("steps.filter.outputs.models", text)
+
 
 
 if __name__ == "__main__":

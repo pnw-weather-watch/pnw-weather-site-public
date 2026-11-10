@@ -37,6 +37,13 @@ DAILY = ("oisst",)
 LOW_PRIORITY = ("rrfsna",)
 OWN_SCRIPT = {"oisst": "oisst_cycle.py", "epsm": "epsm_cycle.py", "aensm": "aensm_cycle.py"}
 DEFAULT_MODELS = HOURLY + MEMBERS + DAILY + LOW_PRIORITY
+# Parallel workflow legs. rrfsna stays last in members so it cannot take turns from aensm/epsm/oisst.
+LEG_ORDER = ("hourly", "synoptic", "members")
+LEGS = {
+    "hourly": ("hrrr", "rrfs", "nbm"),
+    "synoptic": ("gfs", "ifs", "aifs", "eps", "aens", "gfsw"),
+    "members": ("aensm", "epsm", "oisst", "rrfsna"),
+}
 
 
 def mem_available_kb(text):
@@ -67,6 +74,56 @@ def workers_for(model, mem_kb, requested=2):
 def paused_set(env=None):
     raw = (env if env is not None else os.environ).get("FAST_PAUSED", "")
     return {x.strip() for x in raw.split(",") if x.strip()}
+
+
+
+def models_for_leg(leg, requested):
+    """Requested models that belong to this publish leg, in the caller's order."""
+    allow = set(LEGS[leg])
+    return [m for m in requested if m in allow]
+
+
+def legs_for_models(requested):
+    """Which parallel legs a model list should start, in fixed order."""
+    req = set(requested)
+    return [leg for leg in LEG_ORDER if req & set(LEGS[leg])]
+
+
+def preview_lut_sync_needed(preview, live, model):
+    """True when preview would adopt a different live crop and needs that crop's LUT files."""
+    pc = ((preview.get("models") or {}).get(model) or {}).get("crop")
+    lc = ((live.get("models") or {}).get(model) or {}).get("crop")
+    return lc is not None and pc != lc
+
+
+def copy_live_luts(raw, models, bucket):
+    """Copy live static/lut_{model}_* onto preview/ so an aligned crop displays correctly."""
+    n = 0
+    for m in models:
+        prefix = f"static/lut_{m}_"
+        keys = []
+        paginate = getattr(raw, "get_paginator", None)
+        if paginate:
+            pages = raw.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix)
+        else:
+            pages = [raw.list_objects_v2(Bucket=bucket, Prefix=prefix)]
+        for page in pages:
+            for o in page.get("Contents") or []:
+                key = o.get("Key") or ""
+                if key.startswith(prefix):
+                    keys.append(key)
+        for key in keys:
+            body = raw.get_object(Bucket=bucket, Key=key)["Body"].read()
+            dest = "preview/" + key
+            try:
+                existing = raw.get_object(Bucket=bucket, Key=dest)["Body"].read()
+                if existing == body:
+                    continue
+            except Exception:
+                pass
+            raw.put_object(Bucket=bucket, Key=dest, Body=body, ContentType="application/octet-stream")
+            n += 1
+    return n
 
 
 def plan(models, paused, mem_kb, requested=2):
@@ -152,9 +209,9 @@ class ModelLock:
 
 
 def align_shared_preview():
-    """One-time-per-pass copy of the live HRRR/RRFS/IFS9 model records onto preview/ only."""
+    """One-time-per-pass copy of the live HRRR/RRFS/IFS9/NBM model records onto preview/ only."""
     from upload_r2 import client
-    from fast_cycle import align_preview_manifest, update_manifest, BUCKET
+    from fast_cycle import PREVIEW_CROP_MODELS, align_preview_manifest, update_manifest, BUCKET
     s3 = client()
     if getattr(s3, "prefix", "") != "preview/": return None
     raw = getattr(s3, "raw", None)
@@ -166,18 +223,22 @@ def align_shared_preview():
         print("preview crop align skipped:", e, flush=True)
         return None
     grids = {}
-    for m in ("hrrr", "rrfs", "ifs9"):
+    for m in PREVIEW_CROP_MODELS:
         for cyc in ((preview.get("runs") or {}).get(m) or []):
             try:
                 run = __import__("json").loads(s3.get_object(Bucket=BUCKET, Key=f"runs/{m}/{cyc}/run.json")["Body"].read())
             except Exception:
                 continue
             if run.get("grid"): grids[(m, cyc)] = run["grid"]
+    to_sync = [m for m in PREVIEW_CROP_MODELS if preview_lut_sync_needed(preview, live, m)]
     aligned = align_preview_manifest(preview, live, grids)
     def fn(mn):
         mn.clear(); mn.update(aligned)
     update_manifest(s3, fn)
-    print("preview crops aligned for hrrr, rrfs, ifs9", flush=True)
+    if to_sync:
+        n = copy_live_luts(raw, to_sync, BUCKET)
+        print(f"preview luts copied from live for {','.join(to_sync)}: {n} files", flush=True)
+    print("preview crops aligned for " + ", ".join(PREVIEW_CROP_MODELS), flush=True)
     return aligned
 
 
