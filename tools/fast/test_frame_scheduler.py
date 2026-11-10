@@ -20,9 +20,10 @@ class Plan(unittest.TestCase):
         self.assertEqual(fs.cadence("epsm"), "member")
         self.assertEqual(fs.cadence("aensm"), "member")
         self.assertEqual(fs.cadence("oisst"), "daily")
-        self.assertEqual(fs.slice_span("hrrr", 2), 2)
+        self.assertEqual(fs.slice_span("hrrr", 2), fs.SLICE_MINUTES)
         self.assertEqual(fs.slice_span("epsm", 2), 8)
         self.assertEqual(fs.slice_span("oisst", 2), 8)
+        self.assertEqual(fs.slice_span("hrrr", 10), 10)
         paused = {"ifs9"}
         turns = fs.plan(["hrrr", "gfs", "ifs9", "oisst"], paused, mem_kb=8_000_000)
         self.assertEqual([m for m, _ in turns], ["hrrr", "gfs", "oisst"])
@@ -36,9 +37,28 @@ class Plan(unittest.TestCase):
         self.assertEqual(fs.workers_for("ifs9", None), 0)
         self.assertEqual(fs.workers_for("hrrr", 1_000_000, requested=4), 2)
 
+    def test_hourly_turn_outlasts_the_encoder_reserve(self):
+        """fast_cycle.one() prints 'time budget used up' when under 120 seconds remain."""
+        self.assertGreater(fs.SLICE_MINUTES, fs.ENCODER_RESERVE_MINUTES)
+        self.assertGreater(fs.slice_span("hrrr", fs.SLICE_MINUTES), fs.ENCODER_RESERVE_MINUTES)
+        self.assertGreaterEqual(fs.slice_span("epsm", fs.SLICE_MINUTES), fs.MEMBER_SLICE_MINUTES)
+        deadline = 10_000.0
+        self.assertTrue(fs.turn_fits(fs.SLICE_MINUTES, deadline - fs.SLICE_MINUTES * 60, deadline))
+        self.assertFalse(fs.turn_fits(fs.SLICE_MINUTES, deadline - fs.SLICE_MINUTES * 60 + 1, deadline))
+        self.assertFalse(fs.turn_fits(fs.SLICE_MINUTES, deadline - fs.ENCODER_RESERVE_MINUTES * 60, deadline))
+
+    def test_carry_over_starts_with_models_that_missed_a_turn(self):
+        models = ["hrrr", "rrfs", "nbm", "gfs", "ifs"]
+        served = ["hrrr", "rrfs", "nbm"]
+        more = {"hrrr", "rrfs", "nbm", "gfs", "ifs"}
+        self.assertEqual(fs.next_models(models, served, more), ["gfs", "ifs", "hrrr", "rrfs", "nbm"])
+        self.assertEqual(fs.next_models(models, served, {"gfs", "ifs"}), ["gfs", "ifs"])
+        self.assertEqual(fs.next_models(models, served, {"hrrr"}), ["hrrr"])
+        self.assertEqual(fs.next_models(models, served, set()), [])
+
     def test_redispatch_keeps_the_prefix_and_the_model_list(self):
-        args = fs.redispatch_args(["hrrr", "gfs"], 20, "preview-pr19/")
-        self.assertIn("models=hrrr,gfs", args)
+        args = fs.redispatch_args(["gfs", "ifs", "hrrr"], 20, "preview-pr19/")
+        self.assertIn("models=gfs,ifs,hrrr", args)
         self.assertIn("prefix=preview-pr19/", args)
         self.assertIn("promote=false", args)
 

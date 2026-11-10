@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Fair, bounded publisher. One pass gives every due model a short turn, then polls again.
+"""Fair, bounded publisher. One pass gives due models a turn long enough to encode, then polls again.
 
 PR6 ran the twelve models one after another for twelve minutes each, so a late model
-waited hours. This queue encodes one newly posted slice per model, locks that model,
-and sleeps 45 seconds (inside the 30-60 second window) before the next round.
+waited hours. The first scheduler then gave each hourly model a 2-minute turn, but
+fast_cycle refuses to start encoding with under 2 minutes left, so every slice logged
+"time budget used up" and published nothing. Each turn now outlasts that reserve so
+at least one slice can encode and publish. Models that miss a turn are carried to the
+front of the next pass (and the re-dispatch). The queue still locks each model and
+sleeps 45 seconds (inside the 30-60 second window) before the next round.
 
 OISST is daily. EPS members and AIFS-ENS members publish a member-hour only when that
 hour's source index is already the check inside their own tools. IFS9 stays paused
@@ -18,7 +22,12 @@ WX_LIVE_PUBLISH=1 is the only switch that also copies a verified frame onto the 
 import argparse, fcntl, os, subprocess, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 POLL_SECONDS = 45
-SLICE_MINUTES = 2
+# fast_cycle.one() returns immediately when fewer than 120 seconds remain
+# ("time budget used up"). A turn must be longer than that reserve so a slice
+# can actually start, and long enough to encode one newly posted hour.
+ENCODER_RESERVE_MINUTES = 2
+SLICE_MINUTES = 6
+MEMBER_SLICE_MINUTES = 8
 IFS9_MIN_KB = 4_000_000
 HOURLY = ("hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "gfsw")
 MEMBERS = ("epsm", "aensm")
@@ -75,9 +84,22 @@ def cadence(model):
 
 
 def slice_span(model, slice_minutes):
-    """Member tools refuse to encode inside their last 5 minutes, so they need a longer turn."""
-    if cadence(model) == "hour": return slice_minutes
-    return max(slice_minutes, 8)
+    """Hourly turns must outlast fast_cycle's 2-minute reserve. Member tools need 8."""
+    floor = MEMBER_SLICE_MINUTES if cadence(model) != "hour" else SLICE_MINUTES
+    return max(float(slice_minutes), float(floor))
+
+
+def turn_fits(span_minutes, now, deadline):
+    """True when the remaining budget can hold this turn without truncation."""
+    return now + float(span_minutes) * 60 <= deadline
+
+
+def next_models(models, served, more):
+    """Carry-over order: models that missed a turn first, then served models still due."""
+    served_set, more_set = set(served), set(more)
+    missed = [m for m in models if m not in served_set and m in more_set]
+    again = [m for m in models if m in served_set and m in more_set]
+    return missed + again
 
 def slice_command(model, workers, minutes):
     script = OWN_SCRIPT.get(model, "fast_cycle.py")
@@ -190,6 +212,7 @@ def main(argv=None):
         except Exception as e: print("preview crop align failed:", e, flush=True)
     deadline = time.time() + a.minutes * 60
     more = set()
+    served = []
     once = {m for m in models if cadence(m) != "hour"}
     did_once = set()
     while time.time() < deadline:
@@ -197,19 +220,24 @@ def main(argv=None):
         progressed = False
         for model, workers in turns:
             if time.time() >= deadline: break
-            if model in once:
-                if model in did_once: continue
-                did_once.add(model)
+            if model in once and model in did_once: continue
             lock = ModelLock(model, a.lock_dir)
             if not lock.acquire():
                 print(f"{model}: locked, skip this turn", flush=True)
                 more.add(model)
                 continue
             try:
-                # Member tools stop encoding inside the last 5 minutes of their budget, so a 2-minute
-                # slice would publish nothing. Daily and member turns get one longer slice per pass.
                 span = slice_span(model, a.slice_minutes)
-                if run_slice(model, workers, span, a.dry_run): more.add(model)
+                if not turn_fits(span, time.time(), deadline):
+                    more.add(model)
+                    continue
+                if model in once:
+                    did_once.add(model)
+                if run_slice(model, workers, span, a.dry_run):
+                    more.add(model)
+                else:
+                    more.discard(model)
+                served.append(model)
                 progressed = True
             finally:
                 lock.release()
@@ -217,10 +245,16 @@ def main(argv=None):
         if not progressed: break
         print(f"poll {a.poll:.0f}s", flush=True)
         time.sleep(a.poll)
-    print("more work left:", ",".join(sorted(more)) or "none", flush=True)
+    planned = [m for m, _ in plan(models, paused, mem)]
+    for model in planned:
+        if model not in served:
+            more.add(model)
+    pending = next_models(planned, served, more)
+    print("more work left:", ",".join(pending) or "none", flush=True)
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            f.write(f"more={'true' if more else 'false'}\n")
+            f.write(f"more={'true' if pending else 'false'}\n")
+            f.write(f"more_models={','.join(pending)}\n")
     return 0
 
 

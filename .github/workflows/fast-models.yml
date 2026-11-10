@@ -4,8 +4,10 @@
 # such as preview-pr16/. Production keeps reading the live keys until someone runs this
 # workflow by hand with promote=true, which copies preview/ onto the live keys and does not encode.
 # Promote does not copy preview-pr16/ or any other preview-<name>/ prefix.
-# Schedule is every 15 min. One job gives each due model a short turn (frame_scheduler.py) and polls
-# the source every 45 s. A model that still has hours left re-dispatches with the same prefix and list.
+# Schedule is every 15 min. One job gives each due model a turn long enough to encode
+# (frame_scheduler.py; 6 minutes for hourly models so it outlasts the encoder's 2-minute
+# reserve) and polls the source every 45 s. Models that miss a turn or still have hours
+# left are carried to the front of a re-dispatch with the same prefix.
 # Auto-promote of verified preview runs stays on (AUTO_PROMOTE_LIVE=false stops it).
 # GitHub only runs this schedule from the default branch, and a private repo spends Actions minutes while it watches.
 # Needs repo secrets PNW_R2_ACCESS_KEY_ID and PNW_R2_SECRET_ACCESS_KEY. The Pages API token is the other site and is not read.
@@ -19,7 +21,7 @@ on:
         description: "comma list: hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst"
         default: "hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst"
       minutes:
-        description: "time budget for one fair pass across the selected models"
+        description: "time budget for one fair pass across the selected models (each hourly turn is 6 minutes)"
         default: "20"
       promote:
         description: "Copy preview/ onto the live keys and stop. Leave false to publish into the prefix below."
@@ -89,4 +91,4 @@ jobs:
         if: steps.run.outputs.more == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run fast-models.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" -f models="${{ inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst' }}" -f minutes="${{ inputs.minutes || '20' }}" -f prefix="${{ inputs.prefix || 'preview/' }}" -f promote=false
+        run: gh workflow run fast-models.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" -f models="${{ steps.run.outputs.more_models || inputs.models || 'hrrr,rrfs,nbm,gfs,ifs,aifs,eps,aens,gfsw,aensm,epsm,oisst' }}" -f minutes="${{ inputs.minutes || '20' }}" -f prefix="${{ inputs.prefix || 'preview/' }}" -f promote=false
