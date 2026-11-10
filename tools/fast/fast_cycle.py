@@ -82,35 +82,121 @@ def run_due(s3, m):
         if not r.get("complete"): return True
     return False
 
+def touched_models(before, after):
+    """Model ids whose catalog, run list, or progress changed between two manifests."""
+    found = set()
+    for root in ("models", "runs", "mgruns", "progress"):
+        b = before.get(root) if isinstance((before or {}).get(root), dict) else {}
+        a = after.get(root) if isinstance((after or {}).get(root), dict) else {}
+        if not isinstance(b, dict):
+            b = {}
+        if not isinstance(a, dict):
+            a = {}
+        for m in set(b) | set(a):
+            if b.get(m) != a.get(m):
+                found.add(m)
+    return sorted(found)
+
+
+def merge_catalog_index(idx, slim, models=None):
+    """Merge slim index slices into idx so parallel writers cannot drop another model's runs."""
+    idx = json.loads(json.dumps(idx or {}))
+    slim = slim or {}
+    if models is None:
+        models = list((slim.get("models") or {}).keys())
+    for key in ("runs", "mgruns", "progress"):
+        src = slim.get(key)
+        if not isinstance(src, dict):
+            continue
+        dest = idx.get(key)
+        if not isinstance(dest, dict):
+            dest = {}
+            idx[key] = dest
+        for m in models:
+            if m in src:
+                dest[m] = src[m]
+    idx.setdefault("models", {})
+    for m in models:
+        if m in (slim.get("models") or {}):
+            idx["models"][m] = slim["models"][m]
+    for k, v in slim.items():
+        if k not in ("models", "runs", "mgruns", "progress"):
+            idx[k] = v
+    idx["catalog_v"] = 1
+    return idx
+
+
 def update_manifest(s3, fn, tries=8):
     """Read-modify-write manifest.json with an ETag check (If-Match), so parallel model jobs never overwrite each other.
     A preview publish that had to read the live manifest creates preview/manifest.json (If-None-Match) and does not reuse the live ETag."""
     import random
     for i in range(tries):
-        o = s3.get_object(Bucket=BUCKET, Key="manifest.json"); man = json.loads(o["Body"].read()); fn(man)
+        o = s3.get_object(Bucket=BUCKET, Key="manifest.json"); man = json.loads(o["Body"].read())
+        before = json.loads(json.dumps(man))
+        fn(man)
+        changed = touched_models(before, man)
         kw = dict(Bucket=BUCKET, Key="manifest.json", Body=json.dumps(man, allow_nan=False).encode(), ContentType="application/json")
         if o.get("_wx_live_fallback"): kw["IfNoneMatch"] = "*"
         else: kw["IfMatch"] = o["ETag"]
         try:
             s3.put_object(**kw)
             # Index and catalogs go to the same prefix as this manifest (preview/, preview-prN/, or live).
-            publish_catalogs(s3, man)
+            publish_catalogs(s3, man, models=changed)
             return man
         except Exception as e:
             if "PreconditionFailed" not in str(e) and "412" not in str(e): raise
             time.sleep(0.5 + random.random() * 2)
     raise SystemExit("manifest.json kept changing; gave up")
 
-def publish_catalogs(s3, man):
-    """Slim index plus one complete catalog per model, from the manifest just written. No extra ingest."""
+def publish_catalogs(s3, man, models=None, tries=8):
+    """Slim index plus one complete catalog per model, from the manifest just written. No extra ingest.
+
+    When `models` is set, only those model catalogs are written and the index is
+    merged with If-Match so parallel legs cannot drop another model's run list.
+    When `models` is None, every model in `man` is written (a full republish).
+    """
+    import random
     slim, cats = FE.split_manifest(man)
-    s3.put_object(Bucket=BUCKET, Key="manifest.index.json", Body=json.dumps(slim, separators=(",", ":"), allow_nan=False).encode(), ContentType="application/json")
-    for mid, cat in cats.items():
-        s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cat, separators=(",", ":"), allow_nan=False).encode(), ContentType="application/json")
+    if models is None:
+        models = list(cats)
+    for mid in models:
+        if mid not in cats:
+            continue
+        s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cats[mid], separators=(",", ":"), allow_nan=False).encode(), ContentType="application/json")
+    payload = json.dumps(slim, separators=(",", ":"), allow_nan=False).encode()
+    for i in range(tries):
+        try:
+            o = s3.get_object(Bucket=BUCKET, Key="manifest.index.json")
+            current = json.loads(o["Body"].read())
+            merged = merge_catalog_index(current, slim, models)
+            body = json.dumps(merged, separators=(",", ":"), allow_nan=False).encode()
+            kw = dict(Bucket=BUCKET, Key="manifest.index.json", Body=body, ContentType="application/json")
+            if o.get("_wx_live_fallback"):
+                kw["IfNoneMatch"] = "*"
+            else:
+                kw["IfMatch"] = o["ETag"]
+            s3.put_object(**kw)
+            return
+        except Exception as e:
+            msg = str(e)
+            missing = any(x in msg for x in ("NoSuchKey", "404", "NotFound", "not found"))
+            if missing and "PreconditionFailed" not in msg and "412" not in msg:
+                try:
+                    s3.put_object(Bucket=BUCKET, Key="manifest.index.json", Body=payload, ContentType="application/json", IfNoneMatch="*")
+                    return
+                except Exception as e2:
+                    if "PreconditionFailed" not in str(e2) and "412" not in str(e2):
+                        raise
+                    time.sleep(0.5 + random.random() * 2)
+                    continue
+            if "PreconditionFailed" not in msg and "412" not in msg:
+                raise
+            time.sleep(0.5 + random.random() * 2)
+    raise SystemExit("manifest.index.json kept changing; gave up")
 
 # Shared preview/ may still carry an older crop. Copy the live records for these models
 # before a new preview encode, and list only runs whose stored grid matches.
-PREVIEW_CROP_MODELS = ("hrrr", "rrfs", "ifs9")
+PREVIEW_CROP_MODELS = ("hrrr", "rrfs", "ifs9", "nbm")
 
 def align_preview_manifest(preview, live, run_grids, models=PREVIEW_CROP_MODELS):
     """Replace preview crop metadata for the widened models and drop runs that are not on that crop."""

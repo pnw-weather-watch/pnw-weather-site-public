@@ -179,7 +179,7 @@ def _one(s3, m, cyc, cand, prev_runs, live_runs, prev_man, dry, log):
     else:
         raise SystemExit("live manifest.json kept changing; gave up")
     from fast_cycle import publish_catalogs
-    publish_catalogs(s3, man)
+    publish_catalogs(s3, man, models=[m])
     log(f"{m} {cyc}: LIVE ({frames(cand)} frames, complete={bool(cand.get('complete'))}); live index + catalogs rewritten")
     live_runs[:] = man["runs"][m]
     return res
