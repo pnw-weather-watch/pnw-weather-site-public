@@ -918,10 +918,10 @@ def write_catalogs(man, out):
     slim, cats = split_manifest(man)
     os.makedirs(os.path.join(out, "models"), exist_ok=True)
     with open(os.path.join(out, "manifest.index.json"), "w", encoding="utf-8") as f:
-        json.dump(slim, f, separators=(",", ":"))
+        json.dump(slim, f, separators=(",", ":"), allow_nan=False)
     for mid, cat in cats.items():
         with open(os.path.join(out, "models", f"{mid}.json"), "w", encoding="utf-8") as f:
-            json.dump(cat, f, separators=(",", ":"))
+            json.dump(cat, f, separators=(",", ":"), allow_nan=False)
     return slim, cats
 def rng(a):
     lo, hi = float(np.floor(np.nanmin(a))), float(np.ceil(np.nanmax(a))); return lo, max(hi, lo + 1)
@@ -1243,7 +1243,7 @@ def step_job(args):
         else:
             print(f"mem_f{s:03d} MEMBER CHECK FAIL: {issues}", flush=True)
     if ptv:   # town / pass values for meteograms (one small JSON per step, order = run.json "points")
-        p = f"{out}/single/pts_f{s:03d}.json"; json.dump(ptv, open(p, "w"), separators=(",", ":")); sizes["pts"] = os.path.getsize(p)
+        p = f"{out}/single/pts_f{s:03d}.json"; json.dump(ptv, open(p, "w"), separators=(",", ":"), allow_nan=False); sizes["pts"] = os.path.getsize(p)
     return s, sizes, ranges, getattr(R, "bytes", 0), time.time() - t
 
 # ------------------------------------------------------------------------------------------------ climatology
@@ -2324,7 +2324,7 @@ def static(m, out, views_only=None, x2_only=False):
             json.dump(clim, open(f"{out}/clim_{m}.json", "w"), indent=1)
         mp = f"{out}/manifest.json"
         if os.path.exists(mp):
-            man = json.load(open(mp)); man["static_v"] = STATIC_V; json.dump(man, open(mp, "w"), indent=1)
+            man = json.load(open(mp)); man["static_v"] = STATIC_V; json.dump(man, open(mp, "w"), indent=1, allow_nan=False)
         print(f"{m} x2 layers done (no clim / manifest)", flush=True); return
     clim = {}; mp = f"{out}/manifest.json"; man = json.load(open(mp)) if os.path.exists(mp) else {}
     old_clim = ((man.get("models") or {}).get(m) or {}).get("clim") or {}
@@ -2342,7 +2342,7 @@ def static(m, out, views_only=None, x2_only=False):
     man.setdefault("models", {})[m] = dict(name=MI["name"], site=MI["site"], res=MI["res"], grid=MD["grid"],
                                           crop=[i0, i1, j0, j1], views=views, products=prods, clim=clim, **({"products_x": prods_x} if prods_x else {}))
     man.setdefault("runs", {}).setdefault(m, [])
-    json.dump(man, open(mp, "w"), indent=1)
+    json.dump(man, open(mp, "w"), indent=1, allow_nan=False)
     if MD["grid"] == "ll" and "pnwt" in vids:   # [KIT] Studio wide view removed; the viewer's Pacific NW tight town fix kept
         import view_fixes; view_fixes.pnwt_fix([m], man, out)   # 10-31: Pacific NW tight town layer + slots, versioned (towns_pnwt_v2.png)
     print(f"{m} static done, crop {[i0, i1, j0, j1]}", flush=True)
@@ -2388,7 +2388,7 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None, on_pre
             built["member_check"] = EMC.check_encoded_run(rd, m)
             if not built["member_check"]["ok"]:
                 print(f"{m} {cycle}: MEMBER CHECK FAIL {built['member_check']['issues']}", flush=True)
-        json.dump(built, open(rj, "w"), indent=1)
+        json.dump(built, open(rj, "w"), indent=1, allow_nan=False)
         return built
     def emit():
         if not on_prefix: return

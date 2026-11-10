@@ -88,7 +88,7 @@ def update_manifest(s3, fn, tries=8):
     import random
     for i in range(tries):
         o = s3.get_object(Bucket=BUCKET, Key="manifest.json"); man = json.loads(o["Body"].read()); fn(man)
-        kw = dict(Bucket=BUCKET, Key="manifest.json", Body=json.dumps(man).encode(), ContentType="application/json")
+        kw = dict(Bucket=BUCKET, Key="manifest.json", Body=json.dumps(man, allow_nan=False).encode(), ContentType="application/json")
         if o.get("_wx_live_fallback"): kw["IfNoneMatch"] = "*"
         else: kw["IfMatch"] = o["ETag"]
         try:
@@ -104,9 +104,9 @@ def update_manifest(s3, fn, tries=8):
 def publish_catalogs(s3, man):
     """Slim index plus one complete catalog per model, from the manifest just written. No extra ingest."""
     slim, cats = FE.split_manifest(man)
-    s3.put_object(Bucket=BUCKET, Key="manifest.index.json", Body=json.dumps(slim, separators=(",", ":")).encode(), ContentType="application/json")
+    s3.put_object(Bucket=BUCKET, Key="manifest.index.json", Body=json.dumps(slim, separators=(",", ":"), allow_nan=False).encode(), ContentType="application/json")
     for mid, cat in cats.items():
-        s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cat, separators=(",", ":")).encode(), ContentType="application/json")
+        s3.put_object(Bucket=BUCKET, Key=f"models/{mid}.json", Body=json.dumps(cat, separators=(",", ":"), allow_nan=False).encode(), ContentType="application/json")
 
 # Shared preview/ may still carry an older crop. Copy the live records for these models
 # before a new preview encode, and list only runs whose stored grid matches.

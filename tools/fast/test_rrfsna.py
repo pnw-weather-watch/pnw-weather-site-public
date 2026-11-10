@@ -68,6 +68,24 @@ class RrfsnaRegistration(unittest.TestCase):
         self.assertNotIn('M.Reader(m, R.c, s0)', src)
         self.assertNotIn('M.Reader(m, R.c, 0)', src)
 
+    
+    def test_grib_bitmap_missing_values_are_masked(self):
+        src = open(os.path.join(os.path.dirname(__file__), "..", "forecast", "menu_maps.py"), encoding="utf-8").read()
+        self.assertIn("bitmapPresent", src)
+        self.assertIn("missingValue", src)
+
+    
+    def test_acc0_accepts_day_labeled_run_totals(self):
+        # F48/F72 (and F24) NA files label APCP/ASNOW run totals "0-N day acc fcst".
+        src = open(os.path.join(os.path.dirname(__file__), "..", "forecast", "menu_maps.py"), encoding="utf-8").read()
+        self.assertIn('"0-%d hour acc fcst" % self.s', src)
+        self.assertIn('"0-%d day acc fcst" % (self.s // 24)', src)
+
+    def test_winds_are_rotated_from_the_grid(self):
+        src = open(os.path.join(os.path.dirname(__file__), "..", "forecast", "menu_maps.py"), encoding="utf-8").read()
+        self.assertIn("rotll_earth_relative", src)
+        self.assertIn("if M.get(\"rotated_ll\"): u, w = rotll_earth_relative", src)
+
     def test_conus_edge_pad_does_not_apply(self):
         src = open(os.path.join(os.path.dirname(__file__), "fast_encode.py"), encoding="utf-8").read()
         self.assertIn('outside = CONUS_OUTSIDE if m in ("hrrr", "rrfs", "nbm") else 0', src)

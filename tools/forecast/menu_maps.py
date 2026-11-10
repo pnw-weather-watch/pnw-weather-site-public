@@ -106,7 +106,11 @@ class Reader:
         return r
 
     def acc0(self, key):
-        """NOAA run-total accumulation 'VAR:level' from 0 h to this step (0 at step 0)."""
+        """NOAA run-total accumulation 'VAR:level' from 0 h to this step (0 at step 0).
+
+        Most hours use '0-N hour acc fcst'. At exact 24 h marks (F24/F48/F72) RRFS NA
+        labels the same run total '0-N day acc fcst' (verified on 00Z 20261110).
+        """
         n = f"acc0:{key}"
         def go():
             self.cache[n] = self._idx(key, self.url, ("0-%d hour acc fcst" % self.s, "0-%d day acc fcst" % (self.s // 24))); return self.cache[n]
@@ -132,6 +136,14 @@ class Reader:
                 a = int(p[1]); b = int(idx[k + 1].split(":")[1]) - 1 if k + 1 < len(idx) else None
                 blob = get(url, (a, b if b is not None else a + 40_000_000)); self.bytes += len(blob)
                 g = ec.codes_new_from_message(blob); v = ec.codes_get_values(g)
+                # Rotated NA RRFS (and any other bitmapped grid) stores inactive points as missingValue (9999).
+                # Leave them as NaN so encode ranges are real weather, not 17539 F / 22368 mph.
+                try:
+                    if ec.codes_get(g, "bitmapPresent"):
+                        mv = ec.codes_get(g, "missingValue")
+                        v = np.where(v == mv, np.nan, v)
+                except Exception:
+                    pass
                 if ec.codes_get(g, "gridType") == "regular_ll":
                     ni, nj = ec.codes_get(g, "Ni"), ec.codes_get(g, "Nj")
                     la0, la1 = ec.codes_get(g, "latitudeOfFirstGridPointInDegrees"), ec.codes_get(g, "latitudeOfLastGridPointInDegrees")
