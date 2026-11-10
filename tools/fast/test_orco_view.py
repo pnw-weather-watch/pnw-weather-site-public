@@ -62,7 +62,8 @@ class OrcoView(unittest.TestCase):
             cam.close()
 
     def test_every_model_that_lists_views_includes_orco(self):
-        missing = [m for m, vs in self.R["model_views"].items() if "orco" not in vs]
+        # rrfsna is the 13 km NA grid: wide Pacific/NA views only. CONUS RRFS keeps Oregon & Coast.
+        missing = [m for m, vs in self.R["model_views"].items() if "orco" not in vs and m != "rrfsna"]
         self.assertEqual(missing, [])
 
 

@@ -42,14 +42,16 @@ class PnwhrViews(unittest.TestCase):
         self.assertEqual(v["extent"], v["hires"]["extent"])
         self.assertEqual(list(R["views"]).count("pnwhr"), 1)
         self.assertEqual(R["views"]["pnwwide"]["label"], "Pacific Northwest (Wide)")
-        missing = [m for m, vs in R["model_views"].items() if "pnwhr" not in vs]
+        missing = [m for m, vs in R["model_views"].items() if "pnwhr" not in vs and m != "rrfsna"]
         self.assertEqual(missing, [])
-        # The wide frame is on every model, including HRRR, RRFS and the 9 km job.
+        # The wide frame is on every model, including HRRR, RRFS, RRFS NA and the 9 km job.
         for m in R["model_views"]:
             self.assertIn("pnwwide", R["model_views"][m], m)
         # The encoder's model table is the same set the static job publishes.
         self.assertEqual(set(fe.MODELS), set(R["model_views"]))
         for m in fe.MODELS:
+            if m == "rrfsna":
+                continue  # 13 km NA grid: wide views only; CONUS RRFS keeps the tight pnwhr window
             self.assertIn("pnwhr", regions.R["model_views"][m], m)
 
     def test_static_publishes_a_key_for_that_view(self):

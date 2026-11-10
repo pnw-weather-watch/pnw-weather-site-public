@@ -25,6 +25,11 @@ MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lo
     # ECMWF 0.25 06/18Z only to 144 h (3-hourly); AIFS 06/18Z to 360 h (6-hourly) like 00/12Z.
     # RRFS (NOAA, 3 km CONUS, operational since 2026): 00/06/12/18Z hourly to 48 h then 3-hourly to 84 h (stage 3, 10-30-26)
     "rrfs": dict(grid="lcc", views=("puget", "wa", "wwa", "ewa", "passes", "newa", "lm", "pnwhr"), cycles=(0, 6, 12, 18), steps=list(range(1, 49)) + list(range(51, 85, 3)), keep=4),
+    # RRFS 13 km North America (operational noaa-rrfs-ops-pds 2dfld.13km .na, rotated lat-lon). Hourly f001-f084.
+    # Wider Pacific / NA views only: CONUS 3 km RRFS stays on the tight frames (including Washington).
+    "rrfsna": dict(grid="rotll", views=("na", "pac", "pnw", "pnwt", "pnwwide"), cycles=(0, 6, 12, 18), steps=list(range(1, 85)), keep=4, as_model="rrfs",
+                 rotll=dict(pole_lat=35.0, pole_lon=67.0, first_lat=-36.9303, first_lon=299.0, dlat=0.1083, dlon=0.1083, ny=683, nx=1127),
+                 note="13 km North America rotated lat-lon, hourly to F+84"),
     # NBM (NOAA National Blend, 2.5 km CONUS NDFD grid): 00/06/12/18Z, hourly to 36 h then 3-hourly to 168 h (stage 3, 10-30-26)
     "nbm":  dict(grid="lcc", views=("puget", "wa", "wwa", "ewa", "passes", "newa", "lm", "pnwhr"), cycles=(0, 6, 12, 18), steps=list(range(1, 37)) + list(range(39, 169, 3)), keep=4,
                  lcc=dict(central_longitude=-95.0, central_latitude=25.0, standard_parallels=(25.0, 25.0)), radius=6371200.0),
@@ -65,7 +70,8 @@ MODELS = {   # grid "lcc" = HRRR 3 km, "ll" = 0.25 deg global (lat 90 -> -90, lo
     "aensm": dict(grid="ll", views=GLOBAL_VIEWS, cycles=(0, 6, 12, 18), steps=list(range(6, 121, 6)) + list(range(132, 361, 12)), keep=2, grid_from="aens",
                  note="0.5 deg single members"),
 }
-MINFO = {"aens": dict(name="ECMWF AIFS Ensemble", site="AIFS ENS", res="0.25\u00b0 \u00b7 50 members", credit_as="aifs"),
+MINFO = {"rrfsna": dict(name="NOAA RRFS", site="RRFS 13 km", res="13 km", noaa=True),
+         "aens": dict(name="ECMWF AIFS Ensemble", site="AIFS ENS", res="0.25\u00b0 \u00b7 50 members", credit_as="aifs"),
          "nbm": dict(name="NOAA NBM", site="NBM", res="2.5 km", noaa=True),
          "eps": dict(name="ECMWF Ensemble", site="ECMWF EPS", res="0.25\u00b0 \u00b7 50 members", credit_as="ifs"),
          "epsm": dict(name="ECMWF EPS Member", site="ECMWF EPS member", res="0.5\u00b0 \u00b7 single member", credit_as="ifs"),
@@ -317,11 +323,12 @@ def steps_for(m, hour):
     """Forecast hours a cycle of model m carries (ECMWF 0.25 06/18Z stop at 144 h)."""
     MD = MODELS[m]
     return MD["steps_short"] if hour in MD.get("short_cycles", ()) else MD["steps"]
-NOAA = ("hrrr", "gfs", "rrfs")
+NOAA = ("hrrr", "gfs", "rrfs", "rrfsna")
 
 def _patch_models(M):
     """In-memory only (live tools untouched): RRFS pressure-level fields come from its prslev file."""
-    if "rrfs" in M.MODELS and "prs" not in M.MODELS["rrfs"]: M.MODELS["rrfs"]["prs"] = M.MODELS["rrfs"]["url"].replace(".2dfld.", ".prslev.")
+    for mid in ("rrfs", "rrfsna"):
+        if mid in M.MODELS and "prs" not in M.MODELS[mid]: M.MODELS[mid]["prs"] = M.MODELS[mid]["url"].replace(".2dfld.", ".prslev.")
     # ECMWF 9 km: the IFS reader pointed at the 0.1 deg files (surface and pressure levels are separate files there)
     TM = M.TM
     if "ifs9" not in TM.MODELS:
@@ -343,30 +350,30 @@ def _apcp(R, m):
     tp = np.asarray(R.f("tp")[2], float); return tp * 1000 / 25.4 if m == "ifs" else tp / 25.4
 def _refc(R, m):
     # GFS 0.25 pgrb2 publishes REFC:entire atmosphere (same record name as HRRR). IFS/AIFS open data does not.
-    if m not in ("hrrr", "rrfs", "gfs"): raise KeyError("refc")
-    k = "REFC:entire atmosphere" + (" (considered as a single layer)" if m == "rrfs" else "")
+    if m not in ("hrrr", "rrfs", "rrfsna", "gfs"): raise KeyError("refc")
+    k = "REFC:entire atmosphere" + (" (considered as a single layer)" if m in ("rrfs", "rrfsna") else "")
     return np.clip(np.asarray(R._idx(k, R.url)[2], float), -10, 80)
 def _ltng(R, m):
     if m == "hrrr": return np.clip(np.asarray(R._idx("LTNG:entire atmosphere", R.url)[2], float), 0, None)
-    if m == "rrfs": return np.clip(np.asarray(R._idx("LTNG:entire atmosphere", R.url, (f"{R.s - 1}-{R.s} hour max fcst",))[2], float), 0, None)   # hourly max
+    if m in ("rrfs", "rrfsna"): return np.clip(np.asarray(R._idx("LTNG:entire atmosphere", R.url, (f"{R.s - 1}-{R.s} hour max fcst",))[2], float), 0, None)   # hourly max
     raise KeyError("ltng")
 # Severe tab (Benjamin 10-31 9:15 AM "simulated radar + updraft helicity ... helicity streaks. 0-3km cape, surface cape, lapse rates",
 # 9:30 AM "Severe tab, then ensembles"): HRRR / RRFS only, all from the files already read (checked 10-31 .idx: wrfsfc / RRFS 2dfld + prslev)
 def _uh(R, m):   # 2-5 km updraft helicity, max over the hour ending at the step (RRFS past F48 is 3-hourly: only the last hour of each 3 h)
-    if m not in ("hrrr", "rrfs"): raise KeyError("uh")
+    if m not in ("hrrr", "rrfs", "rrfsna"): raise KeyError("uh")
     return np.clip(np.asarray(R._idx("MXUPHL:5000-2000 m above ground", R.url, (f"{R.s - 1}-{R.s} hour max fcst",))[2], float), 0, None)
 def _cape3(R, m):
-    if m not in ("hrrr", "rrfs"): raise KeyError("cape3")
+    if m not in ("hrrr", "rrfs", "rrfsna"): raise KeyError("cape3")
     return np.clip(np.asarray(R._idx("CAPE:0-3000 m above ground", R.url)[2], float), 0, None)
 def _srh03(R, m):   # 0-3 km storm-relative helicity (same files, fills the third channel of the "svr" pack)
-    if m not in ("hrrr", "rrfs"): raise KeyError("srh03")
+    if m not in ("hrrr", "rrfs", "rrfsna"): raise KeyError("srh03")
     return np.asarray(R._idx("HLCY:3000-0 m above ground", R.url)[2], float)
 def _lr75(R, m):   # 700-500 mb lapse rate, C/km
-    if m not in ("hrrr", "rrfs"): raise KeyError("lr75")
+    if m not in ("hrrr", "rrfs", "rrfsna"): raise KeyError("lr75")
     t7, t5 = (np.asarray(R.f(k)[2], float) for k in ("T:700", "T:500")); z7, z5 = (np.asarray(R.f(k)[2], float) for k in ("Z:700", "Z:500"))
     return (t7 - t5) / np.maximum((z5 - z7) / 1000.0, 0.5)
 def _lr03(R, m):   # 0-3 km AGL lapse rate, C/km: 2 m temp vs the temperature 3 km above the model ground (pressure levels, linear in height)
-    if m not in ("hrrr", "rrfs"): raise KeyError("lr03")
+    if m not in ("hrrr", "rrfs", "rrfsna"): raise KeyError("lr03")
     zs = np.asarray(R.f("orog")[2], float); ts = np.asarray(R.f("t2m")[2], float); zt = zs + 3000.0
     levs = (1000, 925, 850, 700, 500); Z = [np.asarray(R.f(f"Z:{p}")[2], float) for p in levs]; T = [np.asarray(R.f(f"T:{p}")[2], float) for p in levs]
     t3 = np.full(zs.shape, np.nan)
@@ -385,7 +392,7 @@ def _asnow(R, m):
     if m == "gfs":
         cache = os.environ.get("WX_CACHE") or os.path.join(os.environ.get("TMPDIR", "/tmp"), "wx_gfs_snow")
         return gfs_asnow_from_reader(R, cache)
-    if m not in ("hrrr", "rrfs"): raise KeyError("asnow")
+    if m not in ("hrrr", "rrfs", "rrfsna"): raise KeyError("asnow")
     return np.asarray(R.acc0("ASNOW:surface")[2], float) / 0.0254
 def _prev_step(m, c, s):
     st = [0] + [x for x in steps_for(m, c.hour) if x < s]; return st[-1]
@@ -394,10 +401,11 @@ def _inc(R, m, what):
     k = f"_inc_{what}"
     if k in R.cache: return R.cache[k]
     import menu_maps as M, temp_maps as TM
-    s0 = _prev_step(m, R.c, R.s)
+    s0 = _prev_step(R.m, R.c, R.s)
     if m in NOAA:
         now = np.asarray(R.acc0("APCP:surface")[2], float) / 25.4
-        prev = 0.0 if s0 == 0 else np.asarray(M.Reader(m, R.c, s0).acc0("APCP:surface")[2], float) / 25.4
+        # R.m, not as_model(m): rrfsna getters see m="rrfs" so Reader(m) would pull the CONUS 3 km grid.
+        prev = 0.0 if s0 == 0 else np.asarray(M.Reader(R.m, R.c, s0).acc0("APCP:surface")[2], float) / 25.4
     else:
         now = np.asarray(R.st.field(what)[2], float) * 39.3701
         prev = 0.0 if s0 == 0 else np.asarray(TM.Step(R.m, R.c, s0).field(what)[2], float) * 39.3701
@@ -410,7 +418,7 @@ def _kinc(R, m):
     """Kuchera snowfall (in) in this output interval: snow water x ratio, ratio = 12 + (271.16 - Tmax) (x2 below 271.16 K), Tmax =
     warmest of 2 m / 925 / 850 / 700 / 500 mb. Snow water: ECMWF sf; NOAA precip where the categorical snow flag is set.
     (old site: Kuchera snow; Benjamin: Kuchera for the Cascade passes)"""
-    if m not in ("hrrr", "rrfs", "gfs", "ifs"): raise KeyError("kinc")
+    if m not in ("hrrr", "rrfs", "rrfsna", "gfs", "ifs"): raise KeyError("kinc")
     if m == "ifs": swe = _inc(R, m, "sf")
     else: swe = _inc(R, m, "tp") * (np.asarray(R._idx(M_NO("csnow"), R.url)[2], float) > 0.5)
     tm = _tmax_col(R, m); d = 271.16 - tm
@@ -418,7 +426,7 @@ def _kinc(R, m):
     return swe * ratio
 def _fzinc(R, m):
     """Freezing rain (in of water) in this output interval: precip where the type is freezing rain / drizzle."""
-    if m not in ("hrrr", "rrfs", "gfs", "ifs"): raise KeyError("fzinc")
+    if m not in ("hrrr", "rrfs", "rrfsna", "gfs", "ifs"): raise KeyError("fzinc")
     if m in NOAA: fz = np.asarray(R._idx(M_NO("cfrzr"), R.url)[2], float) > 0.5
     else: fz = np.isin(np.rint(np.asarray(R.f("ptype")[2], float)), (3, 12))
     return _inc(R, m, "tp") * fz
@@ -798,10 +806,10 @@ def M_NO(k):
 def _dsnod(R, m):
     """HRRR snow depth change since the run started (in): model snow depth now minus at F+0, so melt and settling count
     (Benjamin 10-26: melt-aware snow depth change for the Cascade pass view)."""
-    if m not in ("hrrr", "rrfs"): raise KeyError("dsnod")
+    if m not in ("hrrr", "rrfs", "rrfsna"): raise KeyError("dsnod")
     import menu_maps as M
     a = np.asarray(R._idx("SNOD:surface", R.url)[2], float)
-    R0 = M.Reader(m, R.c, 0); b = np.asarray(R0._idx("SNOD:surface", R0.url)[2], float)
+    R0 = M.Reader(R.m, R.c, 0); b = np.asarray(R0._idx("SNOD:surface", R0.url)[2], float)
     return np.clip((a - b) * 39.3701, -60, 60)
 
 FIELDS = {   # name: (getter, units)
@@ -920,6 +928,24 @@ def rng(a):
 
 def roll_ll(v):   # global lat/lon: lon -180.. -> 0..360 (0.25 deg: 1440 columns, 0.1 deg: 3600)
     return np.roll(v, -(v.shape[1] // 2), axis=1) if v.shape[1] in (1440, 3600) else v
+
+def rotll_to_ij(lon, lat, spec=None):
+    """Geographic lon/lat -> (row, col) on the RRFS NA rotated lat-lon grid (GRIB2 template 1).
+
+    North pole of the rotated system is (pole_lat, pole_lon) = (35 N, 67 E), the complement
+    of the GRIB southern pole (35 S, 247 E). Verified against eccodes/pygrib latlons().
+    """
+    spec = spec or MODELS["rrfsna"]["rotll"]
+    lon = np.asarray(lon, float); lat = np.asarray(lat, float)
+    phi_n = np.deg2rad(spec["pole_lat"]); lam_n = np.deg2rad(spec["pole_lon"])
+    lam = np.deg2rad(lon); phi = np.deg2rad(lat); dlam = lam - lam_n
+    sin_pr = np.sin(phi_n) * np.sin(phi) + np.cos(phi_n) * np.cos(phi) * np.cos(dlam)
+    phi_r = np.rad2deg(np.arcsin(np.clip(sin_pr, -1.0, 1.0)))
+    y = -np.cos(phi) * np.sin(dlam)
+    x = np.cos(phi_n) * np.sin(phi) - np.sin(phi_n) * np.cos(phi) * np.cos(dlam)
+    lam_r = np.rad2deg(np.arctan2(y, x))
+    diff = np.mod(np.mod(lam_r, 360.0) - spec["first_lon"] + 180.0, 360.0) - 180.0
+    return (phi_r - spec["first_lat"]) / spec["dlat"], diff / spec["dlon"]
 
 PT_FIELDS = ("t2m", "d2m", "pw", "kinc", "fzinc", "gust", "u10", "v10", "mslp", "apcp", "asnow", "tcc", "frz", "dsnod", "refc", "t850", "mucape",
              "nq1", "nq6", "ns6", "tstm", "maxt", "mint", "t2sd", "p32")
@@ -1491,6 +1517,10 @@ def static(m, out, views_only=None, x2_only=False):
         d = 3000.0 if "lcc" not in MD else float(np.hypot(g[0, 1, 0] - gx0, g[0, 1, 1] - gy0))   # grid spacing (NBM 2539.7 m)
         def to_ij(LO_, LA_):
             hh = hp.transform_points(pc, LO_, LA_); return (hh[..., 1] - gy0) / d, (hh[..., 0] - gx0) / d
+    elif MD["grid"] == "rotll":
+        _rspec = MD["rotll"]
+        def to_ij(LO_, LA_):
+            return rotll_to_ij(LO_, LA_, _rspec)
     else:
         rs_ = MD.get("res", 0.25)
         def to_ij(LO_, LA_): return (90.0 - LA_) / rs_, np.mod(LO_, 360.0) / rs_
@@ -1502,9 +1532,9 @@ def static(m, out, views_only=None, x2_only=False):
         cam = fig._cam
         W, H = cam.size()
         px, py, pw, ph = cam.panel()
-        # Lambert (HRRR, RRFS, NBM) and lat/lon models share this mesh. The old Lambert
+        # Lambert (HRRR, RRFS, NBM), rotated lat-lon (RRFS NA) and lat/lon models share this mesh. The old Lambert
         # branch passed a row and a column into transform_points and cartopy rejected it.
-        g = CAM.sample_grid(cam, STRIDE, MD.get("res", 0.25), to_ij=to_ij if MD["grid"] == "lcc" else None)
+        g = CAM.sample_grid(cam, STRIDE, MD.get("res", 0.25), to_ij=to_ij if MD["grid"] in ("lcc", "rotll") else None)
         fi, fj, ang = g["fi"], g["fj"], g["ang"]
         luts[vid] = (fi, fj, ang)
         views[vid] = dict(label=V["label"], fig=[int(round(W)), int(round(H))], size_in=[float(x) for x in fig.get_size_inches()],
@@ -2278,7 +2308,7 @@ def static(m, out, views_only=None, x2_only=False):
                 hh = 0.27 / fig.get_size_inches()[1]; import matplotlib.patches as mpa   # a patch, not the axes face: savefig(transparent=True) blanks axes faces
                 fig.patches.append(mpa.Rectangle((0.888, ky), 0.088, hh, transform=fig.transFigure, facecolor=P["core"]["color"], edgecolor=HS.PANEL_EDGE, lw=1.0))
                 fig.text(0.932, ky - 0.008, f"within {P['core']['km']} km", color=HS.INK, fontproperties=HS.font(700, HS.BAR_LABEL_SIZE), ha="center", va="top")
-            HS.credit(fig, TM.CREDIT_NOAA if (pid == "t2m" and m in NOAA) else (M.credit(m) if m in M.MODELS else M.credit("gfs") if minfo(m).get("noaa") else TM.CREDIT.format(name=minfo(m)["name"])))
+            HS.credit(fig, M.credit("rrfsna") if m == "rrfsna" else TM.CREDIT_NOAA if (pid == "t2m" and m in NOAA) else (M.credit(m) if m in M.MODELS else M.credit("gfs") if minfo(m).get("noaa") else TM.CREDIT.format(name=minfo(m)["name"])))
             sizes[f"key_{m}_{pid}_{vid}"] = save(fig, f"{out}/{fn}")
         P["ticks"] = [float(t) for t in tk0]
     for P in prods.values(): P.pop("_cm", None)   # 11-03 q18: colormap objects are for the key pictures only (not JSON)

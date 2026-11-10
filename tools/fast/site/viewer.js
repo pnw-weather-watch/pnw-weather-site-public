@@ -268,7 +268,7 @@ async function boot() {
   // ifs9 stays in the Runs menu when its publisher is paused and no cycle is in R2 yet.
   const LISTED_WITHOUT_RUNS = new Set(["ifs9"]);
   const listed = () => {
-    const order = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "aensm", "epsm", "gfsw", "oisst"].filter(m => S.man.models[m] && ((S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)));
+    const order = ["hrrr", "rrfs", "rrfsna", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens", "aensm", "epsm", "gfsw", "oisst"].filter(m => S.man.models[m] && ((S.man.runs[m] || []).length || LISTED_WITHOUT_RUNS.has(m)));
     const all = []; for (const m of order) for (const c of [...(S.man.runs[m] || [])].reverse()) all.push(`${m}/${c}`);
     return [order, all];
   };
@@ -1192,7 +1192,8 @@ function creditLines(pid, P, towns) {
   const m = S.run.split("/")[0], name = (MD() && MD().name) || "", ec = /^ECMWF/.test(name) || /^(ifs|ifs9|aifs|eps|aens|aensm|epsm)$/.test(m);
   const L = [];
   if (P.clim === "pr" || /^qpf(a|pct)$/.test(pid)) L.push("Normals: PRISM Group, Oregon State University, https://prism.oregonstate.edu (accessed 30 Oct 2026); NOAA CPC & GPCP via NOAA PSL.");
-  const a = [ec ? `Data: \u00a9 ${CREDIT_YEAR} ECMWF (www.ecmwf.int), CC BY 4.0. Modified.` : (pid === "t2m" ? "" : "Data: NOAA (public domain).")];
+  const data = m === "rrfsna" ? "Data: NOAA/NCEP RRFS (public domain)." : (ec ? `Data: \u00a9 ${CREDIT_YEAR} ECMWF (www.ecmwf.int), CC BY 4.0. Modified.` : (pid === "t2m" ? "" : "Data: NOAA (public domain)."));
+  const a = [data];
   if (towns) a.push("Places: GeoNames (geonames.org), CC BY 4.0."); a.push("Coastlines: GSHHG / NOAA NCEI."); a.push("Basemap: Natural Earth.");
   L.push(a.filter(Boolean).join("  "));
   try { const fe = document.getElementById("licsrc"); if (fe) fe.textContent = ec ? `Data: \u00a9 ${CREDIT_YEAR} ECMWF (www.ecmwf.int), CC BY 4.0 \u00b7 ` : ""; } catch (e) {}   // 11-04: GFS/NOAA pages never credit ECMWF
@@ -2408,7 +2409,7 @@ const MG = { open: null, town: Q.get("town") || "Seattle", run: null, cache: new
 const PTZ = "America/Los_Angeles";
 const fmtPT = (iso, o) => new Intl.DateTimeFormat("en-US", Object.assign({ timeZone: PTZ }, o)).format(new Date(iso));
 function mgRuns() {   // newest run of each model that carries town points
-  const order = ["hrrr", "rrfs", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens"], out = [];
+  const order = ["hrrr", "rrfs", "rrfsna", "nbm", "gfs", "ifs", "ifs9", "aifs", "eps", "aens"], out = [];
   for (const m of order) for (const c of [...(S.man.runs[m] || [])].reverse()) { const r = `${m}/${c}`; if (S.runs[r] && !S.runs[r].points) continue; out.push(r); break; }
   return out;
 }

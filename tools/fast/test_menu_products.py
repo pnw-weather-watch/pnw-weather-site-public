@@ -23,6 +23,7 @@ ABSENT = {
 PRESENT = {
     "hrrr": ("refc", "snow", "frz", "snowlvl", "vis", "ir", "gust10", "gust3", "gust6", "gust12", "gust24"),
     "rrfs": ("refc", "snow", "frz", "snowlvl", "vis", "ir", "gust10", "gust6"),
+    "rrfsna": ("refc", "snow", "frz", "snowlvl", "vis", "ir", "gust10", "gust6"),
     "gfs": ("refc", "snow", "ir", "frz", "snowlvl", "vis", "gust10", "gust3", "gust6", "gust12", "gust24"),
     "ifs": ("snow", "frz", "snowlvl", "gust10", "gust3", "gust6", "gust12", "gust24"),
     "aifs": ("snow", "frz", "snowlvl"),
