@@ -162,6 +162,86 @@ class EncodedRun(unittest.TestCase):
             self.assertTrue(report["ok"], report)
 
 
+
+RUNNER = "/home/runner/work/pnw-weather-site-public/pnw-weather-site-public/tools/fast/data"
+
+
+def r2_store(model="eps", cyc="2026111100", steps=(3, 75, 144)):
+    s = {}
+    for f in steps:
+        s[f"runs/{model}/{cyc}/single/mem_f{f:03d}.json"] = mem_doc()
+        s[f"runs/{model}/{cyc}/single/ens_f{f:03d}.json"] = ens_doc()
+    return s
+
+
+def runner_stamp(model, cyc, steps):
+    return {"ok": False, "checked": [], "issues": [
+        f"missing {RUNNER}/runs/{model}/{cyc}/single/{k}_f{f:03d}.json" for f in steps for k in ("mem", "ens")]}
+
+
+class MembersFromR2(unittest.TestCase):
+    """Stamps written on the runner after its step files were uploaded and deleted (Nov 11 3 AM check)."""
+
+    def test_files_only_in_r2_pass_the_promote_gate(self):
+        for model in ("eps", "aens"):
+            steps = [{"f": 3}, {"f": 75}, {"f": 144}]
+            cand = {"cycle": "2026111100", "steps": steps, "member_check": runner_stamp(model, "2026111100", (3, 75, 144))}
+            ok, why = EMC.member_promote_ok(model, cand, fetch_json=r2_store(model).get)
+            self.assertTrue(ok, why)
+            self.assertIn("R2", why)
+
+    def test_files_only_in_r2_pass_the_encode_stamp(self):
+        with tempfile.TemporaryDirectory() as td:   # nothing on local disk
+            run = {"cycle": "2026111100", "steps": [{"f": 3}, {"f": 75}, {"f": 144}]}
+            report = EMC.check_encoded_run(td, "eps", fetch_json=r2_store().get, run=run)
+            self.assertTrue(report["ok"], report)
+            self.assertEqual(len(report["checked"]), 6)
+
+    def test_real_mismatch_in_r2_fails(self):
+        store = r2_store("aens")
+        store["runs/aens/2026111100/single/mem_f075.json"] = mem_doc(num={"msl": N[:49] + [49], "2t": N})
+        cand = {"cycle": "2026111100", "steps": [{"f": 3}, {"f": 75}, {"f": 144}],
+                "member_check": runner_stamp("aens", "2026111100", (3, 75, 144))}
+        ok, why = EMC.member_promote_ok("aens", cand, fetch_json=store.get)
+        self.assertFalse(ok)
+        self.assertIn("msl", why)
+        store = r2_store()
+        store["runs/eps/2026111100/single/ens_f144.json"] = ens_doc(mnum=N[:-1] + [0])
+        with tempfile.TemporaryDirectory() as td:
+            report = EMC.check_encoded_run(td, "eps", fetch_json=store.get,
+                                           run={"cycle": "2026111100", "steps": [{"f": 3}, {"f": 75}, {"f": 144}]})
+            self.assertFalse(report["ok"])
+
+    def test_real_mismatch_in_stamp_still_blocks(self):
+        stamp = runner_stamp("eps", "2026111100", (3,))
+        stamp["issues"].append("msl: missing [7]")
+        cand = {"cycle": "2026111100", "steps": [{"f": 3}], "member_check": stamp}
+        ok, why = EMC.member_promote_ok("eps", cand, fetch_json=r2_store(steps=(3,)).get)
+        self.assertFalse(ok)
+        self.assertIn("msl: missing [7]", why)
+
+    def test_missing_files_fail(self):
+        store = r2_store()
+        del store["runs/eps/2026111100/single/ens_f075.json"]
+        cand = {"cycle": "2026111100", "steps": [{"f": 3}, {"f": 75}, {"f": 144}],
+                "member_check": runner_stamp("eps", "2026111100", (3, 75, 144))}
+        ok, why = EMC.member_promote_ok("eps", cand, fetch_json=store.get)
+        self.assertFalse(ok)
+        self.assertIn("missing ens_f075.json", why)
+        with tempfile.TemporaryDirectory() as td:
+            report = EMC.check_encoded_run(td, "eps", fetch_json=store.get,
+                                           run={"cycle": "2026111100", "steps": [{"f": 3}, {"f": 75}, {"f": 144}]})
+            self.assertFalse(report["ok"])
+            self.assertTrue(any("ens_f075" in i for i in report["issues"]))
+            report = EMC.check_encoded_run(td, "eps", run={"cycle": "2026111100", "steps": [{"f": 3}]})
+            self.assertFalse(report["ok"])   # no R2 reader and nothing local: still fails
+
+    def test_local_only_stamp_without_r2_reader_does_not_pass(self):
+        cand = {"cycle": "2026111100", "steps": [{"f": 3}], "member_check": runner_stamp("eps", "2026111100", (3,))}
+        ok, why = EMC.member_promote_ok("eps", cand)
+        self.assertFalse(ok)
+
+
 class Labels(unittest.TestCase):
     def test_aifs_wind_labeled_instantaneous(self):
         src = Path(__file__).with_name("fast_encode.py").read_text(encoding="utf-8")
