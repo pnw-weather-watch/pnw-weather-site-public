@@ -97,6 +97,38 @@ class SiteAirports(unittest.TestCase):
         self.assertIn("valueAt(t.la, t.lo, t.n)", body)
         self.assertIn('static/town_airports.json', v)
 
+    def test_preview_align_keeps_airport_points(self):
+        """align_preview_manifest copies live hrrr/rrfs/nbm/ifs9 records (with live's town slots) into preview;
+        the copied slots must come out on the airports (Oak Harbor KOKH, Winthrop KS52, Grants Pass K3S8, Casper KCPR)."""
+        import fast_cycle as FC
+        live = fixture(); preview = fixture()
+        towns = {"Oak Harbor": (48.2934, -122.6432), "Winthrop": (48.478, -120.186),
+                 "Grants Pass": (42.439, -123.328), "Casper": (42.866, -106.313)}
+        for doc in (live, preview):
+            for name, ll in towns.items():
+                doc["models"]["gfs"]["views"]["wa"]["towns"].append(dict(name=name, kind="town", x=.3, y=.3, fi=gfs_slot(*ll)[0], fj=gfs_slot(*ll)[1]))
+        for m in ("hrrr", "nbm"):   # live still has label / old-station points
+            md = live["models"][m]
+            for name, ll in towns.items():
+                ij = TA.grid_ij(m, md, *ll)
+                md["views"]["wa"]["towns"].append(dict(name=name, kind="town", x=.3, y=.3, fi=ij[0], fj=ij[1]))
+            knuw = TA.grid_ij(m, md, 48.35525, -122.66352)
+            next(t for t in md["views"]["wa"]["towns"] if t["name"] == "Oak Harbor").update(fi=knuw[0], fj=knuw[1])
+        out = FC.align_preview_manifest(preview, live, {}, models=("hrrr", "nbm"))
+        want = {"Oak Harbor": "KOKH", "Winthrop": "KS52", "Grants Pass": "K3S8", "Casper": "KCPR", "Seattle": "KSEA"}
+        for m in ("hrrr", "nbm"):
+            md = out["models"][m]
+            for name, icao in want.items():
+                a = TA.table()[name]; a = next(s for s in a if s["icao"] == icao)
+                t = next(t for t in md["views"]["wa"]["towns"] if t["name"] == name)
+                self.assertEqual((t["fi"], t["fj"]), TA.grid_ij(m, md, a["lat"], a["lon"]), f"{m} {name}")
+                self.assertEqual(t["ap"], icao)
+            self.assertEqual(md["crop"], live["models"][m]["crop"], "crop still comes from live")
+        oak = next(t for t in out["models"]["nbm"]["views"]["wa"]["towns"] if t["name"] == "Oak Harbor")
+        self.assertEqual((oak["fi"], oak["fj"]), (917.0, 620.0))
+        # live input is not modified
+        self.assertNotIn("ap", next(t for t in live["models"]["nbm"]["views"]["wa"]["towns"] if t["name"] == "Oak Harbor"))
+
     def test_view_fixes_overrides_follow_the_airport(self):
         man = fixture()
         fx = {"models": {"gfs": {"pnwt": {"towns_png": "static/towns_pnwt_v2.png",

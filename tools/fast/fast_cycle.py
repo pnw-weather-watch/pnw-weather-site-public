@@ -211,6 +211,8 @@ def align_preview_manifest(preview, live, run_grids, models=PREVIEW_CROP_MODELS)
             grid = (run_grids or {}).get((m, cyc))
             if grid is not None and FE.same_grid({"grid": grid}, crop): kept.append(cyc)
         preview.setdefault("runs", {})[m] = kept
+    # 11-11: the copied live records carry live's town slots; keep preview on the official airports.
+    import town_airports as TA; TA.apply(preview, [m for m in models if m in (preview.get("models") or {})])
     return preview
 
 def live_publish_enabled():
