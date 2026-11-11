@@ -2383,6 +2383,7 @@ def static(m, out, views_only=None, x2_only=False):
     man.setdefault("models", {})[m] = dict(name=MI["name"], site=MI["site"], res=MI["res"], grid=MD["grid"],
                                           crop=[i0, i1, j0, j1], views=views, products=prods, clim=clim, **({"products_x": prods_x} if prods_x else {}))
     man.setdefault("runs", {}).setdefault(m, [])
+    import town_airports as TA; TA.apply(man, [m])   # 11-11: town numbers at the official airport on every view (regions/town_airports.json)
     json.dump(man, open(mp, "w"), indent=1, allow_nan=False)
     if MD["grid"] == "ll" and "pnwt" in vids:   # [KIT] Studio wide view removed; the viewer's Pacific NW tight town fix kept
         import view_fixes; view_fixes.pnwt_fix([m], man, out)   # 10-31: Pacific NW tight town layer + slots, versioned (towns_pnwt_v2.png)

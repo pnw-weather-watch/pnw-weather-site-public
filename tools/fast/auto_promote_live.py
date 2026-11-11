@@ -117,6 +117,7 @@ def apply_manifest(man, prev_man, m, cyc, cand, keep):
     else: pg[cyc] = [cand["steps"][-1]["f"], cand.get("expected") or cand["steps"][-1]["f"]]
     for k in [k for k in pg if k not in new]: pg.pop(k)
     if not pg: man["progress"].pop(m, None)
+    import town_airports as TA; TA.apply(man, [m])   # 11-11: live town slots stay on the official airport
     return man
 
 def promote(s3, m, dry=False, log=print):

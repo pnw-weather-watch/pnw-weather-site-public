@@ -501,6 +501,9 @@ def publish_manifest(s3, D, m, prog=None, fields=None):
         xr[:] = (mn.get("runs_x") or {}).pop(m, None) or []
         if "runs_x" in mn and not mn["runs_x"]: del mn["runs_x"]
         gained[:] = graft_encoded_products(mn, m, fields) or []
+        # 11-11: every publish re-pins this model's town slots to the official airport (idempotent), so a
+        # hand edit or an older static build can never put the numbers back at the label.
+        import town_airports as TA; TA.apply(mn, [m])
     man = update_manifest(s3, both)
     if gained:
         me = (man.get("models") or {}).get(m) or {}

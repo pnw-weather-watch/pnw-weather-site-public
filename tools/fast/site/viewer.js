@@ -256,7 +256,8 @@ async function boot() {
   const indexP = fetchJson(DATA + "manifest.index.json", { cache: "no-cache" }).catch(() => null);
   const vfP = fetchJson(DATA + "static/view_fixes.json", { cache: "no-cache" }).catch(() => null);
   const wvP = fetchJson(DATA + "static/wave_views.json", { cache: "no-cache" }).catch(() => null);
-  const fixesP = Promise.all([vfP, wvP]).then(([a, b]) => { S._vf = a; S._wv = b; });
+  const apP = fetchJson(DATA + "static/town_airports.json", { cache: "no-cache" }).catch(() => null);   // 11-11: town -> airport sample points
+  const fixesP = Promise.all([vfP, wvP, apP]).then(([a, b, c]) => { S._vf = a; S._wv = b; S._ap = c; });
   let man = await indexP;
   // Missing, unparseable, or partial index: the full manifest.json is still published.
   if (!indexUsable(man)) {
@@ -1569,8 +1570,10 @@ function drawCamLabels(ctx, st, D, P, pid, V, LW, LH) {
   const X0 = st.x0, Y0 = st.y0, X1 = st.x0 + st.W, Y1 = st.y0 + st.H, taken = [], gap = pt(5);
   const hit = b => b[0] < X0 + 6 || b[1] < Y0 + 6 || b[2] > X1 - 6 || b[3] > Y1 - 6
     || taken.some(a => b[0] < a[2] + gap && b[2] > a[0] - gap && b[1] < a[3] + gap && b[3] > a[1] - gap);
-  const valueAt = (lat, lon) => {
-    const ij = WXSelect.latLonIndex(model, lat, lon);
+  const valueAt = (lat, lon, name) => {
+    // 11-11: towns read at their official airport (catalog slot, else static/town_airports.json), same point as every other view
+    const q = name ? WXSelect.townPoint(model, V.towns, S._ap, name, lat, lon) : null;
+    const ij = q ? [q.fi, q.fj] : WXSelect.latLonIndex(model, lat, lon);
     if (!ij || !(ij[0] >= 0 && ij[1] >= 0 && ij[0] < D.h - 1 && ij[1] < D.w - 1)) return NaN;
     return sampleRC(D.fill, D.w, ij[0], ij[1]);
   };
@@ -1618,7 +1621,7 @@ function drawCamLabels(ctx, st, D, P, pid, V, LW, LH) {
     if (x < X0 + 8 || x > X1 - 8 || y < Y0 + 8 || y > Y1 - 8) continue;
     const tier = t.t || townTier(t.n), fN = `${tier === 1 ? 700 : 600} ${pt(townPt(tier))}px WXTheme`;
     const fNum = `800 ${pt(Math.max(15, townPt(tier) - 1))}px WXTheme`;
-    const v = valueAt(t.la, t.lo), vs = showNum && v === v ? fmtVal(P, v) : "";
+    const v = valueAt(t.la, t.lo, t.n), vs = showNum && v === v ? fmtVal(P, v) : "";
     ctx.font = fN; const nw = ctx.measureText(t.n).width;
     ctx.font = fNum; const vw = vs ? ctx.measureText(vs).width : 0;
     const W_ = nw + (vs ? pt(5) + vw : 0), hh = pt(townPt(tier) * 0.52);
