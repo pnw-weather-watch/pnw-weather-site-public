@@ -1,5 +1,5 @@
 {
- "note": "Shared town-to-airport sample points for every view. Coordinates are official NOAA/NWS station metadata (api.weather.gov) or NOAA Aviation Weather Center stationinfo when NWS has no record. Labels stay at the town; only the model readout moves to these points. Multiple rows with the same town name (e.g. Vancouver KVUO and CYVR) are disambiguated by proximity to the label. Retrieved 2026-11-10.",
+ "note": "Shared town-to-airport sample points for every view. Coordinates are official NOAA/NWS station metadata (api.weather.gov) or NOAA Aviation Weather Center stationinfo when NWS has no record. Labels stay at the town; only the model readout moves to these points. Multiple rows with the same town name (e.g. Vancouver KVUO and CYVR) are disambiguated by proximity to the label. Retrieved 2026-11-10. 2026-11-11: added the 36 towns from Benjamin's shared table that were missing here.",
  "stations": [
   {
    "name": "Abbotsford",
@@ -18,6 +18,15 @@
    "station_name": "Hoquiam, Bowerman Airport",
    "elev_m": 3.9624,
    "source": "https://api.weather.gov/stations/KHQM (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Albany",
+   "icao": "KS12",
+   "lat": 44.63782,
+   "lon": -123.05945,
+   "station_name": "Albany Municipal Airport",
+   "elev_m": 69.1896,
+   "source": "https://api.weather.gov/stations/KS12 (retrieved 2026-11-11)"
   },
   {
    "name": "Alturas",
@@ -164,6 +173,15 @@
    "source": "https://api.weather.gov/stations/KBUR (retrieved 2026-11-10)"
   },
   {
+   "name": "Burlington",
+   "icao": "KBVS",
+   "lat": 48.47083,
+   "lon": -122.42083,
+   "station_name": "Burlington/Mount Vernon, Skagit Regional Airport",
+   "elev_m": 43.8912,
+   "source": "https://api.weather.gov/stations/KBVS (retrieved 2026-11-11)"
+  },
+  {
    "name": "Burns",
    "icao": "KBNO",
    "lat": 43.59488,
@@ -189,6 +207,15 @@
    "station_name": "Calgary Intl",
    "elev_m": 1085.0,
    "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYYC (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Campbell River",
+   "icao": "CYBL",
+   "lat": 49.951,
+   "lon": -125.269,
+   "station_name": "Campbell River Arpt",
+   "elev_m": 94,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYBL (retrieved 2026-11-11)"
   },
   {
    "name": "Carson City",
@@ -245,6 +272,15 @@
    "source": "https://api.weather.gov/stations/KCIC (retrieved 2026-11-10)"
   },
   {
+   "name": "Clarkston",
+   "icao": "KLWS",
+   "lat": 46.37472,
+   "lon": -117.01444,
+   "station_name": "Lewiston, Lewiston-Nez Perce County Airport",
+   "elev_m": 437.9976,
+   "source": "https://api.weather.gov/stations/KLWS (retrieved 2026-11-11)"
+  },
+  {
    "name": "Coeur d'Alene",
    "icao": "KCOE",
    "lat": 47.76667,
@@ -252,6 +288,24 @@
    "station_name": "Coeur d'Alene Airport - Pappy Boyington Field",
    "elev_m": 707.136,
    "source": "https://api.weather.gov/stations/KCOE (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Colville",
+   "icao": "K63S",
+   "lat": 48.54417,
+   "lon": -117.88353,
+   "station_name": "Colville Municipal Airport",
+   "elev_m": 575.4624,
+   "source": "https://api.weather.gov/stations/K63S (retrieved 2026-11-11)"
+  },
+  {
+   "name": "Comox",
+   "icao": "CYQQ",
+   "lat": 49.712,
+   "lon": -124.895,
+   "station_name": "Comox",
+   "elev_m": 24,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYQQ (retrieved 2026-11-11)"
   },
   {
    "name": "Concord",
@@ -263,6 +317,42 @@
    "source": "https://api.weather.gov/stations/KCCR (retrieved 2026-11-10)"
   },
   {
+   "name": "Corvallis",
+   "icao": "KCVO",
+   "lat": 44.5,
+   "lon": -123.28333,
+   "station_name": "Corvallis, Corvallis Municipal Airport",
+   "elev_m": 74.9808,
+   "source": "https://api.weather.gov/stations/KCVO (retrieved 2026-11-11)"
+  },
+  {
+   "name": "Coupeville",
+   "icao": "KNRA",
+   "lat": 48.19056,
+   "lon": -122.63056,
+   "station_name": "Coupeville, Outlying Landing Field",
+   "elev_m": 60.0456,
+   "source": "https://api.weather.gov/stations/KNRA (retrieved 2026-11-11)"
+  },
+  {
+   "name": "Courtenay",
+   "icao": "CYQQ",
+   "lat": 49.712,
+   "lon": -124.895,
+   "station_name": "Comox",
+   "elev_m": 24,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYQQ (retrieved 2026-11-11)"
+  },
+  {
+   "name": "Cranbrook",
+   "icao": "CYXC",
+   "lat": 49.6122,
+   "lon": -115.7819,
+   "station_name": "CRANBROOK A (10.7 km)",
+   "elev_m": null,
+   "source": "Benjamin's shared slayers/static/town_airports.json (no api.weather.gov or AWC stationinfo record), 2026-11-11"
+  },
+  {
    "name": "Crescent City",
    "icao": "KCEC",
    "lat": 41.78028,
@@ -270,6 +360,24 @@
    "station_name": "Crescent City, Jack McNamara Field Airport",
    "elev_m": 17.0688,
    "source": "https://api.weather.gov/stations/KCEC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Davenport",
+   "icao": "K68S",
+   "lat": 47.65206,
+   "lon": -118.17377,
+   "station_name": "Davenport Municipal Airport",
+   "elev_m": 738.8352,
+   "source": "https://api.weather.gov/stations/K68S (retrieved 2026-11-11)"
+  },
+  {
+   "name": "Deer Park",
+   "icao": "KDEW",
+   "lat": 47.97417,
+   "lon": -117.42833,
+   "station_name": "Deer Park, Deer Park Airport",
+   "elev_m": 672.084,
+   "source": "https://api.weather.gov/stations/KDEW (retrieved 2026-11-11)"
   },
   {
    "name": "Delano",
@@ -326,6 +434,15 @@
    "source": "https://api.weather.gov/stations/KELN (retrieved 2026-11-10)"
   },
   {
+   "name": "Ephrata",
+   "icao": "KEPH",
+   "lat": 47.3075,
+   "lon": -119.51583,
+   "station_name": "Ephrata, Ephrata Municipal Airport",
+   "elev_m": 388.9248,
+   "source": "https://api.weather.gov/stations/KEPH (retrieved 2026-11-11)"
+  },
+  {
    "name": "Eugene",
    "icao": "KEUG",
    "lat": 44.13333,
@@ -371,6 +488,15 @@
    "source": "https://api.weather.gov/stations/KFAT (retrieved 2026-11-10)"
   },
   {
+   "name": "Friday Harbor",
+   "icao": "KFHR",
+   "lat": 48.52,
+   "lon": -123.02637,
+   "station_name": "Friday Harbor Airport",
+   "elev_m": 34.1376,
+   "source": "https://api.weather.gov/stations/KFHR (retrieved 2026-11-11)"
+  },
+  {
    "name": "Glendale",
    "icao": "KBUR",
    "lat": 34.19967,
@@ -378,6 +504,15 @@
    "station_name": "Burbank - Bob Hope Airport",
    "elev_m": 221.8944,
    "source": "https://api.weather.gov/stations/KBUR (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Grants Pass",
+   "icao": "K3S8",
+   "lat": 42.51011,
+   "lon": -123.38798,
+   "station_name": "Grants Pass Airport",
+   "elev_m": 343.2048,
+   "source": "https://api.weather.gov/stations/K3S8 (retrieved 2026-11-11)"
   },
   {
    "name": "Grass Valley",
@@ -407,6 +542,15 @@
    "source": "https://api.weather.gov/stations/KHAF (retrieved 2026-11-10)"
   },
   {
+   "name": "Hermiston",
+   "icao": "KHRI",
+   "lat": 45.82583,
+   "lon": -119.26111,
+   "station_name": "Hermiston, Hermiston Municipal Airport",
+   "elev_m": 193.8528,
+   "source": "https://api.weather.gov/stations/KHRI (retrieved 2026-11-11)"
+  },
+  {
    "name": "Hilo",
    "icao": "PHTO",
    "lat": 19.72222,
@@ -423,6 +567,15 @@
    "station_name": "Daniel K Inouye International Airport",
    "elev_m": 3.048,
    "source": "https://api.weather.gov/stations/PHNL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Hope",
+   "icao": "CYHE",
+   "lat": 49.37,
+   "lon": -121.493,
+   "station_name": "Hope Rgnl Airpark",
+   "elev_m": 43,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYHE (retrieved 2026-11-11)"
   },
   {
    "name": "Hoquiam",
@@ -479,6 +632,15 @@
    "source": "https://api.weather.gov/stations/KGPI (retrieved 2026-11-10)"
   },
   {
+   "name": "Kamloops",
+   "icao": "CYKA",
+   "lat": 50.704,
+   "lon": -120.444,
+   "station_name": "Kamloops Arpt",
+   "elev_m": 344,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYKA (retrieved 2026-11-11)"
+  },
+  {
    "name": "Kapolei",
    "icao": "PHJR",
    "lat": 21.30833,
@@ -506,6 +668,15 @@
    "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYLW (NOAA AWC, retrieved 2026-11-10)"
   },
   {
+   "name": "Kelso",
+   "icao": "KKLS",
+   "lat": 46.11553,
+   "lon": -122.89273,
+   "station_name": "Southwest Washington Regional Airport",
+   "elev_m": 3.9624,
+   "source": "https://api.weather.gov/stations/KKLS (retrieved 2026-11-11)"
+  },
+  {
    "name": "Kennewick",
    "icao": "KPSC",
    "lat": 46.26955,
@@ -531,6 +702,15 @@
    "station_name": "Klamath Falls International Airport",
    "elev_m": 1243.8888,
    "source": "https://api.weather.gov/stations/KLMT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "La Grande",
+   "icao": "KLGD",
+   "lat": 45.29066,
+   "lon": -118.00884,
+   "station_name": "La Grande/Union County Airport",
+   "elev_m": 825.0936,
+   "source": "https://api.weather.gov/stations/KLGD (retrieved 2026-11-11)"
   },
   {
    "name": "Lake Havasu City",
@@ -677,6 +857,15 @@
    "source": "https://api.weather.gov/stations/KMRY (retrieved 2026-11-10)"
   },
   {
+   "name": "Moscow",
+   "icao": "KPUW",
+   "lat": 46.74377,
+   "lon": -117.11579,
+   "station_name": "Pullman / Moscow Regional Airport",
+   "elev_m": 774.8016,
+   "source": "https://api.weather.gov/stations/KPUW (retrieved 2026-11-11)"
+  },
+  {
    "name": "Moses Lake",
    "icao": "KMWH",
    "lat": 47.19299,
@@ -732,12 +921,13 @@
   },
   {
    "name": "Oak Harbor",
-   "icao": "KNUW",
-   "lat": 48.35525,
-   "lon": -122.66352,
-   "station_name": "Whidbey Island Naval Air Station - Ault Field",
-   "elev_m": 13.1064,
-   "source": "https://api.weather.gov/stations/KNUW (retrieved 2026-11-10)"
+   "icao": "KOKH",
+   "lat": 48.2515,
+   "lon": -122.6737,
+   "station_name": "A.J. Eisenberg Airport (Oak Harbor)",
+   "elev_m": 58.8,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=KOKH (retrieved 2026-11-11); matches Benjamin's shared slayers/static/town_airports.json",
+   "note": "Readouts sample the model grid at the airport; no observing station is needed. KNUW (NAS Whidbey) is not used."
   },
   {
    "name": "Oakland",
@@ -812,6 +1002,15 @@
    "source": "https://api.weather.gov/stations/KPMD (retrieved 2026-11-10)"
   },
   {
+   "name": "Pasco",
+   "icao": "KPSC",
+   "lat": 46.26955,
+   "lon": -119.11813,
+   "station_name": "Tri-Cities Airport",
+   "elev_m": 121.0056,
+   "source": "https://api.weather.gov/stations/KPSC (retrieved 2026-11-11)"
+  },
+  {
    "name": "Paso Robles",
    "icao": "KPRB",
    "lat": 35.66941,
@@ -821,6 +1020,15 @@
    "source": "https://api.weather.gov/stations/KPRB (retrieved 2026-11-10)"
   },
   {
+   "name": "Pemberton",
+   "icao": "CYPS",
+   "lat": 50.3025,
+   "lon": -122.7378,
+   "station_name": "Pemberton",
+   "elev_m": null,
+   "source": "Benjamin's shared slayers/static/town_airports.json (no api.weather.gov or AWC stationinfo record), 2026-11-11"
+  },
+  {
    "name": "Pendleton",
    "icao": "KPDT",
    "lat": 45.69757,
@@ -828,6 +1036,15 @@
    "station_name": "Eastern Oregon Regional Airport at Pendleton",
    "elev_m": 452.0184,
    "source": "https://api.weather.gov/stations/KPDT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Penticton",
+   "icao": "CYYF",
+   "lat": 49.4599,
+   "lon": -119.6057,
+   "station_name": "PENTICTON (4.8 km)",
+   "elev_m": null,
+   "source": "Benjamin's shared slayers/static/town_airports.json (no api.weather.gov or AWC stationinfo record), 2026-11-11"
   },
   {
    "name": "Phoenix",
@@ -872,7 +1089,9 @@
    "lon": -122.81159,
    "station_name": "Port Townsend Jefferson County International Airport",
    "elev_m": 32.004,
-   "source": "https://api.weather.gov/stations/K0S9 (retrieved 2026-11-10)"
+   "source": "https://api.weather.gov/stations/K0S9 (retrieved 2026-11-10)",
+   "faa": "0S9",
+   "note": "K0S9 is the ICAO/NWS id of FAA 0S9 (same airport as Benjamin's table)."
   },
   {
    "name": "Portland",
@@ -884,6 +1103,15 @@
    "source": "https://api.weather.gov/stations/KPDX (retrieved 2026-11-10)"
   },
   {
+   "name": "Powell River",
+   "icao": "CYPW",
+   "lat": 49.8342,
+   "lon": -124.5,
+   "station_name": "Powell River",
+   "elev_m": null,
+   "source": "Benjamin's shared slayers/static/town_airports.json (no api.weather.gov or AWC stationinfo record), 2026-11-11"
+  },
+  {
    "name": "Prescott",
    "icao": "KPRC",
    "lat": 34.64917,
@@ -893,6 +1121,15 @@
    "source": "https://api.weather.gov/stations/KPRC (retrieved 2026-11-10)"
   },
   {
+   "name": "Princeton",
+   "icao": "CYDC",
+   "lat": 49.468,
+   "lon": -120.514,
+   "station_name": "Princeton Arpt",
+   "elev_m": 703,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYDC (retrieved 2026-11-11)"
+  },
+  {
    "name": "Pullman",
    "icao": "KPUW",
    "lat": 46.74377,
@@ -900,6 +1137,15 @@
    "station_name": "Pullman / Moscow Regional Airport",
    "elev_m": 774.8016,
    "source": "https://api.weather.gov/stations/KPUW (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Puyallup",
+   "icao": "KPLU",
+   "lat": 47.104,
+   "lon": -122.287,
+   "station_name": "Pierce County-Thun Field",
+   "elev_m": 163.9824,
+   "source": "https://api.weather.gov/stations/KPLU (retrieved 2026-11-11)"
   },
   {
    "name": "Redding",
@@ -929,6 +1175,15 @@
    "source": "https://api.weather.gov/stations/KRNO (retrieved 2026-11-10)"
   },
   {
+   "name": "Renton",
+   "icao": "KRNT",
+   "lat": 47.49509,
+   "lon": -122.21437,
+   "station_name": "Renton Municipal Airport",
+   "elev_m": 7.0104,
+   "source": "https://api.weather.gov/stations/KRNT (retrieved 2026-11-11)"
+  },
+  {
    "name": "Richland",
    "icao": "KRLD",
    "lat": 46.30859,
@@ -945,6 +1200,15 @@
    "station_name": "Riverside Municipal Airport",
    "elev_m": 249.6312,
    "source": "https://api.weather.gov/stations/KRAL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Roseburg",
+   "icao": "KRBG",
+   "lat": 43.23368,
+   "lon": -123.3577,
+   "station_name": "Roseburg Regional Airport",
+   "elev_m": 152.0952,
+   "source": "https://api.weather.gov/stations/KRBG (retrieved 2026-11-11)"
   },
   {
    "name": "Sacramento",
@@ -1019,6 +1283,15 @@
    "source": "https://api.weather.gov/stations/KSQL (retrieved 2026-11-10)"
   },
   {
+   "name": "Sandpoint",
+   "icao": "KSZT",
+   "lat": 48.29944,
+   "lon": -116.56,
+   "station_name": "Sandpoint, Sandpoint Airport",
+   "elev_m": 648.0048,
+   "source": "https://api.weather.gov/stations/KSZT (retrieved 2026-11-11)"
+  },
+  {
    "name": "Santa Ana",
    "icao": "KSNA",
    "lat": 33.6798,
@@ -1091,6 +1364,24 @@
    "source": "https://api.weather.gov/stations/KGEG (retrieved 2026-11-10)"
   },
   {
+   "name": "Spokane Valley",
+   "icao": "KSFF",
+   "lat": 47.68556,
+   "lon": -117.32028,
+   "station_name": "Spokane, Felts Field",
+   "elev_m": 594.9696,
+   "source": "https://api.weather.gov/stations/KSFF (retrieved 2026-11-11)"
+  },
+  {
+   "name": "Squamish",
+   "icao": "CWSK",
+   "lat": 49.783,
+   "lon": -123.161,
+   "station_name": "Squamish Arpt",
+   "elev_m": 59,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CWSK (retrieved 2026-11-11)"
+  },
+  {
    "name": "St. George",
    "icao": "KSGU",
    "lat": 37.0451,
@@ -1109,6 +1400,15 @@
    "source": "https://api.weather.gov/stations/KSCK (retrieved 2026-11-10)"
   },
   {
+   "name": "Sunnyside",
+   "icao": "K1S5",
+   "lat": 46.3271,
+   "lon": -119.9704,
+   "station_name": "Sunnyside Municipal Airport",
+   "elev_m": 234.0864,
+   "source": "https://api.weather.gov/stations/K1S5 (retrieved 2026-11-11)"
+  },
+  {
    "name": "Tacoma",
    "icao": "KTIW",
    "lat": 47.2675,
@@ -1118,6 +1418,15 @@
    "source": "https://api.weather.gov/stations/KTIW (retrieved 2026-11-10)"
   },
   {
+   "name": "The Dalles",
+   "icao": "KDLS",
+   "lat": 45.61901,
+   "lon": -121.16572,
+   "station_name": "The Dalles Municipal Airport",
+   "elev_m": 71.0184,
+   "source": "https://api.weather.gov/stations/KDLS (retrieved 2026-11-11)"
+  },
+  {
    "name": "Tillamook",
    "icao": "KTMK",
    "lat": 45.41806,
@@ -1125,6 +1434,15 @@
    "station_name": "Tillamook, Tillamook Airport",
    "elev_m": 10.9728,
    "source": "https://api.weather.gov/stations/KTMK (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Tofino",
+   "icao": "CYAZ",
+   "lat": 49.0796,
+   "lon": -125.7666,
+   "station_name": "Tofino / Long Beach",
+   "elev_m": null,
+   "source": "Benjamin's shared slayers/static/town_airports.json (no api.weather.gov or AWC stationinfo record), 2026-11-11"
   },
   {
    "name": "Tri-Cities",
@@ -1233,6 +1551,15 @@
    "station_name": "Wenatchee - Pangborn Memorial Airport",
    "elev_m": 373.9896,
    "source": "https://api.weather.gov/stations/KEAT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Winthrop",
+   "icao": "KS52",
+   "lat": 48.42495,
+   "lon": -120.14589,
+   "station_name": "Methow Valley",
+   "elev_m": 519.9888,
+   "source": "https://api.weather.gov/stations/KS52 (retrieved 2026-11-11)"
   },
   {
    "name": "Yakima",

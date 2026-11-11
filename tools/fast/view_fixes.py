@@ -56,6 +56,7 @@ def pnwt_fix(models, man, out):
         plt.close(fig)
         doc["models"].setdefault(m, {})[FIX_VID] = dict(towns=slots, towns_png=FIX_PNG)
         print(f"{m} {FIX_VID}: {len(slots)} town numbers", flush=True)
+    import town_airports as TA; TA.apply_view_fixes(doc, man)   # 11-11: same airport points as the catalog slots
     doc.update(built=time.strftime("%Y-%m-%dT%H:%M:%S%z"), note="per-view overrides the site lays over manifest.json (view_fixes.py)")
     json.dump(doc, open(fp, "w"), indent=1); print("towns", names0, flush=True)
 

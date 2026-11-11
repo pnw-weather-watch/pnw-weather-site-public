@@ -204,8 +204,21 @@
     const rho0 = rho(p.lat0), th = n * (lon - p.lon0) * rad, r = rho(lat);
     return [r * Math.sin(th), rho0 - r * Math.cos(th)];
   }
+  // RRFS 13 km NA rotated lat/lon (tools/fast/town_airports.py ROTLL, GRIB template 1).
+  const ROTLL = { rrfsna: { pole_lat: 35.0, pole_lon: 67.0, first_lat: -36.9303, first_lon: 299.0, dlat: 0.1083, dlon: 0.1083 } };
+  function rotllIJ(lon, lat, s) {
+    const r = Math.PI / 180, pn = s.pole_lat * r, ln = s.pole_lon * r, ph = lat * r, dl = lon * r - ln;
+    const pr = Math.asin(Math.max(-1, Math.min(1, Math.sin(pn) * Math.sin(ph) + Math.cos(pn) * Math.cos(ph) * Math.cos(dl)))) / r;
+    const lr = Math.atan2(-Math.cos(ph) * Math.sin(dl), Math.cos(pn) * Math.sin(ph) - Math.sin(pn) * Math.cos(ph) * Math.cos(dl)) / r;
+    const diff = ((((lr % 360) + 360) % 360 - s.first_lon + 180) % 360 + 360) % 360 - 180;
+    return [(pr - s.first_lat) / s.dlat, diff / s.dlon];
+  }
   function latLonIndex(model, lat, lon) {
     const cr = (model && model.crop) || [0, 0, 0, 0];
+    if (model && (model.grid === "rotll" || ROTLL[model.id || ""])) {
+      const s = ROTLL[model.id || ""]; if (!s) return null;
+      const q = rotllIJ(lon, lat, s); return [q[0] - cr[0], q[1] - cr[2]];
+    }
     if (!model || model.grid !== "lcc") {
       const res = model && /0\.1|9 km/.test(String(model.res || "")) ? 0.1 : 0.25;
       const fi = (90 - lat) / res - cr[0];
@@ -217,6 +230,31 @@
     const o = lambertXY(p.lon00, p.lat00, p);
     const q = lambertXY(lon, lat, p);
     return [(q[1] - o[1]) / p.dx - cr[0], (q[0] - o[0]) / p.dx - cr[2]];
+  }
+
+  // Where a town's number is read (11-11): the official airport, the same grid point in every view.
+  // 1) the catalog slot of this view (encoder pinned it to the airport: same fi/fj as the Washington view),
+  // 2) else the airport from static/town_airports.json closest to the label (within max_km),
+  // 3) else the label point. Regional grids (lcc, rotll) use the nearest native point, globals bilinear.
+  function airportFor(table, name, lat, lon) {
+    const c = table && table.towns && table.towns[name]; if (!c || !c.length) return null;
+    const maxKm = (table && table.max_km) || 80;
+    let best = null, bd = Infinity;
+    for (const a of c) { const d = kmBetween(lat, lon, a[1], a[2]); if (d < bd) { bd = d; best = a; } }
+    return best && bd <= maxKm ? { icao: best[0], lat: best[1], lon: best[2] } : null;
+  }
+  function kmBetween(la0, lo0, la1, lo1) {
+    const dlat = (la1 - la0) * 111.32, dlon = (lo1 - lo0) * 111.32 * Math.cos((la0 + la1) / 2 * Math.PI / 180);
+    return Math.hypot(dlat, dlon);
+  }
+  function townPoint(model, slots, table, name, lat, lon) {
+    const slot = (slots || []).find(t => t.kind === "town" && t.name === name && Number.isFinite(t.fi) && Number.isFinite(t.fj)
+      && (!Number.isFinite(lat) || !t.ap || !table || !airportFor(table, name, lat, lon) || airportFor(table, name, lat, lon).icao === t.ap));
+    if (slot) return { fi: slot.fi, fj: slot.fj, src: "slot", icao: slot.ap || null };
+    const a = airportFor(table, name, lat, lon), la = a ? a.lat : lat, lo = a ? a.lon : lon;
+    const ij = latLonIndex(model, la, lo); if (!ij) return null;
+    const regional = model && (model.grid === "lcc" || model.grid === "rotll");
+    return { fi: regional ? Math.round(ij[0]) : ij[0], fj: regional ? Math.round(ij[1]) : ij[1], src: a ? "airport" : "label", icao: a ? a.icao : null };
   }
 
   function kmToCoast(lat, lon, pts) {
@@ -300,5 +338,5 @@
   }
 
   return { lookupKey, climParts, resolveSelection, publicName, formatValidPT, WA_PASSES, CA_PASSES, passUnit, formatPassValue, passCaption,
-    passesForView, latLonIndex, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, showTownLabels, plausibleRange, nextHours, coastalTowns, decodeCoast, coastPoints };
+    passesForView, latLonIndex, airportFor, townPoint, kmToCoast, isCoastal, isWaveProduct, showStaticTowns, showTownLabels, plausibleRange, nextHours, coastalTowns, decodeCoast, coastPoints };
 });
