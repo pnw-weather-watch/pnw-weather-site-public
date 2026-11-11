@@ -112,8 +112,12 @@ class SiteAirports(unittest.TestCase):
                 "Moscow": "KPUW", "Kamloops": "CYKA", "Comox": "CYQQ", "Winthrop": "KS52", "Grants Pass": "K3S8"}
         for n, icao in want.items():
             self.assertIn(icao, [s["icao"] for s in T.get(n, [])], n)
-        self.assertEqual(T["Oak Harbor"][0]["icao"], "KNUW")
+        self.assertEqual([(s["icao"], s["lat"], s["lon"]) for s in T["Oak Harbor"]], [("KOKH", 48.2515, -122.6737)])
         self.assertEqual(T["Port Townsend"][0].get("faa"), "0S9")
+        # Oak Harbor matches Benjamin's table (KOKH); grid points on the live crops
+        self.assertEqual(TA.grid_ij("nbm", {"grid": "lcc", "crop": LIVE_NBM}, 48.2515, -122.6737), (917.0, 620.0))
+        self.assertEqual(TA.grid_ij("hrrr", {"grid": "lcc", "crop": HRRR}, 48.2515, -122.6737), (762.0, 553.0))
+        self.assertEqual(TA.airport("Oak Harbor", 48.2934, -122.6432)["icao"], "KOKH")
 
     def test_viewer_camera_labels_read_the_same_point(self):
         """selection.js townPoint: catalog slot first, else the airport table, else the label; same index as Python."""

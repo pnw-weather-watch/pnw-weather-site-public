@@ -921,13 +921,13 @@
   },
   {
    "name": "Oak Harbor",
-   "icao": "KNUW",
-   "lat": 48.35525,
-   "lon": -122.66352,
-   "station_name": "Whidbey Island Naval Air Station - Ault Field",
-   "elev_m": 13.1064,
-   "source": "https://api.weather.gov/stations/KNUW (retrieved 2026-11-10)",
-   "note": "KNUW kept: KOKH (A.J. Eisenberg) has no NWS station and no METAR in AWC stationinfo; KNUW is the reporting station."
+   "icao": "KOKH",
+   "lat": 48.2515,
+   "lon": -122.6737,
+   "station_name": "A.J. Eisenberg Airport (Oak Harbor)",
+   "elev_m": 58.8,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=KOKH (retrieved 2026-11-11); matches Benjamin's shared slayers/static/town_airports.json",
+   "note": "Readouts sample the model grid at the airport; no observing station is needed. KNUW (NAS Whidbey) is not used."
   },
   {
    "name": "Oakland",
