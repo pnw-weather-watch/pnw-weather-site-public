@@ -234,15 +234,57 @@ WA_TOWNS = [
 ]
 
 
-# Where each town's NUMBER is read from the model (the label stays at the town). Same official-station pins as
-# tools/wa_maps/town_pop.py OFFICIAL_PIN (house rule: Seattle = SEA, Tacoma = TIW, Port Angeles = CLM, ...); towns without
-# a pin are read at the town point. Tri-Cities uses Pasco (PSC).
+# Where each town's NUMBER is read from the model (the label stays at the town). Official airport
+# coordinates live in regions/town_airports.json (NOAA/NWS or NOAA AWC station metadata). sample_pin()
+# picks the airport near the label so the same town matches across views (Seattle = KSEA / SeaTac;
+# Vancouver WA = KVUO, Vancouver BC = CYVR). Towns without a nearby airport are read at the label.
+# TOWN_PIN is the older short Washington list, kept for anything that still names it.
 TOWN_PIN = {"Seattle": (47.4447, -122.3144), "Port Angeles": (48.1220, -123.5066), "Spokane": (47.6216, -117.5280),
             "Yakima": (46.5682, -120.5441), "Wenatchee": (47.3990, -120.2070), "Olympia": (46.9733, -122.9033),
             "Bellingham": (48.7927, -122.5375), "Tri-Cities": (46.2647, -119.1190), "Walla Walla": (46.0948, -118.2890),
             "Moses Lake": (47.2086, -119.3191), "Vancouver": (45.6204, -122.6565), "Everett": (47.9070, -122.2816),
             "Pullman": (46.7439, -117.1096), "Ellensburg": (47.0330, -120.5307), "Omak": (48.4644, -119.5181),
             "Aberdeen": (46.9712, -123.9366), "Tacoma": (47.2675, -122.5761)}
+_TOWN_AIRPORTS = None
+AIRPORT_MAX_KM = 80.0
+
+
+def town_airports():
+    """name -> list of official airport records from regions/town_airports.json."""
+    global _TOWN_AIRPORTS
+    if _TOWN_AIRPORTS is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "regions", "town_airports.json")
+        by = {}
+        with open(path) as f:
+            for s in json.load(f)["stations"]:
+                by.setdefault(s["name"], []).append(s)
+        _TOWN_AIRPORTS = by
+    return _TOWN_AIRPORTS
+
+
+def airport_km(la0, lo0, la1, lo1):
+    dlat = (float(la1) - float(la0)) * 111.32
+    dlon = (float(lo1) - float(lo0)) * 111.32 * np.cos(np.deg2rad((float(la0) + float(la1)) / 2.0))
+    return float(np.hypot(dlat, dlon))
+
+
+def sample_airport(name, la, lo, max_km=AIRPORT_MAX_KM):
+    """Closest official airport for this town label, or None if none sits nearby."""
+    best, best_d = None, None
+    for s in town_airports().get(name) or []:
+        d = airport_km(la, lo, s["lat"], s["lon"])
+        if best_d is None or d < best_d:
+            best, best_d = s, d
+    if best is None or best_d > max_km:
+        return None
+    return best
+
+
+def sample_pin(name, la, lo, max_km=AIRPORT_MAX_KM):
+    """Model readout point: the town's nearby airport, else the label coordinates."""
+    s = sample_airport(name, la, lo, max_km)
+    return (s["lat"], s["lon"]) if s else (la, lo)
+
 TOWN_NUM_COLOR, TOWN_NUM_SIZE, TOWN_NUM_HALO = "#0d0f13", 10.5, 3.0   # bold dark number on a white halo (reads on any fill)
 
 # Mountain passes on the Washington view (Benjamin 10-24-26 10:22 PM: "main mountain pass locations on the Washington view").
@@ -424,7 +466,7 @@ def towns(ax, vid, field=None, fmt=fmt_int, pass_corr=None):
     for name, la, lo, side in WA_TOWNS:
         ax.plot(lo, la, "o", ms=3.6, mfc="#1b1d22", mec="white", mew=1.0, transform=pc, zorder=7)
     nums_on = field is not None and os.environ.get("TOWN_NUMBERS", "1") != "0"   # TOWN_NUMBERS=0 turns the numbers off
-    vals = town_values(*field, [TOWN_PIN.get(n, (la, lo)) for n, la, lo, _ in WA_TOWNS]) if nums_on else [np.nan] * len(WA_TOWNS)
+    vals = town_values(*field, [sample_pin(n, la, lo) for n, la, lo, _ in WA_TOWNS]) if nums_on else [np.nan] * len(WA_TOWNS)
     if nums_on: ax.town_values = {t[0]: float(v) for t, v in zip(WA_TOWNS, vals)}
     for k, ((name, la, lo, side), v) in enumerate(zip(WA_TOWNS, vals)):
         x, y = xy[k]
@@ -466,7 +508,7 @@ REGION_NUM_SIZE = 9.5   # bold value next to the city name on the Pacific NW fra
 
 def region_towns(ax, vid, field=None, fmt=fmt_int, pass_corr=None):
     """City names on the Pacific NW frames: small dot + name, tiered (region_places).
-    field = (LA, LO, F) in map units adds the model value at the city point, same numbers and formats as the Washington view
+    field = (LA, LO, F) in map units adds the model value at the town's airport (or the city point if it has none), same numbers and formats as the Washington view
     (Benjamin 10-25-26 10:08 PM: "dropping more towns is fine"). With numbers on, each city tries "Name 54" inline (preferred
     side, other sides, diagonal nudges), then the number centered under the name; if neither fits, the city is dropped (no
     name-only fallback; logged). A city whose value is missing (off the model grid) keeps its name only (logged).
@@ -479,7 +521,7 @@ def region_towns(ax, vid, field=None, fmt=fmt_int, pass_corr=None):
     dots, labels, skipped, nonum = [], [], [], []
     places = region_places(vid)
     nums_on = field is not None and os.environ.get("TOWN_NUMBERS", "1") != "0"   # TOWN_NUMBERS=0 turns the numbers off
-    vals = town_values(*field, [(la, lo) for _, la, lo, _ in places]) if nums_on and places else [np.nan] * len(places)
+    vals = town_values(*field, [sample_pin(name, la, lo) for name, la, lo, _ in places]) if nums_on and places else [np.nan] * len(places)
     if nums_on: ax.town_values = {}
     placed = 0
     for (name, la, lo, t), v in zip(places, vals):

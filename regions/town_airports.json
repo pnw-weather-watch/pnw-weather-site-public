@@ -1,0 +1,1265 @@
+{
+ "note": "Shared town-to-airport sample points for every view. Coordinates are official NOAA/NWS station metadata (api.weather.gov) or NOAA Aviation Weather Center stationinfo when NWS has no record. Labels stay at the town; only the model readout moves to these points. Multiple rows with the same town name (e.g. Vancouver KVUO and CYVR) are disambiguated by proximity to the label. Retrieved 2026-11-10.",
+ "stations": [
+  {
+   "name": "Abbotsford",
+   "icao": "CYXX",
+   "lat": 49.027,
+   "lon": -122.377,
+   "station_name": "Abbotsford Intl",
+   "elev_m": 16.4592,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYXX (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Aberdeen",
+   "icao": "KHQM",
+   "lat": 46.97111,
+   "lon": -123.92,
+   "station_name": "Hoquiam, Bowerman Airport",
+   "elev_m": 3.9624,
+   "source": "https://api.weather.gov/stations/KHQM (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Alturas",
+   "icao": "KAAT",
+   "lat": 41.48362,
+   "lon": -120.5615,
+   "station_name": "Alturas",
+   "elev_m": 1335.9384,
+   "source": "https://api.weather.gov/stations/KAAT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Arcata",
+   "icao": "KACV",
+   "lat": 40.97806,
+   "lon": -124.10861,
+   "station_name": "Arcata / Eureka, Arcata Airport",
+   "elev_m": 66.1416,
+   "source": "https://api.weather.gov/stations/KACV (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Arlington",
+   "icao": "KAWO",
+   "lat": 48.1585,
+   "lon": -122.15909,
+   "station_name": "Arlington Municipal Airport",
+   "elev_m": 38.1,
+   "source": "https://api.weather.gov/stations/KAWO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Astoria",
+   "icao": "KAST",
+   "lat": 46.15694,
+   "lon": -123.8825,
+   "station_name": "Astoria, Astoria Regional Airport",
+   "elev_m": 3.048,
+   "source": "https://api.weather.gov/stations/KAST (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Auburn",
+   "icao": "KAUN",
+   "lat": 38.95535,
+   "lon": -121.08636,
+   "station_name": "Auburn Municipal Airport",
+   "elev_m": 452.9328,
+   "source": "https://api.weather.gov/stations/KAUN (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Bakersfield",
+   "icao": "KBFL",
+   "lat": 35.43361,
+   "lon": -119.05667,
+   "station_name": "Bakersfield, Meadows Field Airport",
+   "elev_m": 155.1432,
+   "source": "https://api.weather.gov/stations/KBFL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Barstow",
+   "icao": "KDAG",
+   "lat": 34.85361,
+   "lon": -116.78667,
+   "station_name": "Daggett, Barstow-Daggett Airport",
+   "elev_m": 587.0448,
+   "source": "https://api.weather.gov/stations/KDAG (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Bellingham",
+   "icao": "KBLI",
+   "lat": 48.79911,
+   "lon": -122.54064,
+   "station_name": "Bellingham, Bellingham International Airport",
+   "elev_m": 45.1104,
+   "source": "https://api.weather.gov/stations/KBLI (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Bend",
+   "icao": "KBDN",
+   "lat": 44.0948,
+   "lon": -121.2006,
+   "station_name": "Bend Airport AWOS",
+   "elev_m": 1053.084,
+   "source": "https://api.weather.gov/stations/KBDN (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Billings",
+   "icao": "KBIL",
+   "lat": 45.80694,
+   "lon": -108.54222,
+   "station_name": "Billings, Billings Logan International Airport",
+   "elev_m": 1111.9104,
+   "source": "https://api.weather.gov/stations/KBIL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Bishop",
+   "icao": "KBIH",
+   "lat": 37.37111,
+   "lon": -118.35806,
+   "station_name": "Bishop, Bishop Airport",
+   "elev_m": 1256.0808,
+   "source": "https://api.weather.gov/stations/KBIH (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Boise",
+   "icao": "KBOI",
+   "lat": 43.56704,
+   "lon": -116.24053,
+   "station_name": "Boise Air Terminal",
+   "elev_m": 860.1456,
+   "source": "https://api.weather.gov/stations/KBOI (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Boulder City",
+   "icao": "KBVU",
+   "lat": 35.9475,
+   "lon": -114.8611,
+   "station_name": "Boulder City Municipal Airport",
+   "elev_m": 670.56,
+   "source": "https://api.weather.gov/stations/KBVU (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Bremerton",
+   "icao": "KPWT",
+   "lat": 47.5,
+   "lon": -122.75,
+   "station_name": "Bremerton, Bremerton National Airport",
+   "elev_m": 134.112,
+   "source": "https://api.weather.gov/stations/KPWT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Bullhead City",
+   "icao": "KIFP",
+   "lat": 35.1575,
+   "lon": -114.55944,
+   "station_name": "Bullhead City, Laughlin/Bullhead International Airport",
+   "elev_m": 212.1408,
+   "source": "https://api.weather.gov/stations/KIFP (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Burbank",
+   "icao": "KBUR",
+   "lat": 34.19967,
+   "lon": -118.36538,
+   "station_name": "Burbank - Bob Hope Airport",
+   "elev_m": 221.8944,
+   "source": "https://api.weather.gov/stations/KBUR (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Burns",
+   "icao": "KBNO",
+   "lat": 43.59488,
+   "lon": -118.95791,
+   "station_name": "Burns Municipal Airport",
+   "elev_m": 1261.872,
+   "source": "https://api.weather.gov/stations/KBNO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Caldwell",
+   "icao": "KEUL",
+   "lat": 43.64055,
+   "lon": -116.63017,
+   "station_name": "Caldwell - Caldwell Industrial Airport",
+   "elev_m": 737.9208,
+   "source": "https://api.weather.gov/stations/KEUL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Calgary",
+   "icao": "CYYC",
+   "lat": 51.116,
+   "lon": -114.011,
+   "station_name": "Calgary Intl",
+   "elev_m": 1085.0,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYYC (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Carson City",
+   "icao": "KCXP",
+   "lat": 39.19056,
+   "lon": -119.73191,
+   "station_name": "Carson City Airport",
+   "elev_m": 1430.7312,
+   "source": "https://api.weather.gov/stations/KCXP (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Casper",
+   "icao": "KCPR",
+   "lat": 42.8975,
+   "lon": -106.47306,
+   "station_name": "Casper, Natrona County International Airport",
+   "elev_m": 1630.0704,
+   "source": "https://api.weather.gov/stations/KCPR (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Cedar City",
+   "icao": "KCDC",
+   "lat": 37.70675,
+   "lon": -113.09695,
+   "station_name": "Cedar City Municipal Airport",
+   "elev_m": 1701.0888,
+   "source": "https://api.weather.gov/stations/KCDC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Centralia",
+   "icao": "KCLS",
+   "lat": 46.677,
+   "lon": -122.9827,
+   "station_name": "Chehalis-Centralia Airport",
+   "elev_m": 53.9496,
+   "source": "https://api.weather.gov/stations/KCLS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Chehalis",
+   "icao": "KCLS",
+   "lat": 46.677,
+   "lon": -122.9827,
+   "station_name": "Chehalis-Centralia Airport",
+   "elev_m": 53.9496,
+   "source": "https://api.weather.gov/stations/KCLS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Chico",
+   "icao": "KCIC",
+   "lat": 39.79879,
+   "lon": -121.85795,
+   "station_name": "Chico Municipal Airport",
+   "elev_m": 71.9328,
+   "source": "https://api.weather.gov/stations/KCIC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Coeur d'Alene",
+   "icao": "KCOE",
+   "lat": 47.76667,
+   "lon": -116.81667,
+   "station_name": "Coeur d'Alene Airport - Pappy Boyington Field",
+   "elev_m": 707.136,
+   "source": "https://api.weather.gov/stations/KCOE (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Concord",
+   "icao": "KCCR",
+   "lat": 37.99167,
+   "lon": -122.05194,
+   "station_name": "Concord, Buchanan Field",
+   "elev_m": 7.0104,
+   "source": "https://api.weather.gov/stations/KCCR (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Crescent City",
+   "icao": "KCEC",
+   "lat": 41.78028,
+   "lon": -124.23667,
+   "station_name": "Crescent City, Jack McNamara Field Airport",
+   "elev_m": 17.0688,
+   "source": "https://api.weather.gov/stations/KCEC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Delano",
+   "icao": "KDLO",
+   "lat": 35.74556,
+   "lon": -119.2365,
+   "station_name": "Delano Municipal Airport",
+   "elev_m": 96.3168,
+   "source": "https://api.weather.gov/stations/KDLO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Denver",
+   "icao": "KDEN",
+   "lat": 39.84658,
+   "lon": -104.65622,
+   "station_name": "Denver, Denver International Airport",
+   "elev_m": 1647.1392,
+   "source": "https://api.weather.gov/stations/KDEN (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Edmonton",
+   "icao": "CYEG",
+   "lat": 53.308,
+   "lon": -113.592,
+   "station_name": "Edmonton Intl Arpt",
+   "elev_m": 216.40800000000002,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYEG (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "El Centro",
+   "icao": "KIPL",
+   "lat": 32.83417,
+   "lon": -115.57861,
+   "station_name": "Imperial, Imperial County Airport",
+   "elev_m": -17.0688,
+   "source": "https://api.weather.gov/stations/KIPL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Elko",
+   "icao": "KEKO",
+   "lat": 40.82404,
+   "lon": -115.78635,
+   "station_name": "Elko, Elko Regional Airport",
+   "elev_m": 1539.8496,
+   "source": "https://api.weather.gov/stations/KEKO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Ellensburg",
+   "icao": "KELN",
+   "lat": 47.03377,
+   "lon": -120.53132,
+   "station_name": "Ellensburg, Ellensburg Bowers Field",
+   "elev_m": 531.876,
+   "source": "https://api.weather.gov/stations/KELN (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Eugene",
+   "icao": "KEUG",
+   "lat": 44.13333,
+   "lon": -123.21444,
+   "station_name": "Eugene, Mahlon Sweet Field",
+   "elev_m": 110.9472,
+   "source": "https://api.weather.gov/stations/KEUG (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Eureka",
+   "icao": "KACV",
+   "lat": 40.97806,
+   "lon": -124.10861,
+   "station_name": "Arcata / Eureka, Arcata Airport",
+   "elev_m": 66.1416,
+   "source": "https://api.weather.gov/stations/KACV (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Everett",
+   "icao": "KPAE",
+   "lat": 47.92331,
+   "lon": -122.28305,
+   "station_name": "Everett Snohomish County",
+   "elev_m": 157.8864,
+   "source": "https://api.weather.gov/stations/KPAE (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Forks",
+   "icao": "KUIL",
+   "lat": 47.9375,
+   "lon": -124.555,
+   "station_name": "Quillayute, Quillayute State Airport",
+   "elev_m": 59.1312,
+   "source": "https://api.weather.gov/stations/KUIL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Fresno",
+   "icao": "KFAT",
+   "lat": 36.78,
+   "lon": -119.71944,
+   "station_name": "Fresno, Fresno Air Terminal",
+   "elev_m": 100.8888,
+   "source": "https://api.weather.gov/stations/KFAT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Glendale",
+   "icao": "KBUR",
+   "lat": 34.19967,
+   "lon": -118.36538,
+   "station_name": "Burbank - Bob Hope Airport",
+   "elev_m": 221.8944,
+   "source": "https://api.weather.gov/stations/KBUR (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Grass Valley",
+   "icao": "KGOO",
+   "lat": 39.224028,
+   "lon": -121.003083,
+   "station_name": "Nevada County Air Park",
+   "elev_m": 961.3392,
+   "source": "https://api.weather.gov/stations/KGOO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Great Falls",
+   "icao": "KGTF",
+   "lat": 47.47333,
+   "lon": -111.38222,
+   "station_name": "Great Falls, Great Falls International Airport",
+   "elev_m": 1120.14,
+   "source": "https://api.weather.gov/stations/KGTF (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Half Moon Bay",
+   "icao": "KHAF",
+   "lat": 37.5136,
+   "lon": -122.4996,
+   "station_name": "Half Moon Bay Airport",
+   "elev_m": 19.812,
+   "source": "https://api.weather.gov/stations/KHAF (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Hilo",
+   "icao": "PHTO",
+   "lat": 19.72222,
+   "lon": -155.05583,
+   "station_name": "Hilo, Hilo International Airport",
+   "elev_m": 10.9728,
+   "source": "https://api.weather.gov/stations/PHTO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Honolulu",
+   "icao": "PHNL",
+   "lat": 21.3275,
+   "lon": -157.94306,
+   "station_name": "Daniel K Inouye International Airport",
+   "elev_m": 3.048,
+   "source": "https://api.weather.gov/stations/PHNL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Hoquiam",
+   "icao": "KHQM",
+   "lat": 46.97111,
+   "lon": -123.92,
+   "station_name": "Hoquiam, Bowerman Airport",
+   "elev_m": 3.9624,
+   "source": "https://api.weather.gov/stations/KHQM (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Idaho Falls",
+   "icao": "KIDA",
+   "lat": 43.52083,
+   "lon": -112.06611,
+   "station_name": "Idaho Falls Regional Airport",
+   "elev_m": 1445.0568,
+   "source": "https://api.weather.gov/stations/KIDA (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Irvine",
+   "icao": "KSNA",
+   "lat": 33.6798,
+   "lon": -117.8674,
+   "station_name": "John Wayne-Orange County Airport",
+   "elev_m": 11.8872,
+   "source": "https://api.weather.gov/stations/KSNA (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Kahului",
+   "icao": "PHOG",
+   "lat": 20.8925,
+   "lon": -156.43694,
+   "station_name": "Kahului, Kahului Airport",
+   "elev_m": 15.8496,
+   "source": "https://api.weather.gov/stations/PHOG (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Kailua-Kona",
+   "icao": "PHKO",
+   "lat": 19.74083,
+   "lon": -156.05056,
+   "station_name": "Kailua / Kona, Keahole Airport",
+   "elev_m": 13.1064,
+   "source": "https://api.weather.gov/stations/PHKO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Kalispell",
+   "icao": "KGPI",
+   "lat": 48.30417,
+   "lon": -114.26361,
+   "station_name": "Kalispell, Glacier Park International Airport",
+   "elev_m": 905.8656,
+   "source": "https://api.weather.gov/stations/KGPI (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Kapolei",
+   "icao": "PHJR",
+   "lat": 21.30833,
+   "lon": -158.06806,
+   "station_name": "Oahu, Kalaeloa Airport",
+   "elev_m": 10.0584,
+   "source": "https://api.weather.gov/stations/PHJR (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Kaunakakai",
+   "icao": "PHMK",
+   "lat": 21.15,
+   "lon": -157.1,
+   "station_name": "Kaunakakai, Molokai Airport",
+   "elev_m": 138.0744,
+   "source": "https://api.weather.gov/stations/PHMK (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Kelowna",
+   "icao": "CYLW",
+   "lat": 49.953,
+   "lon": -119.375,
+   "station_name": "Kelowna Arpt",
+   "elev_m": 128.01600000000002,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYLW (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Kennewick",
+   "icao": "KPSC",
+   "lat": 46.26955,
+   "lon": -119.11813,
+   "station_name": "Tri-Cities Airport",
+   "elev_m": 121.0056,
+   "source": "https://api.weather.gov/stations/KPSC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Kingman",
+   "icao": "KIGM",
+   "lat": 35.25778,
+   "lon": -113.93306,
+   "station_name": "Kingman, Kingman Airport",
+   "elev_m": 1050.036,
+   "source": "https://api.weather.gov/stations/KIGM (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Klamath Falls",
+   "icao": "KLMT",
+   "lat": 42.14703,
+   "lon": -121.72548,
+   "station_name": "Klamath Falls International Airport",
+   "elev_m": 1243.8888,
+   "source": "https://api.weather.gov/stations/KLMT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Lake Havasu City",
+   "icao": "KHII",
+   "lat": 34.56595,
+   "lon": -114.35224,
+   "station_name": "Havasu City Airport",
+   "elev_m": 245.9736,
+   "source": "https://api.weather.gov/stations/KHII (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Lanai City",
+   "icao": "PHNY",
+   "lat": 20.78556,
+   "lon": -156.95139,
+   "station_name": "Lanai City, Lanai Airport",
+   "elev_m": 398.9832,
+   "source": "https://api.weather.gov/stations/PHNY (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Lancaster",
+   "icao": "KWJF",
+   "lat": 34.74123,
+   "lon": -118.21251,
+   "station_name": "General Wm J Fox Airfield",
+   "elev_m": 711.0984,
+   "source": "https://api.weather.gov/stations/KWJF (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Las Vegas",
+   "icao": "KLAS",
+   "lat": 36.07188,
+   "lon": -115.1634,
+   "station_name": "Harry Reid International Airport",
+   "elev_m": 664.464,
+   "source": "https://api.weather.gov/stations/KLAS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Lewiston",
+   "icao": "KLWS",
+   "lat": 46.37472,
+   "lon": -117.01444,
+   "station_name": "Lewiston, Lewiston-Nez Perce County Airport",
+   "elev_m": 437.9976,
+   "source": "https://api.weather.gov/stations/KLWS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Lihue",
+   "icao": "PHLI",
+   "lat": 21.98389,
+   "lon": -159.34111,
+   "station_name": "Lihue, Lihue Airport",
+   "elev_m": 45.1104,
+   "source": "https://api.weather.gov/stations/PHLI (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Livermore",
+   "icao": "KLVK",
+   "lat": 37.69278,
+   "lon": -121.81444,
+   "station_name": "Livermore, Livermore Municipal Airport",
+   "elev_m": 121.0056,
+   "source": "https://api.weather.gov/stations/KLVK (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Long Beach",
+   "icao": "KLGB",
+   "lat": 33.81167,
+   "lon": -118.14639,
+   "station_name": "Long Beach, Long Beach Airport",
+   "elev_m": 17.0688,
+   "source": "https://api.weather.gov/stations/KLGB (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Longview",
+   "icao": "KKLS",
+   "lat": 46.11553,
+   "lon": -122.89273,
+   "station_name": "Southwest Washington Regional Airport",
+   "elev_m": 3.9624,
+   "source": "https://api.weather.gov/stations/KKLS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Los Angeles",
+   "icao": "KLAX",
+   "lat": 33.93806,
+   "lon": -118.38889,
+   "station_name": "Los Angeles, Los Angeles International Airport",
+   "elev_m": 38.1,
+   "source": "https://api.weather.gov/stations/KLAX (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Mammoth Lakes",
+   "icao": "KMMH",
+   "lat": 37.6241,
+   "lon": -118.8423,
+   "station_name": "Mammoth Yosemite Airport",
+   "elev_m": 2167.7376,
+   "source": "https://api.weather.gov/stations/KMMH (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Medford",
+   "icao": "KMFR",
+   "lat": 42.37503,
+   "lon": -122.87696,
+   "station_name": "Rogue Valley International Airport",
+   "elev_m": 399.8976,
+   "source": "https://api.weather.gov/stations/KMFR (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Merced",
+   "icao": "KMCE",
+   "lat": 37.28306,
+   "lon": -120.50778,
+   "station_name": "Merced Regional Airport",
+   "elev_m": 46.9392,
+   "source": "https://api.weather.gov/stations/KMCE (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Missoula",
+   "icao": "KMSO",
+   "lat": 46.92083,
+   "lon": -114.0925,
+   "station_name": "Missoula, Missoula International Airport",
+   "elev_m": 975.0552,
+   "source": "https://api.weather.gov/stations/KMSO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Modesto",
+   "icao": "KMOD",
+   "lat": 37.62549,
+   "lon": -120.9549,
+   "station_name": "Modesto City-County Airport - Harry Sham Field",
+   "elev_m": 25.908,
+   "source": "https://api.weather.gov/stations/KMOD (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Monterey",
+   "icao": "KMRY",
+   "lat": 36.59047,
+   "lon": -121.84875,
+   "station_name": "Monterey Regional Airport",
+   "elev_m": 50.9016,
+   "source": "https://api.weather.gov/stations/KMRY (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Moses Lake",
+   "icao": "KMWH",
+   "lat": 47.19299,
+   "lon": -119.31451,
+   "station_name": "Grant County Airport",
+   "elev_m": 356.0064,
+   "source": "https://api.weather.gov/stations/KMWH (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Mount Shasta",
+   "icao": "KMHS",
+   "lat": 41.31494,
+   "lon": -122.31702,
+   "station_name": "Mount Shasta",
+   "elev_m": 1078.992,
+   "source": "https://api.weather.gov/stations/KMHS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Mount Vernon",
+   "icao": "KBVS",
+   "lat": 48.47083,
+   "lon": -122.42083,
+   "station_name": "Burlington/Mount Vernon, Skagit Regional Airport",
+   "elev_m": 43.8912,
+   "source": "https://api.weather.gov/stations/KBVS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Nanaimo",
+   "icao": "CYCD",
+   "lat": 49.052,
+   "lon": -123.874,
+   "station_name": "Nanaimo Arpt",
+   "elev_m": 9.144,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYCD (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Newport",
+   "icao": "KONP",
+   "lat": 44.58028,
+   "lon": -124.05806,
+   "station_name": "Newport, Newport Municipal Airport",
+   "elev_m": 49.0728,
+   "source": "https://api.weather.gov/stations/KONP (retrieved 2026-11-10)"
+  },
+  {
+   "name": "North Bend",
+   "icao": "KOTH",
+   "lat": 43.41948,
+   "lon": -124.2437,
+   "station_name": "Southwest Oregon Regional Airport",
+   "elev_m": 3.048,
+   "source": "https://api.weather.gov/stations/KOTH (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Oak Harbor",
+   "icao": "KNUW",
+   "lat": 48.35525,
+   "lon": -122.66352,
+   "station_name": "Whidbey Island Naval Air Station - Ault Field",
+   "elev_m": 13.1064,
+   "source": "https://api.weather.gov/stations/KNUW (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Oakland",
+   "icao": "KOAK",
+   "lat": 37.72126,
+   "lon": -122.22115,
+   "station_name": "San Francisco Bay Oakland International Airport",
+   "elev_m": 2.7432,
+   "source": "https://api.weather.gov/stations/KOAK (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Oceanside",
+   "icao": "KOKB",
+   "lat": 33.21806,
+   "lon": -117.35139,
+   "station_name": "Oceanside, Oceanside Municipal Airport",
+   "elev_m": 9.144,
+   "source": "https://api.weather.gov/stations/KOKB (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Ogden",
+   "icao": "KOGD",
+   "lat": 41.19406,
+   "lon": -112.01681,
+   "station_name": "Ogden-Hinckley Airport",
+   "elev_m": 1353.312,
+   "source": "https://api.weather.gov/stations/KOGD (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Olympia",
+   "icao": "KOLM",
+   "lat": 46.97333,
+   "lon": -122.90333,
+   "station_name": "Olympia, Olympia Airport",
+   "elev_m": 61.8744,
+   "source": "https://api.weather.gov/stations/KOLM (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Omak",
+   "icao": "KOMK",
+   "lat": 48.46116,
+   "lon": -119.52086,
+   "station_name": "Omak Airport",
+   "elev_m": 394.1064,
+   "source": "https://api.weather.gov/stations/KOMK (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Ontario",
+   "icao": "KONT",
+   "lat": 34.05316,
+   "lon": -117.57685,
+   "station_name": "Ontario International Airport",
+   "elev_m": 276.1488,
+   "source": "https://api.weather.gov/stations/KONT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Palm Springs",
+   "icao": "KPSP",
+   "lat": 33.82219,
+   "lon": -116.50431,
+   "station_name": "Palm Springs Regional Airport",
+   "elev_m": 124.0536,
+   "source": "https://api.weather.gov/stations/KPSP (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Palmdale",
+   "icao": "KPMD",
+   "lat": 34.62972,
+   "lon": -118.08139,
+   "station_name": "Palmdale, Palmdale Production Flight Plant",
+   "elev_m": 775.1064,
+   "source": "https://api.weather.gov/stations/KPMD (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Paso Robles",
+   "icao": "KPRB",
+   "lat": 35.66941,
+   "lon": -120.62912,
+   "station_name": "Paso Robles Municipal Airport",
+   "elev_m": 246.888,
+   "source": "https://api.weather.gov/stations/KPRB (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Pendleton",
+   "icao": "KPDT",
+   "lat": 45.69757,
+   "lon": -118.83444,
+   "station_name": "Eastern Oregon Regional Airport at Pendleton",
+   "elev_m": 452.0184,
+   "source": "https://api.weather.gov/stations/KPDT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Phoenix",
+   "icao": "KPHX",
+   "lat": 33.427799,
+   "lon": -112.003465,
+   "station_name": "Phoenix, Phoenix Sky Harbor International Airport",
+   "elev_m": 339.852,
+   "source": "https://api.weather.gov/stations/KPHX (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Placerville",
+   "icao": "KPVF",
+   "lat": 38.7242,
+   "lon": -120.7533,
+   "station_name": "Placerville Airport",
+   "elev_m": 787.908,
+   "source": "https://api.weather.gov/stations/KPVF (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Pocatello",
+   "icao": "KPIH",
+   "lat": 42.92028,
+   "lon": -112.57111,
+   "station_name": "Pocatello, Pocatello Regional Airport",
+   "elev_m": 1356.0552,
+   "source": "https://api.weather.gov/stations/KPIH (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Port Angeles",
+   "icao": "KCLM",
+   "lat": 48.12194,
+   "lon": -123.50661,
+   "station_name": "Port Angeles Fairchild International Airport",
+   "elev_m": 79.8576,
+   "source": "https://api.weather.gov/stations/KCLM (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Port Townsend",
+   "icao": "K0S9",
+   "lat": 48.05517,
+   "lon": -122.81159,
+   "station_name": "Port Townsend Jefferson County International Airport",
+   "elev_m": 32.004,
+   "source": "https://api.weather.gov/stations/K0S9 (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Portland",
+   "icao": "KPDX",
+   "lat": 45.59578,
+   "lon": -122.60917,
+   "station_name": "Portland, Portland International Airport",
+   "elev_m": 6.096,
+   "source": "https://api.weather.gov/stations/KPDX (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Prescott",
+   "icao": "KPRC",
+   "lat": 34.64917,
+   "lon": -112.42222,
+   "station_name": "Prescott, Love Field",
+   "elev_m": 1537.1064,
+   "source": "https://api.weather.gov/stations/KPRC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Pullman",
+   "icao": "KPUW",
+   "lat": 46.74377,
+   "lon": -117.11579,
+   "station_name": "Pullman / Moscow Regional Airport",
+   "elev_m": 774.8016,
+   "source": "https://api.weather.gov/stations/KPUW (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Redding",
+   "icao": "KRDD",
+   "lat": 40.51461,
+   "lon": -122.2977,
+   "station_name": "Redding Municipal Airport",
+   "elev_m": 152.0952,
+   "source": "https://api.weather.gov/stations/KRDD (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Redmond",
+   "icao": "KRDM",
+   "lat": 44.25588,
+   "lon": -121.14059,
+   "station_name": "Redmond Roberts Field",
+   "elev_m": 929.0304,
+   "source": "https://api.weather.gov/stations/KRDM (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Reno",
+   "icao": "KRNO",
+   "lat": 39.50776,
+   "lon": -119.76819,
+   "station_name": "Reno, Reno Tahoe International Airport",
+   "elev_m": 1342.0344,
+   "source": "https://api.weather.gov/stations/KRNO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Richland",
+   "icao": "KRLD",
+   "lat": 46.30859,
+   "lon": -119.3058,
+   "station_name": "Richland Airport",
+   "elev_m": 117.9576,
+   "source": "https://api.weather.gov/stations/KRLD (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Riverside",
+   "icao": "KRAL",
+   "lat": 33.95189,
+   "lon": -117.44511,
+   "station_name": "Riverside Municipal Airport",
+   "elev_m": 249.6312,
+   "source": "https://api.weather.gov/stations/KRAL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Sacramento",
+   "icao": "KSMF",
+   "lat": 38.70071,
+   "lon": -121.59479,
+   "station_name": "Sacramento International Airport",
+   "elev_m": 6.096,
+   "source": "https://api.weather.gov/stations/KSMF (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Salem",
+   "icao": "KSLE",
+   "lat": 44.90493,
+   "lon": -123.00096,
+   "station_name": "Salem - McNary Field",
+   "elev_m": 63.0936,
+   "source": "https://api.weather.gov/stations/KSLE (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Salt Lake City",
+   "icao": "KSLC",
+   "lat": 40.77069,
+   "lon": -111.96503,
+   "station_name": "Salt Lake City, Salt Lake City International Airport",
+   "elev_m": 1288.0848,
+   "source": "https://api.weather.gov/stations/KSLC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "San Diego",
+   "icao": "KSAN",
+   "lat": 32.73361,
+   "lon": -117.18306,
+   "station_name": "San Diego International Airport",
+   "elev_m": 3.9624,
+   "source": "https://api.weather.gov/stations/KSAN (retrieved 2026-11-10)"
+  },
+  {
+   "name": "San Francisco",
+   "icao": "KSFO",
+   "lat": 37.61961,
+   "lon": -122.36558,
+   "station_name": "San Francisco, San Francisco International Airport",
+   "elev_m": 3.048,
+   "source": "https://api.weather.gov/stations/KSFO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "San Jose",
+   "icao": "KSJC",
+   "lat": 37.35917,
+   "lon": -121.92417,
+   "station_name": "San Jose, San Jose International Airport",
+   "elev_m": 17.9832,
+   "source": "https://api.weather.gov/stations/KSJC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "San Luis Obispo",
+   "icao": "KSBP",
+   "lat": 35.23611,
+   "lon": -120.63611,
+   "station_name": "San Luis Obispo, San Luis Obispo County-Mc Chesney Field",
+   "elev_m": 63.0936,
+   "source": "https://api.weather.gov/stations/KSBP (retrieved 2026-11-10)"
+  },
+  {
+   "name": "San Mateo",
+   "icao": "KSQL",
+   "lat": 37.51667,
+   "lon": -122.25,
+   "station_name": "San Carlos Airport",
+   "elev_m": 0.9144,
+   "source": "https://api.weather.gov/stations/KSQL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Santa Ana",
+   "icao": "KSNA",
+   "lat": 33.6798,
+   "lon": -117.8674,
+   "station_name": "John Wayne-Orange County Airport",
+   "elev_m": 11.8872,
+   "source": "https://api.weather.gov/stations/KSNA (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Santa Barbara",
+   "icao": "KSBA",
+   "lat": 34.42611,
+   "lon": -119.84361,
+   "station_name": "Santa Barbara, Santa Barbara Municipal Airport",
+   "elev_m": 3.048,
+   "source": "https://api.weather.gov/stations/KSBA (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Santa Maria",
+   "icao": "KSMX",
+   "lat": 34.89408,
+   "lon": -120.45212,
+   "station_name": "Santa Maria Public Airport/Capt G Allan Hancock Field",
+   "elev_m": 74.0664,
+   "source": "https://api.weather.gov/stations/KSMX (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Santa Rosa",
+   "icao": "KSTS",
+   "lat": 38.5,
+   "lon": -122.81667,
+   "station_name": "Santa Rosa, Santa Rosa Sonoma County Airport",
+   "elev_m": 38.1,
+   "source": "https://api.weather.gov/stations/KSTS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Seattle",
+   "icao": "KSEA",
+   "lat": 47.44472,
+   "lon": -122.31361,
+   "station_name": "Seattle, Seattle-Tacoma International Airport",
+   "elev_m": 130.1496,
+   "source": "https://api.weather.gov/stations/KSEA (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Shelton",
+   "icao": "KSHN",
+   "lat": 47.23806,
+   "lon": -123.14083,
+   "station_name": "Shelton, Shelton Sanderson Field",
+   "elev_m": 81.9912,
+   "source": "https://api.weather.gov/stations/KSHN (retrieved 2026-11-10)"
+  },
+  {
+   "name": "South Lake Tahoe",
+   "icao": "KTVL",
+   "lat": 38.89836,
+   "lon": -119.99615,
+   "station_name": "South Lake Tahoe, Lake Tahoe Airport",
+   "elev_m": 1907.1336,
+   "source": "https://api.weather.gov/stations/KTVL (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Spokane",
+   "icao": "KGEG",
+   "lat": 47.62139,
+   "lon": -117.52778,
+   "station_name": "Spokane, Spokane International Airport",
+   "elev_m": 722.9856,
+   "source": "https://api.weather.gov/stations/KGEG (retrieved 2026-11-10)"
+  },
+  {
+   "name": "St. George",
+   "icao": "KSGU",
+   "lat": 37.0451,
+   "lon": -113.50561,
+   "station_name": "St George Regional Airport",
+   "elev_m": 875.3856,
+   "source": "https://api.weather.gov/stations/KSGU (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Stockton",
+   "icao": "KSCK",
+   "lat": 37.88972,
+   "lon": -121.22361,
+   "station_name": "Stockton, Stockton Metropolitan Airport",
+   "elev_m": 9.144,
+   "source": "https://api.weather.gov/stations/KSCK (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Tacoma",
+   "icao": "KTIW",
+   "lat": 47.2675,
+   "lon": -122.57611,
+   "station_name": "Tacoma, Tacoma Narrows Airport",
+   "elev_m": 96.012,
+   "source": "https://api.weather.gov/stations/KTIW (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Tillamook",
+   "icao": "KTMK",
+   "lat": 45.41806,
+   "lon": -123.81444,
+   "station_name": "Tillamook, Tillamook Airport",
+   "elev_m": 10.9728,
+   "source": "https://api.weather.gov/stations/KTMK (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Tri-Cities",
+   "icao": "KPSC",
+   "lat": 46.26955,
+   "lon": -119.11813,
+   "station_name": "Tri-Cities Airport",
+   "elev_m": 121.0056,
+   "source": "https://api.weather.gov/stations/KPSC (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Truckee",
+   "icao": "KTRK",
+   "lat": 39.31667,
+   "lon": -120.13333,
+   "station_name": "Truckee-Tahoe",
+   "elev_m": 1798.0152,
+   "source": "https://api.weather.gov/stations/KTRK (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Tulare",
+   "icao": "KTLR",
+   "lat": 36.156,
+   "lon": -119.326,
+   "station_name": "Tulare/Mefford Fld",
+   "elev_m": 24.6888,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=KTLR (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Twin Falls",
+   "icao": "KTWF",
+   "lat": 42.4785,
+   "lon": -114.47739,
+   "station_name": "Joslin Field - Magic Valley Regional Airport",
+   "elev_m": 1268.8824,
+   "source": "https://api.weather.gov/stations/KTWF (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Ukiah",
+   "icao": "KUKI",
+   "lat": 39.12783,
+   "lon": -123.20011,
+   "station_name": "Ukiah Municipal Airport",
+   "elev_m": 181.9656,
+   "source": "https://api.weather.gov/stations/KUKI (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Vancouver",
+   "icao": "CYVR",
+   "lat": 49.183,
+   "lon": -123.168,
+   "station_name": "Vancouver Intl",
+   "elev_m": 0.6096,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYVR (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Vancouver",
+   "icao": "KVUO",
+   "lat": 45.62103,
+   "lon": -122.65419,
+   "station_name": "Pearson Airfield",
+   "elev_m": 6.096,
+   "source": "https://api.weather.gov/stations/KVUO (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Victoria",
+   "icao": "CYYJ",
+   "lat": 48.642,
+   "lon": -123.433,
+   "station_name": "Victoria Intl",
+   "elev_m": 4.8768,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=CYYJ (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Visalia",
+   "icao": "KVIS",
+   "lat": 36.31667,
+   "lon": -119.4,
+   "station_name": "Visalia, Visalia Municipal Airport",
+   "elev_m": 89.916,
+   "source": "https://api.weather.gov/stations/KVIS (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Waimea",
+   "icao": "PHMU",
+   "lat": 20.00133,
+   "lon": -155.66817,
+   "station_name": "KAMUELA",
+   "elev_m": 814.1208,
+   "source": "https://api.weather.gov/stations/PHMU (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Walla Walla",
+   "icao": "KALW",
+   "lat": 46.09462,
+   "lon": -118.2858,
+   "station_name": "Walla Walla Regional Airport",
+   "elev_m": 356.0064,
+   "source": "https://api.weather.gov/stations/KALW (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Wenatchee",
+   "icao": "KEAT",
+   "lat": 47.39749,
+   "lon": -120.20121,
+   "station_name": "Wenatchee - Pangborn Memorial Airport",
+   "elev_m": 373.9896,
+   "source": "https://api.weather.gov/stations/KEAT (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Yakima",
+   "icao": "KYKM",
+   "lat": 46.56402,
+   "lon": -120.53484,
+   "station_name": "Yakima Air Terminal - McAllister Field",
+   "elev_m": 317.9064,
+   "source": "https://api.weather.gov/stations/KYKM (retrieved 2026-11-10)"
+  },
+  {
+   "name": "Yuba City",
+   "icao": "KMYV",
+   "lat": 39.10204,
+   "lon": -121.56883,
+   "station_name": "Marysville/Yuba Cnty",
+   "elev_m": 5.486400000000001,
+   "source": "https://aviationweather.gov/api/data/stationinfo?ids=KMYV (NOAA AWC, retrieved 2026-11-10)"
+  },
+  {
+   "name": "Yuma",
+   "icao": "KNYL",
+   "lat": 32.65944,
+   "lon": -114.59306,
+   "station_name": "Yuma, Marine Corps Air Station",
+   "elev_m": 63.0936,
+   "source": "https://api.weather.gov/stations/KNYL (retrieved 2026-11-10)"
+  }
+ ]
+}
