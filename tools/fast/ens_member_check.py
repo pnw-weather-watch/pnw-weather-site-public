@@ -161,12 +161,40 @@ def check_point_match(stored_by_num, raw_by_num, *, tol, name="point"):
     return not issues, issues
 
 
-def check_encoded_run(rd, model, *, sample=3):
-    """Inspect mem/ens JSON or member files already written under a run directory."""
+def is_local_only_issue(issue):
+    """True for an issue that only says a file was not on the encoder's local disk.
+
+    The runner deletes each step file after uploading it to R2, so an encode-time
+    stamp built from local files reported every uploaded hour as missing. Those
+    issues say nothing about member numbers; real mismatches never look like this.
+    """
+    s = str(issue)
+    return s.startswith("missing /") or s.startswith("missing member file") or s == "no steps to check"
+
+
+def _load_json(local_path, rel_key, fetch_json):
+    """Local file first (just encoded), then R2 (already uploaded and removed locally)."""
+    if os.path.isfile(local_path):
+        with open(local_path) as fh:
+            return json.load(fh)
+    if fetch_json is not None:
+        return fetch_json(rel_key)
+    return None
+
+
+def check_encoded_run(rd, model, *, sample=3, fetch_json=None, run=None):
+    """Inspect mem/ens JSON or member files for a run.
+
+    `fetch_json(rel_key)` reads `runs/{model}/{cycle}/...` from R2 (under the
+    writer's preview prefix) for step files that are no longer on local disk.
+    """
     issues = []
     checked = []
     run_path = os.path.join(rd, "run.json")
-    run = json.load(open(run_path)) if os.path.isfile(run_path) else {}
+    if run is None:
+        run = json.load(open(run_path)) if os.path.isfile(run_path) else {}
+    cyc = run.get("cycle") or os.path.basename(os.path.normpath(rd))
+    base = f"runs/{model}/{cyc}"
     steps = [s.get("f") for s in (run.get("steps") or []) if "f" in s]
     if model in ("epsm", "aensm"):
         ok, more = check_run_members(run)
@@ -185,20 +213,15 @@ def check_encoded_run(rd, model, *, sample=3):
         if not pick:
             issues.append("no steps to check")
         for f in pick:
-            mp = os.path.join(rd, "single", f"mem_f{f:03d}.json")
-            ep = os.path.join(rd, "single", f"ens_f{f:03d}.json")
-            if os.path.isfile(mp):
-                ok, more = check_mem_json(json.load(open(mp)))
+            for kind, checker in (("mem", check_mem_json), ("ens", check_ens_json)):
+                name = f"{kind}_f{f:03d}.json"
+                doc = _load_json(os.path.join(rd, "single", name), f"{base}/single/{name}", fetch_json)
+                if doc is None:
+                    issues.append(f"missing {name} (local and R2)" if fetch_json else f"missing {os.path.join(rd, 'single', name)}")
+                    continue
+                ok, more = checker(doc)
                 issues.extend(more)
-                checked.append(f"mem_f{f:03d}")
-            else:
-                issues.append(f"missing {mp}")
-            if os.path.isfile(ep):
-                ok, more = check_ens_json(json.load(open(ep)))
-                issues.extend(more)
-                checked.append(f"ens_f{f:03d}")
-            else:
-                issues.append(f"missing {ep}")
+                checked.append(name[:-5])
     report = {"ok": not issues, "issues": issues, "checked": checked}
     return report
 
@@ -210,9 +233,14 @@ def member_promote_ok(model, cand, fetch_json=None):
     if not cand:
         return False, "no preview run.json"
     flagged = (cand.get("member_check") or {})
+    stale_stamp = False
     if flagged.get("ok") is False:
         why = flagged.get("issues") or ["member_check failed"]
-        return False, "member_check failed: " + "; ".join(str(x) for x in why[:6])
+        real = [x for x in why if not is_local_only_issue(x)]
+        if real or not flagged.get("issues"):
+            return False, "member_check failed: " + "; ".join(str(x) for x in (real or why)[:6])
+        # Stamp only says files were gone from the runner's disk: re-check from R2 below.
+        stale_stamp = True
     if model in ("epsm", "aensm"):
         ok, issues = check_run_members(cand)
         if not ok:
@@ -222,7 +250,8 @@ def member_promote_ok(model, cand, fetch_json=None):
     if flagged.get("ok") is True:
         return True, "member_check ok"
     if fetch_json is None:
-        return False, "eps/aens promote needs mem/ens inspection or member_check"
+        return False, ("member_check stamp was local-only; R2 inspection required" if stale_stamp
+                       else "eps/aens promote needs mem/ens inspection or member_check")
     cyc = cand.get("cycle")
     if not cyc:
         return False, "run.json missing cycle"
@@ -251,7 +280,7 @@ def member_promote_ok(model, cand, fetch_json=None):
             issues.extend(more)
     if issues:
         return False, "; ".join(issues[:8])
-    return True, "mem/ens numbers 1..50"
+    return True, "mem/ens numbers 1..50 (read from R2)"
 
 
 def report(ok, issues, **extra):

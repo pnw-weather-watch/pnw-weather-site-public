@@ -2388,6 +2388,20 @@ def static(m, out, views_only=None, x2_only=False):
         import view_fixes; view_fixes.pnwt_fix([m], man, out)   # 10-31: Pacific NW tight town layer + slots, versioned (towns_pnwt_v2.png)
     print(f"{m} static done, crop {[i0, i1, j0, j1]}", flush=True)
 
+def _r2_json_reader():
+    """fetch_json(rel_key) on the R2 prefix this encode writes to (WX_R2_PREFIX), or None offline."""
+    try:
+        from upload_r2 import client, BUCKET as _B
+        s3 = client()
+    except Exception:
+        return None
+    def fetch(key):
+        try:
+            return json.loads(s3.get_object(Bucket=_B, Key=key)["Body"].read())
+        except Exception:
+            return None
+    return fetch
+
 # ------------------------------------------------------------------------------------------------ steps
 def steps(m, cycle, want, out, workers, only_missing=True, deadline=None, on_prefix=None):
     import temp_maps as TM, menu_maps as M
@@ -2426,7 +2440,8 @@ def steps(m, cycle, want, out, workers, only_missing=True, deadline=None, on_pre
         if m == "gfsw": built.pop("points"); built.pop("pts_file")
         if m in ("eps", "aens"):
             import ens_member_check as EMC
-            built["member_check"] = EMC.check_encoded_run(rd, m)
+            # Uploaded step files are deleted locally, so read those hours back from R2 (writer's prefix).
+            built["member_check"] = EMC.check_encoded_run(rd, m, fetch_json=_r2_json_reader(), run=built)
             if not built["member_check"]["ok"]:
                 print(f"{m} {cycle}: MEMBER CHECK FAIL {built['member_check']['issues']}", flush=True)
         json.dump(built, open(rj, "w"), indent=1, allow_nan=False)
