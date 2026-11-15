@@ -1,9 +1,12 @@
-# PNW Weather Tides page: archive the Conditional Prediction every 6 h (port of Benjamin's tide-archive job, 2026-11-14).
-# Scheduled workflows run from main, so this starts once the tide page is merged to main.
-# Writes tools/fast/tide_archive/tide_archive.py output to the orphan branch "tide-archive" (v1/<station>/<YYYY-MM>.json +
-# v1/index.json). The site reads it from raw.githubusercontent.com (public, CORS *). No R2, no secrets: NOAA data is public and
-# the push uses this workflow's own GITHUB_TOKEN. No workflow here runs on push, so these commits trigger nothing.
-# Issue slots 02/08/14/20 UTC = ~30-60 min after each STOFS-2D-Global cycle lands (cycle + ~7.5 h).
+# PNW Weather Tides page: every 6 h, refresh the AIFS ENS pressure, SST and STOFS anomaly sidecars, then archive the
+# STOFS-free Conditional snapshot (port of Benjamin's tide-archive job at 7f37665, guide section 15; WA + CA stations).
+# Scheduled workflows run from main only, so this new version starts once preview/tide-conditional is merged to main.
+# Writes to the orphan branch "tide-archive" (v1/<station>/<YYYY-MM>.json, v1/index.json, v1/sst.json,
+# v1/aifs_ens_msl.json, v1/stofs_anom.json). The site reads them from raw.githubusercontent.com (public, CORS *).
+# A 404 there must not break the page: tide.js uses the copy shipped with the site, or holds observed pressure /
+# leaves the warm-water term at zero. No R2, no secrets: NOAA / ECMWF open data is public and the push uses this
+# workflow's own GITHUB_TOKEN. No workflow here runs on push, so these commits trigger nothing.
+# Issue slots 02/08/14/20 UTC (~30-60 min after each STOFS cycle lands). SST is refreshed every run (~2-day latency).
 name: tide-archive
 on:
   schedule:
@@ -17,11 +20,13 @@ permissions:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: tools/fast/tide_archive
+          sparse-checkout: |
+            tools/fast/tide_archive
+            tools/fast/site/tide/sst.json
           path: src
       - uses: actions/checkout@v4
         with:
@@ -29,8 +34,21 @@ jobs:
           path: arch
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
-      - name: Snapshot (live; marks itself hindcast if the run is >3 h late)
+          python-version: "3.12"
+      - name: Install GRIB / netCDF libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libeccodes-dev libeccodes-tools libnetcdf-dev
+          python -m pip install --quiet "numpy<2.3" eccodes netCDF4
+      - name: Refresh AIFS ENS pressure, SST, and STOFS anomaly sidecars
+        # Keep going if one sidecar fails: the snapshot and the page have persist / W=0 fallbacks.
+        run: |
+          python src/tools/fast/tide_archive/refresh_tide_sidecars.py \
+            --out arch \
+            --seed-sst src/tools/fast/site/tide/sst.json \
+            --aifs-work "$RUNNER_TEMP/aifs_ens_msl" \
+            || echo "sidecar refresh reported an error; archive will use whatever is already on the branch plus page fallbacks"
+      - name: Snapshot (live STOFS-free residual; marks itself hindcast if the run is >3 h late)
         run: python src/tools/fast/tide_archive/tide_archive.py --out arch --issue now
       - name: Daily self-calibration, background only (new coefficients at the 08 UTC = 12 AM PST run; stored as rc/cal, not shown on the site)
         run: python src/tools/fast/tide_archive/calibrate.py --out arch --from now --to now
