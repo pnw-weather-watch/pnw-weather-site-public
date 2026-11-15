@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PNW Weather: Tides</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preload" href="../fonts/Montserrat-sub.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:Montserrat;src:url(../fonts/Montserrat-sub.woff2) format("woff2");font-weight:100 900}
+html,body{margin:0;background:#15171c;color:#f4f2ee;font:14px Montserrat,system-ui,sans-serif;height:100%;overflow:hidden;overscroll-behavior:none}
+body{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#bar{flex:0 0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#1d2027;border-bottom:1px solid #2c3039}
+#bar select,#bar button,#bar input,#bar a.btn{background:#262931;color:#f4f2ee;border:1px solid #7d828c;border-radius:6px;padding:4px 8px;font:inherit;touch-action:manipulation;text-decoration:none}
+#bar input[type=date]{color-scheme:dark;padding:3px 6px}
+#bar b{font-weight:800;letter-spacing:.02em}
+#tnote{color:#a7abb3;font-size:12px}
+#wrap{position:relative;flex:1 1 auto;min-height:0;padding:4px 8px;box-sizing:border-box}
+#tc{display:block;width:100%;height:100%;touch-action:pan-y}
+#tip{position:absolute;pointer-events:none;background:#1d2027f2;color:#fff;border:1px solid #7d828c;border-radius:6px;padding:3px 8px;font-weight:600;font-size:12.5px;line-height:1.35;z-index:3;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;max-width:calc(100% - 16px);box-sizing:border-box}
+#tip .tt,#tip .tv{white-space:nowrap}
+#tip .tdot{color:#7d828c;margin:0 5px;font-weight:500;white-space:nowrap}
+#tip[hidden]{display:none}
+#bar button.chip{padding:4px 10px}
+#bar button.chip[aria-pressed="true"]{background:#323743;border-color:#9aa0aa;color:#f4f2ee}
+#bar button.chip[aria-pressed="false"]{background:#262931;border-color:#4a4f5a;color:#a7abb3}
+#msg{position:absolute;left:0;right:0;top:40%;text-align:center;color:#c9ced8;font-weight:700;font-size:16px;pointer-events:none}
+#msg:empty{display:none}
+.lic{flex:none;font:500 10.5px/1.4 Montserrat,system-ui,sans-serif;color:#a7abb3;padding:2px 10px calc(2px + env(safe-area-inset-bottom));border-top:1px solid #2a2d34;background:#15171c}
+.lic summary{cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;list-style:none}.lic summary::-webkit-details-marker{display:none}.lic p{margin:4px 0}.lic a{color:#c9ccd2}
+@media (max-width:700px){#bar{gap:6px;padding:6px}#bar label{font-size:12px}#bar select{max-width:46vw}#tnote{display:none}#tip{font-size:11.5px;padding:3px 7px;white-space:normal}}
+/* Washington | California state tab */
+#stab{display:inline-flex;border:1px solid #7d828c;border-radius:6px;overflow:hidden}
+#bar #stab button{border:0;border-radius:0;padding:4px 10px;background:#262931;color:#a7abb3}
+#bar #stab button+button{border-left:1px solid #7d828c}
+#bar #stab button[aria-pressed="true"]{background:#3a4050;color:#f4f2ee;font-weight:700}
+</style></head>
+<body>
+<div id="bar">
+  <a id="home" class="btn" href="../" title="Back to the model maps">&lsaquo; Maps</a>
+  <b>Tides</b>
+  <span id="stab" role="tablist" aria-label="State"><button type="button" role="tab" data-state="wa" aria-pressed="true">Washington</button><button type="button" role="tab" data-state="ca" aria-pressed="false">California</button></span>
+  <label>Station <select id="st" aria-label="Tide station"></select></label>
+  <label>From <input id="from" type="date" aria-label="Start date"></label>
+  <label>Days <select id="days" aria-label="Number of days"></select></label>
+  <label title="Verification line: what the Conditional line said, issued this far ahead">Verify <select id="vl" aria-label="Verification lead time"></select></label>
+  <label title="Verification stats window">Stats <select id="sd" aria-label="Verification stats window"></select></label>
+  <button id="floodtog" type="button" class="chip" aria-pressed="true" title="Show or hide the NWS flood stage lines">Flood levels</button>
+  <button id="today" type="button" title="2 days back, 7 days ahead">Now</button>
+  <button id="reload" type="button" title="Fetch the newest observations and guidance">Refresh</button>
+  <span id="tnote"></span>
+</div>
+<div id="wrap"><canvas id="tc" aria-label="Tide chart"></canvas><div id="tip" hidden></div><div id="msg">Loading tides&hellip;</div></div>
+<footer class="lic"><details><summary>Data: NOAA CO-OPS tide predictions and water levels &middot; NOAA STOFS-2D-Global guidance (public domain) &middot; Conditional Prediction is experimental, not an official forecast</summary>
+<p>Official prediction and observed water level: NOAA CO-OPS Data API (<a href="https://api.tidesandcurrents.noaa.gov/api/prod/">api.tidesandcurrents.noaa.gov</a>), datum MLLW, feet. Flood levels: the official NWS minor, moderate and major coastal flood levels from the CO-OPS metadata API, converted to MLLW and drawn only where they match the values cross-checked against the Tides &amp; Currents Coastal Inundation Dashboard and the NWS National Water Prediction Service (verified Nov 14, 2026). Levels that fail any check are not drawn; NOS derived thresholds are not official flood stages and are never drawn. In California only La Jolla, San Diego and San Francisco (Minor) have a verified line for now. Birch Bay has no NOAA gauge of its own and uses Cherry Point (9449424).</p>
+<p>Conditional Prediction (experimental): official prediction plus the NOAA STOFS surge forecast, which already includes low pressure and wind driven coastal waves, with a fading correction to current observations (smoothed over 3 h, the correction fades over 12 h). The 30 day average offset is used only after the STOFS forecast ends or if it is missing (for example Long Beach Fire Boat Pier, which has no STOFS point yet). The inverse barometer figure on the chart is info only (already included in STOFS) and is not added on top. PNW Weather is an independent site; NOAA does not endorse this site.</p>
+<p>A daily self-calibration (10-day verification by forecast range, shrunk, capped at &plusmn;0.5 ft) is computed and archived in the background for evaluation; it is not applied to the chart or the stats.</p>
+<p>Conditional, verified (dashed): every 6 h (02/08/14/20 UTC) the Conditional Prediction is archived per station; for each past time the line shows the newest snapshot issued at least the chosen lead earlier, beside the observed line. Stats: mean absolute error and bias over hourly points (forecast &minus; observed) and the miss at the highest observed high tide, for the Conditional and the official prediction over the same hours. Before the live archive began the snapshots are a hindcast: recomputed afterwards with the same method, using only observations up to the issue time and the newest STOFS cycle posted by then.</p></details></footer>
+<script src="tide.js?v=20261114pnw1"></script>
+</body></html>
