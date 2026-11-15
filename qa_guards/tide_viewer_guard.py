@@ -189,6 +189,11 @@ def check_flood_labels(tag, q, phone=False):
                 fail(f"flood: {tag} offset {l['k']} is not on the left side of the plot")
         elif pad < 3 * s or pad > 10 * s:
             fail(f"flood: {tag} {l['k']} is not at the far left (x0-plotX0={pad:.1f}, s={s})")
+    nc = q.get("nowChip")   # PNW Weather: the "Now" chip must never cover a flood word
+    if nc:
+        for l in labs:
+            if l["x0"] < nc["x"] + nc["w"] and nc["x"] < l["x1"] and l["y0"] < nc["y"] + nc["h"] and nc["y"] < l["y1"]:
+                fail(f"flood: {tag} the Now chip covers the {l['k']} label (chip={nc})")
     if q.get("floodLabelNote"):
         print(f"  note {tag}: {q.get('floodLabelNote')}")
     for i, a_ in enumerate(labs):

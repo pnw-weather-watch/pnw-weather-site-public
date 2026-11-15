@@ -347,7 +347,7 @@ function drawChart(c, W, H, opt) {
   c.strokeStyle = "#4a4f5a"; c.strokeRect(X0, Y0, X1 - X0, Y1 - Y0);
   // clip plot
   c.save(); c.beginPath(); c.rect(X0, Y0, X1 - X0, Y1 - Y0); c.clip();
-  window.__tideFloodDrawn = []; window.__tideFloodLabels = []; window.__tideFloodLabelNote = null; const fTag = [];
+  window.__tideFloodDrawn = []; window.__tideFloodLabels = []; window.__tideFloodLabelNote = null; window.__tideNowChip = null; const fTag = [];
   const fOn = T.flood ? D.floods.filter((f) => f.v >= lo && f.v <= hi) : [];
   // t3052u: every flood line spans the full plot. Names sit at the far left, 9.5 CSS px (Studio: 9.5*s),
   // bottom 2 px above their own line. If another line would run through a word, knock out a short gap
@@ -406,7 +406,12 @@ function drawChart(c, W, H, opt) {
   // now line
   if (D.now >= R.start && D.now <= R.end) { const x = Math.round(X(D.now)) + 0.5; c.strokeStyle = COL.now; c.lineWidth = 1.6 * s; c.setLineDash([6 * s, 5 * s]); c.beginPath(); c.moveTo(x, Y0); c.lineTo(x, Y1); c.stroke(); c.setLineDash([]);
     c.font = F(800, 12.5); c.textBaseline = "top"; const lab = `Now ${fTime.format(new Date(D.now))}`, tw = c.measureText(lab).width + 12 * s, lx2 = Math.min(Math.max(x - tw / 2, X0 + 2), X1 - tw - 2);
-    c.fillStyle = "rgba(21,23,28,0.85)"; c.fillRect(lx2, Y0 + 4 * s, tw, 20 * s); c.fillStyle = COL.now; c.textAlign = "left"; c.fillText(lab, lx2 + 6 * s, Y0 + 8 * s); }
+    // PNW Weather: if the chip would cover a flood word (phone: shifted Moderate / Major next to Now), drop it just below that word's line.
+    let cy = Y0 + 4 * s; const ch = 20 * s;
+    for (const b of [...(window.__tideFloodLabels || [])].sort((p, q) => p.y0 - q.y0))
+      if (lx2 < b.x1 + 2 && b.x0 - 2 < lx2 + tw && cy < b.y1 + 2 && b.y0 - 2 < cy + ch) cy = Math.max(cy, b.ly + (b.lineW || 2) + 3);
+    window.__tideNowChip = { x: lx2, y: cy, w: tw, h: ch };
+    c.fillStyle = "rgba(21,23,28,0.85)"; c.fillRect(lx2, cy, tw, ch); c.fillStyle = COL.now; c.textAlign = "left"; c.fillText(lab, lx2 + 6 * s, cy + 4 * s); }
   // t3052u: vertical crosshair at the hover / touch-hold time
   if (opt.hoverT != null && opt.hoverT >= R.start && opt.hoverT <= R.end) { const hx = Math.round(X(opt.hoverT)) + 0.5;
     c.strokeStyle = "rgba(244,242,238,0.92)"; c.lineWidth = 1.2 * s; c.setLineDash([]); c.beginPath(); c.moveTo(hx, Y0); c.lineTo(hx, Y1); c.stroke(); }
@@ -607,7 +612,7 @@ window.TIDE = {
   draw: (c, W, H, opt) => drawChart(c, W, H, opt),
   state: () => D, stations: STATIONS, states: STATES, tab: () => T.state, readout, geom: () => geom,
   qa: () => D ? { st: D.st, name: D.name, pred: D.pred.length, obs: D.obs.length, cond: D.cond.length, method: D.method, cycle: D.cyc ? new Date(D.cyc.t).toISOString() : null,
-    rNow: D.rNow, rSlow: D.rSlow, bias: D.bias, flood: D.flood, floods: D.floods, floodSkip: D.floodSkip, floodOn: !!T.flood, floodDrawn: window.__tideFloodDrawn || [], floodLabels: window.__tideFloodLabels || [], floodLabelNote: window.__tideFloodLabelNote || null, legend: window.__tideLegend || [], hover: window.__tideHover || null, sid: D.sid, start: D.R.start, end: D.R.end, now: D.now,
+    rNow: D.rNow, rSlow: D.rSlow, bias: D.bias, flood: D.flood, floods: D.floods, floodSkip: D.floodSkip, floodOn: !!T.flood, floodDrawn: window.__tideFloodDrawn || [], floodLabels: window.__tideFloodLabels || [], floodLabelNote: window.__tideFloodLabelNote || null, nowChip: window.__tideNowChip || null, legend: window.__tideLegend || [], hover: window.__tideHover || null, sid: D.sid, start: D.R.start, end: D.R.end, now: D.now,
     statsBox: window.__tideStatsBox || null, chrome: window.__tideChrome || null, arch: ARCH, calib: D.calib ? D.calib.c.map((b) => b.corr) : null, calibBg: D.calibBg ? { t: D.calibBg.t, c: D.calibBg.c.map((b) => b.corr) } : null, ver: D.ver.length, verHindcast: D.ver.filter((p) => !p[2]).length, issues: D.nIssues, archived: D.nArchive, vl: D.vl, sd: D.sd, stats: D.stats,
     condAboveFrac: D.cond.length ? D.cond.filter(([t, v]) => v >= (interp(D.pred, t) || 0)).length / D.cond.length : null, sharp: window.__tideSharp || null } : { err: window.__tideErr || null },
 };
