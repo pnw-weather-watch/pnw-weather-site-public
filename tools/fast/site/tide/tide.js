@@ -1,10 +1,11 @@
-// Tides viewer (Benjamin t3011u / wording t3023u, 2026-11-14): NOAA official tide prediction, observed water level, and an experimental
-// "Conditional Prediction" = official prediction + NOAA STOFS surge forecast (which already includes low pressure and wind driven
-// coastal waves), with a fading correction to the current observed residual. The 30 day average offset is used only after the STOFS
-// forecast ends or if it is missing. The inverse barometer figure is info only (already included in STOFS) and is not added on top.
-// All data is public NOAA (CO-OPS API with CORS, STOFS on the NOAA Open Data bucket). No keys. Times shown in Pacific time.
-// PNW Weather public Tides page (2026-11-14): copied from Benjamin's Tides viewer at 3e8607a; public page only (no Studio),
-// plus a Washington | California state tab (tide_chart_build_guide_for_michael_20261114.md).
+// Tides viewer (Conditional, 2026-11-14): official NOAA tide + air-pressure effect (observed for
+// past/now, AIFS ENS mean forecast ahead) + SST anomaly vs a typical year + a multi-day observed
+// leftover held through the forecast and a 12 h fade so the line starts at the latest gauge reading.
+// Default does not use STOFS. "Wind surge" (off by default) adds only STOFS wind = (swl minus the
+// 5-day station anomaly minus pressure effect on STOFS forcing). Toggle identity: on - off = wind.
+// Public data only, no keys. Times in Pacific time.
+// PNW Weather public Tides page: copied from Benjamin's Tides viewer (7f37665, STOFS-free Conditional, guide section 15);
+// public page only (no Studio), plus a Washington | California state tab and California stations / sidecars.
 (() => {
 "use strict";
 const API = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter";
@@ -73,7 +74,7 @@ const T0 = (() => {
   return { state: "wa", st: "9441102" };
 })();
 const T = { state: T0.state, st: T0.st, from: Q.get("from") || "", days: +(Q.get("days") || 9),
-  vl: +(Q.get("vl") ?? 24), sd: +(Q.get("sd") || 7), flood: true };
+  vl: +(Q.get("vl") ?? 24), sd: +(Q.get("sd") || 7), flood: true, wind: false };
 if (!LEADS.includes(T.vl)) T.vl = 24;
 if (!SDAYS.includes(T.sd)) T.sd = 7;
 if (!STATES[T.state].stations.some((s) => s[0] === T.st)) T.st = STATES[T.state].defaultSt;
@@ -82,6 +83,10 @@ if (!DAYS.includes(T.days)) T.days = 9;
   if (qf === "0" || qf === "off") T.flood = false;
   else if (qf === "1" || qf === "on") T.flood = true;
   else { try { if (localStorage.getItem("tide:flood") === "0") T.flood = false; } catch (e) { /* private */ } } }
+{ const qw = Q.get("wind");
+  if (qw === "1" || qw === "on") T.wind = true;
+  else if (qw === "0" || qw === "off") T.wind = false;
+  else { try { if (localStorage.getItem("tide:wind") === "1") T.wind = true; } catch (e) { /* private */ } } }
 let D = null, seq = 0;
 window.__tideDrawn = 0;
 
@@ -157,6 +162,215 @@ async function pressure(st) {
   } catch (e) { return null; }
 }
 
+// ---- Conditional v2: IB, SST, wind (must stay algebraically identical to cond_v2.py / test_tide_wind_ib.py) ----
+const P0 = 1013.25, FT_PER_M = 3.28084, FT_PER_CM = FT_PER_M / 100;
+const ibFt = (hpa) => (hpa == null || !isFinite(hpa) ? null : (P0 - hpa) * FT_PER_CM);
+const fadeAt = (dt, tau) => Math.exp(-Math.max(0, dt) / (tau || TAU_BIAS));
+const dIB = (ibA, ibG) => (ibA == null || ibG == null ? 0 : ibA - ibG);
+const c1Resid = (rsT, rNow, rsNow, dt) => rsT + (rNow - rsNow) * fadeAt(dt);
+const windOnly = (rsT, anom, pStofs) => { const ib = ibFt(pStofs); if (rsT == null || anom == null || ib == null || !isFinite(rsT) || !isFinite(anom)) return null; return rsT - anom - ib; };
+const windComp = (wT, w0, dt) => (wT == null ? 0 : wT - (w0 || 0) * fadeAt(dt));
+function rhoUnesco(T, S) {
+  const a0 = 999.842594, a1 = 6.793952e-2, a2 = -9.095290e-3, a3 = 1.001685e-4, a4 = -1.120083e-6, a5 = 6.536332e-9;
+  const b0 = 8.24493e-1, b1 = -4.0899e-3, b2 = 7.6438e-5, b3 = -8.2467e-7, b4 = 5.3875e-9;
+  const c0 = -5.72466e-3, c1 = 1.0227e-4, c2 = -1.6546e-6, d0 = 4.8314e-4;
+  const smow = a0 + T * (a1 + T * (a2 + T * (a3 + T * (a4 + T * a5))));
+  return smow + S * (b0 + T * (b1 + T * (b2 + T * (b3 + T * b4)))) + Math.pow(S, 1.5) * (c0 + T * (c1 + T * c2)) + d0 * S * S;
+}
+function alphaThermal(T, S) { const dT = 0.05, r1 = rhoUnesco(T - dT, S), r2 = rhoUnesco(T + dT, S); return -(r2 - r1) / (2 * dT) / ((r1 + r2) / 2); }
+function Wft(dT, T, S, He) { if (dT == null || T == null || !He) return 0; return alphaThermal(T, S) * dT * He * FT_PER_M; }
+const COORDS = {"9439040":[46.207306,-123.7683],"9440910":[46.7075,-123.96694],"9441102":[46.90431,-124.10508],"9442396":[47.912838,-124.63574],"9443090":[48.370724,-124.601585],"9444090":[48.125,-123.44],"9444900":[48.11122,-122.759674],"9449880":[48.545277,-123.0125],"9449424":[48.862717,-122.75858],"9447130":[47.60264,-122.3393],"9446484":[47.2667,-122.4133],"9414750":[37.771954,-122.30026],"9416841":[38.914555,-123.71108],"9419750":[41.74561,-124.18439],"9410230":[32.86689,-117.25714],"9410678":[33.7478,-118.2158],"9410660":[33.72,-118.272],"9415102":[38.0346,-122.1252],"9413450":[36.60889,-121.89139],"9418767":[40.766907,-124.21735],"9415020":[37.994167,-122.97361],"9415144":[38.056,-122.0395],"9412110":[35.168888,-120.754166],"9414523":[37.506813,-122.21191],"9414863":[37.9283,-122.4],"9410170":[32.715557,-117.17667],"9414290":[37.806305,-122.46589],"9411340":[34.40459,-119.6925],"9410840":[34.0083,-118.5]};
+const SALT = {"9439040":25,"9440910":32.2,"9441102":32.2,"9442396":32.2,"9443090":32.2,"9444090":31,"9444900":31,"9449880":31,"9449424":31,"9447130":30,"9446484":30};
+const SST_MAP = {};   // PNW Weather: unused; SST never comes from a neighbor station (sst.json per station)
+const SST_OWN = {9441102:1,9442396:1,9443090:1,9444090:1,9444900:1,9446484:1};
+const P_FALLBACK = {"9439040":["9440910","9441102"],"9410678":["9410660"]};   // barometer only (Long Beach has none; Los Angeles is 6 km away). Never used for SST.
+const H_EFF = {"9439040":0,"9440910":0,"9441102":0,"9442396":0,"9443090":0,"9444090":0,"9444900":0,"9449880":0,"9449424":0,"9447130":0,"9446484":0};   // filled from backtest (m); 0 means no SST height until calibrated
+let AUX = null;
+async function loadAux() {
+  if (AUX) return AUX;
+  const localAux = null;   // PNW Weather ships aifs_ens_msl.json / sst.json / stofs_anom.json; no tide_aux.json
+  if (localAux && localAux.H_eff_m) for (const k of Object.keys(localAux.H_eff_m)) H_EFF[k] = localAux.H_eff_m[k];
+  const idx = await loadArchIndex();
+  const localA = await fetchJsonOk("aifs_ens_msl.json");
+  const archAifs = archSidecarUrl(idx, "aifs_ens_msl.json");
+  const archA = archAifs ? await fetchJsonOk(archAifs) : null;
+  const fromAux = localAux && (localAux.aifs || (localAux.steps && localAux.init ? localAux : null));
+  const aifs = pickFresher(pickFresher(localA, fromAux), archA);
+  AUX = aifs || localAux || {};
+  if (localAux && localAux.H_eff_m) AUX.H_eff_m = localAux.H_eff_m;
+  return AUX;
+}
+let ANOM = null;
+async function loadAnom() {
+  if (ANOM) return ANOM;
+  const unwrap = (j) => { const rec = (j && j.anom) ? j.anom : j; return rec && rec.stations ? rec : null; };
+  const idx = await loadArchIndex();
+  const local = unwrap(await fetchJsonOk("stofs_anom.json"));
+  const archAnom = archSidecarUrl(idx, "stofs_anom.json");
+  const arch = archAnom ? unwrap(await fetchJsonOk(archAnom)) : null;
+  ANOM = pickFresher(local, arch) || { stations: {} };
+  return ANOM;
+}
+function cycleMs(rec) {
+  if (!rec) return null;
+  if (rec.init) {
+    const raw = String(rec.init);
+    const s = raw.indexOf("T") >= 0 ? (raw.length === 16 ? raw + ":00" : raw).replace("Z", "") : (raw.slice(0, 4) + "-" + raw.slice(4, 6) + "-" + raw.slice(6, 8) + "T" + raw.slice(8, 10) + ":00");
+    const t = parseT(s);
+    return isFinite(t) ? t : null;
+  }
+  if (rec.cycle && String(rec.cycle).length >= 10) {
+    const c = String(rec.cycle);
+    return Date.UTC(+c.slice(0, 4), +c.slice(4, 6) - 1, +c.slice(6, 8), +c.slice(8, 10));
+  }
+  return null;
+}
+async function fetchJsonOk(u) {
+  // A missing archive or sidecar file must not throw: keep the copy shipped with the site, or the 0 / persist fallbacks.
+  try { const r = await fetch(u, { cache: "no-store" }); if (r.ok) return await r.json(); } catch (e) { /* 404 / CORS / offline is fine */ }
+  return null;
+}
+function recFreshness(rec) {
+  if (!rec) return -1;
+  const c = cycleMs(rec);
+  if (c != null) return c;
+  if (rec.refreshed_at) { const t = Date.parse(rec.refreshed_at); if (isFinite(t)) return t; }
+  if (rec.last_day) { const t = Date.parse(rec.last_day + "T00:00:00Z"); if (isFinite(t)) return t; }
+  let last = -1;
+  if (rec.stations) {
+    for (const row of Object.values(rec.stations)) {
+      if (row && row.last_day) { const t = Date.parse(row.last_day + "T00:00:00Z"); if (isFinite(t) && t > last) last = t; }
+    }
+  }
+  return last;
+}
+function pickFresher(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return recFreshness(b) > recFreshness(a) ? b : a;
+}
+let ARCH_IDX_P = null;
+async function loadArchIndex() {
+  if (!ARCH_IDX_P) ARCH_IDX_P = (async () => (await fetchJsonOk(ARCH + "index.json")) || { months: {}, sidecars: {} })();
+  return ARCH_IDX_P;
+}
+function archSidecarUrl(idx, name) {
+  const s = (idx && idx.sidecars) || {};
+  if (s[name] === true || s[name.replace(/\.json$/, "")] === true) return ARCH + name;
+  return null;  // do not GET a file the index does not list — a 404 would show in the console
+}
+function anomAt(st, t, cycT) {
+  const rec = ANOM;
+  if (!rec || !rec.stations || !rec.stations[st] || cycT == null) return null;
+  const init = cycleMs(rec);
+  if (init != null && Math.abs(init - cycT) > HR) return null;   // sidecar is for a different STOFS cycle
+  const hourly = rec.stations[st].hourly || rec.stations[st];
+  if (!hourly) return null;
+  const h = (t - (init != null ? init : cycT)) / HR;
+  const h0 = Math.floor(h), h1 = h0 + 1;
+  const a = hourly[h0] != null ? +hourly[h0] : (hourly[String(h0)] != null ? +hourly[String(h0)] : null);
+  const b = hourly[h1] != null ? +hourly[h1] : (hourly[String(h1)] != null ? +hourly[String(h1)] : null);
+  if (a == null && b == null) return null;
+  if (a == null) return b;
+  if (b == null || h1 === h0) return a;
+  return a + (b - a) * (h - h0);
+}
+async function coopsMetricPressure(st, b, e) {
+  const out = [];
+  try {
+    const j = await getJSON(`${API}?product=air_pressure&application=pnw_weather_tides&station=${st}&begin_date=${encodeURIComponent(gmt(b))}&end_date=${encodeURIComponent(gmt(e))}&time_zone=gmt&units=metric&interval=h&format=json`);
+    for (const p of (j.data || [])) { const v = parseFloat(p.v); if (isFinite(v)) out.push([parseT(p.t), v]); }
+  } catch (e) { /* none */ }
+  return out;
+}
+async function obsPressureSeries(st, b, e) {
+  let pts = await coopsMetricPressure(st, b, e);
+  if (pts.length) return { pts, src: "coops:" + st, sid: st };
+  for (const fb of (P_FALLBACK[st] || [])) {
+    pts = await coopsMetricPressure(fb, b, e);
+    if (pts.length) return { pts, src: "coops:" + fb, sid: fb };
+  }
+  return { pts: [], src: null, sid: st };
+}
+async function openMeteoPressure(lat, lon, model, pastDays) {
+  const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=pressure_msl&models=${encodeURIComponent(model)}&forecast_days=16&past_days=${pastDays || 1}&timezone=UTC`;
+  const j = await getJSON(u);
+  const t = (j.hourly && j.hourly.time) || [], p = (j.hourly && j.hourly.pressure_msl) || [];
+  const pts = [];
+  for (let i = 0; i < t.length; i++) if (p[i] != null && isFinite(p[i])) pts.push([parseT(t[i].length === 16 ? t[i] + ":00" : t[i]), p[i]]);
+  return { pts, model, n: pts.length };
+}
+function hourlyFromSix(initMs, stepHpa) {
+  const hs = Object.keys(stepHpa).map(Number).sort((a, b) => a - b);
+  if (!hs.length) return [];
+  const out = [], last = hs[hs.length - 1];
+  for (let h = hs[0]; h <= last; h++) {
+    const t = initMs + h * HR;
+    if (stepHpa[h] != null) { out.push([t, stepHpa[h]]); continue; }
+    let a = hs[0], b = last;
+    for (const x of hs) { if (x <= h) a = x; if (x >= h) { b = x; break; } }
+    const va = stepHpa[a], vb = stepHpa[b];
+    out.push([t, b === a ? va : va + (vb - va) * (h - a) / (b - a)]);
+  }
+  return out;
+}
+async function forecastPressure(st) {
+  const aux = await loadAux();
+  const rec = aux && (aux.aifs || aux);
+  if (rec && rec.steps && rec.init) {
+    const raw = rec.init;
+    const init = (raw.indexOf("T") >= 0)
+      ? parseT((raw.length === 16 ? raw + ":00" : raw).replace("Z", ""))
+      : parseT(raw.slice(0, 4) + "-" + raw.slice(4, 6) + "-" + raw.slice(6, 8) + "T" + raw.slice(8, 10) + ":00");
+    const steps = {};
+    let src = rec.source || "aifs-ens-mean";
+    for (const [h, row] of Object.entries(rec.steps)) {
+      const v = (row.msl_hpa && row.msl_hpa[st] != null) ? row.msl_hpa[st] : null;
+      if (v != null) steps[+h] = v;
+      if (row.source && row.source !== "aifs-ens-mean") src = row.source;
+    }
+    const pts = hourlyFromSix(init, steps);
+    if (pts.length) return { pts, src, run: rec.cycle || rec.init, note: rec.note || null, latency: rec.meta || null };
+  }
+  const [lat, lon] = COORDS[st] || [46.9, -124.1];
+  for (const model of ["ecmwf_aifs025", "ecmwf_ifs025"]) {
+    try {
+      const r = await openMeteoPressure(lat, lon, model, 1);
+      if (r.n) return { pts: r.pts, src: "open-meteo:" + model, run: null, note: model === "ecmwf_ifs025" ? "AIFS ENS extract unavailable; fell back to IFS via Open-Meteo" : "AIFS single via Open-Meteo (ENS extract unavailable)", latency: null };
+    } catch (e) { /* next */ }
+  }
+  return { pts: [], src: null, run: null, note: "no forecast pressure", latency: null };
+}
+async function gfsPressure(st) {
+  const [lat, lon] = COORDS[st] || [46.9, -124.1];
+  try { const r = await openMeteoPressure(lat, lon, "gfs_seamless", 2); if (r.n) return r.pts; } catch (e) { /* none */ }
+  try { const r = await openMeteoPressure(lat, lon, "gfs_global", 2); if (r.n) return r.pts; } catch (e) { /* none */ }
+  return [];
+}
+// SST sidecar (sst.json): shipped with the site; a newer copy on the tide-archive branch wins. A 404 there is fine.
+const SSTU = window.TIDE_SST || (typeof ARCH !== "undefined" ? ARCH + "sst.json" : "sst.json");
+async function sstTerm(st, now) {
+  const usable = (row) => row && (isFinite(row.W) || isFinite(row.steric_ft) || (isFinite(row.k_ft_per_c) && (isFinite(row.ssta) || isFinite(row.ssta30_c))) || (isFinite(row.adj_ft) && isFinite(row.ssta30_c)));
+  const rowOf = (j) => j && (j.stations && j.stations[st] || (j.sst && j.sst[st]) || (j[st] && typeof j[st] === "object" ? j[st] : null));
+  const idx = await loadArchIndex();
+  const localJ = await fetchJsonOk("sst.json");
+  const archSst = (SSTU && SSTU !== "sst.json") ? (archSidecarUrl(idx, "sst.json") || null) : null;
+  const archJ = archSst ? await fetchJsonOk(archSst) : null;
+  const aux = await loadAux();
+  const pack = pickFresher(localJ, archJ) || aux;
+  const rec = usable(rowOf(pack)) ? rowOf(pack) : (usable(rowOf(aux)) ? rowOf(aux) : null);
+  const src = rec ? (pack === archJ ? SSTU : (pack === localJ ? "sst.json" : "tide_aux.json")) : "none";
+  if (!rec) return { adj: 0, dT: 0, ssta30: null, ssta: null, k: 0, W: 0, src: "none" };
+  const ssta = rec.ssta != null ? +rec.ssta : (rec.ssta30_c != null ? +rec.ssta30_c : 0);
+  const k = rec.k_ft_per_c != null ? +rec.k_ft_per_c : 0;
+  const W = rec.W != null ? +rec.W : (rec.steric_ft != null ? +rec.steric_ft : k * ssta);
+  return {
+    adj: rec.adj_ft || 0, dT: rec.d_c, ssta, ssta30: rec.ssta30_c != null ? +rec.ssta30_c : ssta, k, W,
+    steric: rec.steric_ft, last_day: rec.last_day, src: rec.source || rec.src || src, url: src,
+    blend: rec.blend || null, clim: rec.clim || null
+  };
+}
+
 async function archive(st, b, e) {   // snapshots issued in [b, e] (ms); missing months are fine (archive not started yet)
   const months = []; for (let d = new Date(b); d.getTime() <= e + 31 * DAY; d.setUTCMonth(d.getUTCMonth() + 1, 1)) { const m = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`; if (!months.includes(m) && Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) <= e) months.push(m); }
   let have = null, calib = null; try { const r = await fetch(`${ARCH}index.json`, { cache: "no-cache" }); if (r.ok) { const j = await r.json(); have = (j.months || {})[st] || []; calib = (j.calib || {})[st] || null; } } catch (err) { have = null; }
@@ -209,11 +423,16 @@ async function load() {
   setMsg("Loading tides\u2026");
   const key = T.st, st = sidOf(key), b0 = Math.min(R.start, now - SLOW_DAYS * DAY), eP = Math.max(R.end, now) + 3 * HR;
   try {
-    const [pred, obs, md, cyc, pr, arch] = await Promise.all([
+    const [pred, obs, md, cyc, pr, arch, obsP, fcP, gfsP, sst] = await Promise.all([
       coops("predictions", st, b0, eP, "&datum=MLLW&interval=6"),
       coops("water_level", st, b0, Math.min(R.end, now) + H6, "&datum=MLLW"),
       meta(st), stofsCycle(now).catch(() => null), pressure(st),
-      archive(st, Math.min(R.start, now - T.sd * DAY) - 61 * HR, Math.min(R.end, now)).catch(() => ({ issues: [], calib: null }))]);
+      archive(st, Math.min(R.start, now - T.sd * DAY) - 61 * HR, Math.min(R.end, now)).catch(() => ({ issues: [], calib: null })),
+      obsPressureSeries(st, b0, now + HR).catch(() => ({ pts: [], src: null })),
+      forecastPressure(st).catch(() => ({ pts: [], src: null })),
+      gfsPressure(st).catch(() => []),
+      sstTerm(st, now).catch(() => ({ dT: 0, W: 0, src: "none" })),
+      loadAnom().catch(() => null)]);
     // Benjamin t3018u: the chart and stats show the RAW Conditional; the daily calibration is archived in the background only.
     const issues = arch.issues, calib = null, calibBg = arch.calib;
     if (my !== seq) return;
@@ -237,20 +456,70 @@ async function load() {
     const bias = rNow != null && rsNow != null ? rNow - rsNow : 0;
     const base = rSlow != null ? rSlow : 0;
     const rsEnd = rs && rs.length ? rs[rs.length - 1] : null;
-    const resid = (t) => {
+    const pObsPts = (obsP && obsP.pts) || [], pFcPts = (fcP && fcP.pts) || [], pGfsPts = gfsP || [];
+    const pIB = (t) => { const po = (t <= now) ? interp(pObsPts, t) : null; return po != null ? po : interp(pFcPts, t); };
+    // SST term: k x anomaly vs a typical year (best source / in-situ blend). Full anomaly, not a
+    // recent-change increment — default does not use STOFS, so there is no 5-day model bias to double-count.
+    const W = (sst && sst.W != null && isFinite(sst.W)) ? +sst.W : ((sst && sst.k && (sst.ssta != null || sst.ssta30 != null)) ? sst.k * (sst.ssta != null ? sst.ssta : sst.ssta30) : 0);
+    const r0v = rNow != null ? rNow : (base || 0);
+    const cycT = cyc && cyc.t != null ? cyc.t : null;
+    const ibA0 = ibFt(pIB(t0c)) || 0;
+    const anom0 = (cycT != null) ? anomAt(st, t0c, cycT) : null;
+    const wFull0 = (rsNow != null) ? windOnly(rsNow, anom0, interp(pGfsPts, t0c)) : null;
+    // Multi-day observed leftover: mean of (gauge residual minus the pressure and warm-water parts)
+    // over the 5 days ending at the newest observation. Held through the forecast. Not a STOFS field.
+    let offSum = 0, offN = 0;
+    const t5 = t0c - 5 * DAY;
+    for (const [tt, rr] of res) {
+      if (tt < t5 || tt > t0c) continue;
+      const ibh = ibFt(pIB(tt));
+      if (ibh == null) continue;
+      offSum += rr - ibh - W; offN++;
+    }
+    const offset5 = offN ? offSum / offN : 0;
+    const leftover = r0v - ibA0 - W - offset5;
+    const partsAt = (t) => {
       const dt = t - t0c;
-      if (rs && rsNow != null && t <= rsEnd[0]) return interp(rs, t) + bias * Math.exp(-dt / TAU_BIAS);
-      if (rs && rsNow != null) { const rEnd = rsEnd[1] + bias * Math.exp(-(rsEnd[0] - t0c) / TAU_BIAS); return base + (rEnd - base) * Math.exp(-(t - rsEnd[0]) / TAU_RELAX); }
-      const r0 = rNow != null ? rNow : base; return base + (r0 - base) * Math.exp(-dt / TAU_BIAS);
+      const ibv = ibFt(pIB(t));
+      const ib = ibv == null ? ibA0 : ibv;
+      const pNow = pIB(t);
+      const off = ib + W + offset5 + leftover * fadeAt(dt);
+      const inStofs = !!(rs && rsEnd && t <= rsEnd[0]);
+      const rsT = inStofs ? interp(rs, t) : null;
+      const anom = (inStofs && cycT != null) ? anomAt(st, t, cycT) : null;
+      const wT = inStofs ? windOnly(rsT, anom, interp(pGfsPts, t)) : null;
+      const wind = windComp(wT, wFull0, dt);
+      return { ib, W, wind, off, on: off + wind, p: pNow, offset5, leftover, anom };
     };
-    const cond = [], condRaw = []; if (R.end > t0c && (rNow != null || rs)) for (const [t, v] of pred) if (t >= t0c && t <= R.end) { const r = resid(t); condRaw.push([t, v + r]); cond.push([t, v + r]); }
+    const resid = (t) => T.wind ? partsAt(t).on : partsAt(t).off;
+    const cond = [], condRaw = [], condOff = [], condOn = [];
+    if (R.end > t0c && (rNow != null || W || pFcPts.length || pObsPts.length)) for (const [t, v] of pred) if (t >= t0c && t <= R.end) {
+      const pt = partsAt(t);
+      condOff.push([t, v + pt.off]); condOn.push([t, v + pt.on]);
+      const r = T.wind ? pt.on : pt.off;
+      condRaw.push([t, v + r]); cond.push([t, v + r]);
+    }
+    window.__tideWindTest = (function () {
+      if (!condOff.length || condOff.length !== condOn.length) return { ok: false, n: 0 };
+      let n = 0, fail = 0, zmatch = 0;
+      for (let i = 0; i < condOff.length; i++) {
+        const t = condOff[i][0], pt = partsAt(t);
+        n++;
+        if (Math.abs((condOn[i][1] - condOff[i][1]) - pt.wind) > 1e-9) fail++;
+        if (Math.abs(pt.wind) <= 1e-12 && Math.abs(condOn[i][1] - condOff[i][1]) > 1e-9) fail++;
+        if (Math.abs(pt.wind) <= 1e-12) zmatch++;
+      }
+      return { ok: fail === 0, n, fail, zeroWindHours: zmatch };
+    })();
     const name = (STATIONS.find((s) => s[0] === key) || [key, key])[1];
     const tPast = Math.min(R.end, tObs != null ? tObs : now);
     const verAll = verified(pred, issues, T.vl, tPast, Math.min(R.start, now - T.sd * DAY) - HR);   // raw snapshots (r)
     const ver = verAll.filter((p) => p[0] >= R.start - HR && p[0] <= R.end + HR);
     const stats = T.vl && tObs != null ? verStats(pred, obs, verAll, tObs - T.sd * DAY, tObs) : null;
+    const prNow = pIB(now) != null ? { t: now, hpa: pIB(now) } : pr;
     D = { st: key, sid: st, name, R, now, pred: pred.filter((p) => p[0] >= R.start - HR && p[0] <= R.end + HR), obs: obs.filter((p) => p[0] >= R.start - HR && p[0] <= R.end + HR),
-      cond, condRaw, calib, calibBg, ver, stats, vl: T.vl, sd: T.sd, nIssues: issues.length, nArchive: issues.filter((i) => i.kind === "archive").length, rNow, rSlow, bias, cyc: sto ? cyc : null, stofsEnd: rsEnd ? rsEnd[0] : null, flood: md.flood, floods: md.floods || [], floodSkip: md.floodSkip || [], pr, tObs, method: sto && rsNow != null ? "stofs" : "persist" };
+      cond, condRaw, condOff, condOn, partsAt, sst, fcP, obsP, calib, calibBg, ver, stats, vl: T.vl, sd: T.sd, nIssues: issues.length, nArchive: issues.filter((i) => i.kind === "archive").length, rNow, rSlow, bias, cyc: sto ? cyc : null, stofsEnd: rsEnd ? rsEnd[0] : null, flood: md.flood, floods: md.floods || [], floodSkip: md.floodSkip || [], pr: prNow, tObs, method: "stofs-free" + (T.wind ? "+wind" : ""), windOn: !!T.wind,
+      aifs: fcP && { src: fcP.src, run: fcP.run, note: fcP.note, latency: fcP.latency } };
     setMsg(""); note(); draw(); window.__tideDrawn++;
   } catch (e) {
     if (my !== seq) return; D = null; setMsg(`Could not load tides for this station (${e.message || e}).`); window.__tideErr = String(e.message || e); window.__tideDrawn++;
@@ -304,11 +573,21 @@ function drawChart(c, W, H, opt) {
   const lastObs = D.obs.length ? D.obs[D.obs.length - 1] : null;
   if (lastObs && D.rNow != null) info.push(`Latest observed ${lastObs[1].toFixed(2)} ft at ${fTime.format(new Date(lastObs[0]))}  \u00b7  residual (observed \u2212 predicted) ${sgn(D.rNow, 2)} ft`);
   const bits = [];
-  if (D.pr) bits.push(`Pressure ${D.pr.hpa.toFixed(1)} hPa (inverse barometer \u2248 ${sgn((1013.25 - D.pr.hpa) * 0.0328, 2)} ft, info only, already included in STOFS)`);
-  if (D.rSlow != null) bits.push(`30 day average offset ${sgn(D.rSlow, 2)} ft, used only after the STOFS forecast ends or if it is missing`);
+  if (D.pr) bits.push(`Pressure ${D.pr.hpa.toFixed(1)} hPa (about ${sgn(ibFt(D.pr.hpa) || 0, 2)} ft on the water)`);
+  if (D.sst && D.sst.src && D.sst.src !== "none") {
+    const a30 = D.sst.ssta30, Wft = D.sst.W;
+    if (a30 != null) bits.push(`Sea temperature ${sgn(a30, 2)} \u00b0C (${sgn(a30 * 1.8, 1)} \u00b0F) vs a typical year${Wft != null ? ", adding " + sgn(Wft, 2) + " ft" : ""}`);
+  } else if (D.sst && D.sst.src === "none") {
+    bits.push("Sea temperature unavailable; warm-water term set to 0 ft");
+  }
+  if (D.aifs && D.aifs.run) bits.push(`AIFS ENS ${String(D.aifs.run)}${D.aifs.src && D.aifs.src !== "aifs-ens-mean" ? " (" + D.aifs.src + " fallback)" : ""}`);
+  else if (D.aifs && D.aifs.src) bits.push(`Forecast pressure ${D.aifs.src}${D.aifs.note ? " \u2014 " + D.aifs.note : ""}`);
+  else bits.push("Forecast pressure unavailable; holding the latest observed pressure");
   if (bits.length) info.push(bits.join("  \u00b7  "));
-  info.push(D.method === "stofs" ? `Conditional = official prediction + NOAA STOFS ${new Date(D.cyc.t).getUTCHours().toString().padStart(2, "0")}Z surge forecast, which already includes low pressure and wind driven coastal waves, plus a fading correction to current observations (bias ${sgn(D.bias, 2)} ft fading 12 h). Experimental, not official.`
-    : `Conditional = official prediction + current residual, relaxing to the 30 day average offset (STOFS forecast missing). Experimental, not official.`);
+  if (D.aifs && D.aifs.note) info.push(D.aifs.note);
+  info.push(T.wind
+    ? `Conditional (Wind surge on) = the official tide prediction, plus the effect of air pressure (lower pressure raises the water; observed pressure for times already past, a European AIFS ensemble forecast ahead), plus a warm-water adjustment from sea-surface temperature compared with a typical year, plus a correction from the last few days of gauge readings (the leftover after pressure and warm water are taken out is held through the forecast, and a 12-hour fade starts the line at the latest observation). Wind-driven setup from the NOAA surge model is added on top of that, without applying the pressure or warm-water terms a second time. Experimental, not official. If forecast pressure is missing, the latest observation is held; if sea temperature is missing, the warm-water term is zero.`
+    : `Conditional (default) = the official tide prediction, plus the effect of air pressure (lower pressure raises the water; observed pressure for times already past, a European AIFS ensemble forecast ahead), plus a warm-water adjustment from sea-surface temperature compared with a typical year, plus a correction from the last few days of gauge readings: the leftover after pressure and warm water are taken out is held through the forecast, and a 12-hour fade starts the line at the latest observation. Wind-driven setup from the NOAA surge model is off; turn on Wind surge to add only that wind part. Experimental, not official. If forecast pressure is missing, the latest observation is held; if sea temperature is missing, the warm-water term is zero.`);
   const infoFs = portrait ? 12.5 : 12.5, lh = 18 * s;
   // wrap info lines to width
   c.font = F(600, infoFs); const wrapped = [];
@@ -323,7 +602,10 @@ function drawChart(c, W, H, opt) {
   // t3061u: phone page only — a reserved 3-line readout slot between the legend and the plot, always present so hover does not shift the chart. Studio and desktop stay as they are.
   const phoneSlotH = (!STUDIO && portrait) ? 84 : 0;
   const slotBox = phoneSlotH ? { x: pad, y: top + 2, w: W - 2 * pad, h: phoneSlotH } : null;
-  const X0 = pad + yL, X1 = W - xR, Y0 = top + (phoneSlotH ? 6 + phoneSlotH : 10 * s), Y1 = H - bottomInfo - axisH;
+  // Desktop: when the hover strip wraps (flood rows + pressure/warm-water), it sits below the
+  // x-axis labels. Reserve that band always so hover does not cover the axis or shift the chart.
+  const deskHoverH = (!STUDIO && !portrait) ? 56 : 0;
+  const X0 = pad + yL, X1 = W - xR, Y0 = top + (phoneSlotH ? 6 + phoneSlotH : 10 * s), Y1 = H - bottomInfo - axisH - deskHoverH;
   if (slotBox && !opt.hoverT) { c.save(); c.strokeStyle = "rgba(125,130,140,0.28)"; c.lineWidth = 1;
     const sx = slotBox.x + 0.5, sy = slotBox.y + 0.5, sw2 = slotBox.w - 1, sh2 = slotBox.h - 1;
     c.beginPath(); c.roundRect ? c.roundRect(sx, sy, sw2, sh2, 6) : c.rect(sx, sy, sw2, sh2); c.stroke(); c.restore(); }
@@ -347,7 +629,7 @@ function drawChart(c, W, H, opt) {
   c.strokeStyle = "#4a4f5a"; c.strokeRect(X0, Y0, X1 - X0, Y1 - Y0);
   // clip plot
   c.save(); c.beginPath(); c.rect(X0, Y0, X1 - X0, Y1 - Y0); c.clip();
-  window.__tideFloodDrawn = []; window.__tideFloodLabels = []; window.__tideFloodLabelNote = null; window.__tideNowChip = null; const fTag = [];
+  window.__tideFloodDrawn = []; window.__tideFloodLabels = []; window.__tideFloodLabelNote = null; const fTag = [];
   const fOn = T.flood ? D.floods.filter((f) => f.v >= lo && f.v <= hi) : [];
   // t3052u: every flood line spans the full plot. Names sit at the far left, 9.5 CSS px (Studio: 9.5*s),
   // bottom 2 px above their own line. If another line would run through a word, knock out a short gap
@@ -404,14 +686,21 @@ function drawChart(c, W, H, opt) {
   if (D.cond.length) { c.save(); c.shadowColor = "rgba(0,0,0,0.55)"; c.shadowBlur = 3 * s; line(D.cond, COL.cond, 3.2); c.restore(); }
   for (const t of fTag) { c.save(); t(); c.restore(); }   // flood names (plain, on top of their lines) over the curves
   // now line
+  window.__tideNowLabel = null;
   if (D.now >= R.start && D.now <= R.end) { const x = Math.round(X(D.now)) + 0.5; c.strokeStyle = COL.now; c.lineWidth = 1.6 * s; c.setLineDash([6 * s, 5 * s]); c.beginPath(); c.moveTo(x, Y0); c.lineTo(x, Y1); c.stroke(); c.setLineDash([]);
-    c.font = F(800, 12.5); c.textBaseline = "top"; const lab = `Now ${fTime.format(new Date(D.now))}`, tw = c.measureText(lab).width + 12 * s, lx2 = Math.min(Math.max(x - tw / 2, X0 + 2), X1 - tw - 2);
-    // PNW Weather: if the chip would cover a flood word (phone: shifted Moderate / Major next to Now), drop it just below that word's line.
-    let cy = Y0 + 4 * s; const ch = 20 * s;
-    for (const b of [...(window.__tideFloodLabels || [])].sort((p, q) => p.y0 - q.y0))
-      if (lx2 < b.x1 + 2 && b.x0 - 2 < lx2 + tw && cy < b.y1 + 2 && b.y0 - 2 < cy + ch) cy = Math.max(cy, b.ly + (b.lineW || 2) + 3);
-    window.__tideNowChip = { x: lx2, y: cy, w: tw, h: ch };
-    c.fillStyle = "rgba(21,23,28,0.85)"; c.fillRect(lx2, cy, tw, ch); c.fillStyle = COL.now; c.textAlign = "left"; c.fillText(lab, lx2 + 6 * s, cy + 4 * s); }
+    c.font = F(800, 12.5); c.textBaseline = "top"; const lab = `Now ${fTime.format(new Date(D.now))}`, tw = c.measureText(lab).width + 12 * s, th = 20 * s, lx2 = Math.min(Math.max(x - tw / 2, X0 + 2), X1 - tw - 2);
+    // Default: just under the top of the plot. If that pill would cover a flood-stage word (typical on a
+    // phone, where "Now" sits only a couple of days from the left and Moderate/Major sit high and left),
+    // drop the pill just below those words.
+    let ny = Y0 + 4 * s;
+    if (fLabs && fLabs.length) {
+      const top0 = ny, bot0 = ny + th;
+      const hits = fLabs.filter((b) => lx2 < b.x1 && b.x0 < lx2 + tw && top0 < b.y1 && b.y0 < bot0);
+      if (hits.length) ny = Math.max(...hits.map((b) => b.y1)) + 4 * s;
+      if (ny + th > Y1 - 2 * s) ny = Math.max(Y0 + 4 * s, Y1 - th - 2 * s);
+    }
+    c.fillStyle = "rgba(21,23,28,0.85)"; c.fillRect(lx2, ny, tw, th); c.fillStyle = COL.now; c.textAlign = "left"; c.fillText(lab, lx2 + 6 * s, ny + 4 * s);
+    window.__tideNowLabel = { x: lx2, y: ny, w: tw, h: th, lab }; }
   // t3052u: vertical crosshair at the hover / touch-hold time
   if (opt.hoverT != null && opt.hoverT >= R.start && opt.hoverT <= R.end) { const hx = Math.round(X(opt.hoverT)) + 0.5;
     c.strokeStyle = "rgba(244,242,238,0.92)"; c.lineWidth = 1.2 * s; c.setLineDash([]); c.beginPath(); c.moveTo(hx, Y0); c.lineTo(hx, Y1); c.stroke(); }
@@ -478,22 +767,36 @@ function readout(t) {
   if (T.flood) for (const f of D.floods) rows.push({ k: "flood-" + f.k, lab: f.lab + " flood", col: FCOL[f.k], v: f.v, flood: true });
   const time = `${fDay.format(new Date(t))} ${fTime.format(new Date(t))} ${zoneName(t)}`;
   const bits = rows.map((r) => `<span class="tv" style="color:${r.col}">${r.lab} ${r.v.toFixed(2)} ft</span>`);
+  if (cc != null && D.partsAt) {
+    const pt = D.partsAt(t);
+    const bits2 = [`pressure ${sgn(pt.ib, 2)} ft` + (pt.p != null ? ` (${pt.p.toFixed(1)} hPa)` : ""), `warm water ${sgn(pt.W, 2)} ft`];
+    if (D.sst && D.sst.src && D.sst.src !== "none") {
+      const extra = [];
+      if (D.sst.ssta30 != null) extra.push(`${sgn(D.sst.ssta30, 2)} \u00b0C / ${sgn(D.sst.ssta30 * 1.8, 1)} \u00b0F vs normal (not added)`);
+      if (D.sst.dT != null) extra.push(`recent ${sgn(D.sst.dT, 2)} \u00b0C, ${sgn(D.sst.adj || 0, 2)} ft fades in`);
+      if (extra.length) bits2[1] += ` (${extra.join("; ")})`;
+    }
+    if (T.wind) bits2.push(`wind ${sgn(pt.wind, 2)} ft`);
+    bits.push(`<span class="tdot">${bits2.join("  \u00b7  ")}</span>`);
+  }
   const html = `<span class="tt">${time}</span>` + bits.join("");
   return { t, rows, html };
 }
 function overlaps(a, b, eps) { eps = eps || 0.5; return a.x + a.w > b.x + eps && b.x + b.w > a.x + eps && a.y + a.h > b.y + eps && b.y + b.h > a.y + eps; }
 // Place the compact readout as a strip outside the plot (above it if it fits, otherwise below). Never covers the curves.
-function placeStrip(tip, box, plot, maxW) {
+function placeStrip(tip, box, plot, maxW, axisH) {
   const gap = 3;
   tip.style.maxWidth = Math.max(80, maxW) + "px";
   tip.style.left = "0px"; tip.style.top = "0px";
   const tw = tip.offsetWidth, th = tip.offsetHeight;
   let left = plot.x, top = plot.y - th - gap;
-  // One-line strips sit just above the plot (under the title/legend). Taller wrapped strips go below so they don't cover the legend.
+  // One-line strips sit just above the plot (under the title/legend). Taller wrapped strips go
+  // below the x-axis labels (not into the axis band) so they don't cover the legend or the ticks.
   const aboveOk = th <= 32 && top >= box.y + 2 && !overlaps({ x: left, y: top, w: tw, h: th }, plot);
   if (!aboveOk) {
-    top = plot.y + plot.h + gap;
-    if (top + th > box.y + box.h - 2) top = Math.max(plot.y + plot.h + 1, box.y + box.h - th - 2);
+    const skip = axisH || 0;
+    top = plot.y + plot.h + skip + gap;
+    if (top + th > box.y + box.h - 2) top = Math.max(plot.y + plot.h + skip + 1, box.y + box.h - th - 2);
   }
   if (left + tw > box.x + box.w - 4) left = Math.max(box.x + 4, box.x + box.w - tw - 4);
   if (left < box.x + 4) left = box.x + 4;
@@ -522,7 +825,7 @@ function placeTip(cssX, cssY) {
   } else {
     const plot = geom ? { x: ox + geom.X0, y: oy + geom.Y0, w: geom.X1 - geom.X0, h: geom.Y1 - geom.Y0 } : { x: ox + 8, y: oy + 80, w: cv.clientWidth - 16, h: 200 };
     const box = { x: 0, y: 0, w: wrap.clientWidth, h: wrap.clientHeight };
-    tipBox = placeStrip(tip, box, plot, plot.w);
+    tipBox = placeStrip(tip, box, plot, plot.w, geom && geom.axis ? geom.axis.h : 0);
   }
   // Guard uses canvas CSS pixels (origin at the canvas, not the wrap).
   const tipCv = { x: tipBox.x - ox, y: tipBox.y - oy, w: tipBox.w, h: tipBox.h };
@@ -549,7 +852,13 @@ function draw() {
   geom = drawChart(c, w, h, { scale: s, hoverT }); window.__tideSharp = { dpr, cssW: w, backingW: cv.width, scale: s };
 }
 function setMsg(t) { const m = $("msg"); if (m) m.textContent = STUDIO ? "" : t; }
-function note() { const n = $("tnote"); if (!n || !D) return; n.textContent = D.method === "stofs" ? `STOFS ${new Date(D.cyc.t).toISOString().slice(5, 13).replace("T", " ")}Z` : "Persistence (no STOFS)"; }
+function note() { const n = $("tnote"); if (!n || !D) return;
+  const bits = [];
+  bits.push(T.wind ? "Wind surge on" : "Default (no wind)");
+  if (D.aifs && D.aifs.run) bits.push("AIFS ENS " + String(D.aifs.run));
+  else if (D.aifs && D.aifs.src) bits.push(D.aifs.src);
+  if (T.wind && D.cyc) bits.push("surge model " + new Date(D.cyc.t).toISOString().slice(5, 13).replace("T", " ") + "Z");
+  n.textContent = bits.join("  \u00b7  "); }
 
 // ---- UI ----
 function syncURL() { const u = new URL(location.href); u.searchParams.set("state", T.state); u.searchParams.set("st", T.st); u.searchParams.set("vl", String(T.vl)); u.searchParams.set("sd", String(T.sd)); if (T.from) u.searchParams.set("from", T.from); else u.searchParams.delete("from"); u.searchParams.set("days", String(T.days)); history.replaceState(null, "", u); lsSet("tide:st", T.st); lsSet("tide:state", T.state); lsSet(`tide:st:${T.state}`, T.st); }
@@ -569,9 +878,12 @@ function ui() {
   if (vl) { vl.innerHTML = LEADS.map((l) => `<option value="${l}">${l ? `${l}\u2013${l + 6} h` : "Off"}</option>`).join(""); vl.value = String(T.vl); vl.onchange = () => { T.vl = +vl.value; syncURL(); load(); }; }
   if (sd) { sd.innerHTML = SDAYS.map((d) => `<option value="${d}">${d} days</option>`).join(""); sd.value = String(T.sd); sd.onchange = () => { T.sd = +sd.value; syncURL(); load(); }; }
   const floodChip = () => { const b = $("floodtog"); if (!b) return; b.setAttribute("aria-pressed", T.flood ? "true" : "false"); b.title = T.flood ? "Hide the NWS flood stage lines" : "Show the NWS flood stage lines"; };
-  floodChip();
+  const windChip = () => { const b = $("windtog"); if (!b) return; b.setAttribute("aria-pressed", T.wind ? "true" : "false"); b.title = T.wind ? "Hide the wind-driven setup from the NOAA surge model (on now)" : "Add the wind-driven setup from the NOAA surge model. Off by default."; };
+  floodChip(); windChip();
   const ft = $("floodtog");
   if (ft) ft.onclick = () => { T.flood = !T.flood; try { localStorage.setItem("tide:flood", T.flood ? "1" : "0"); } catch (e) { /* private */ } floodChip(); draw(); window.__tideDrawn++; if (hoverT != null) { const cv = $("tc"), b = cv.getBoundingClientRect(); placeTip((geom.X0 + geom.X1) / 2, (geom.Y0 + geom.Y1) / 2); } };
+  const wt = $("windtog");
+  if (wt) wt.onclick = () => { T.wind = !T.wind; try { localStorage.setItem("tide:wind", T.wind ? "1" : "0"); } catch (e) { /* private */ } windChip(); if (D && D.condOff && D.condOn) { D.cond = T.wind ? D.condOn : D.condOff; D.condRaw = D.cond; D.windOn = !!T.wind; D.method = "stofs-free" + (T.wind ? "+wind" : ""); } note(); draw(); window.__tideDrawn++; if (hoverT != null) { const cv = $("tc"), b = cv.getBoundingClientRect(); placeTip((geom.X0 + geom.X1) / 2, (geom.Y0 + geom.Y1) / 2); } };
   st.onchange = () => { T.st = st.value; syncURL(); load(); };
   ds.onchange = () => { T.days = +ds.value; syncURL(); load(); };
   fr.onchange = () => { if (/^\d{4}-\d{2}-\d{2}$/.test(fr.value)) { T.from = fr.value; syncURL(); load(); } };
@@ -612,9 +924,9 @@ window.TIDE = {
   draw: (c, W, H, opt) => drawChart(c, W, H, opt),
   state: () => D, stations: STATIONS, states: STATES, tab: () => T.state, readout, geom: () => geom,
   qa: () => D ? { st: D.st, name: D.name, pred: D.pred.length, obs: D.obs.length, cond: D.cond.length, method: D.method, cycle: D.cyc ? new Date(D.cyc.t).toISOString() : null,
-    rNow: D.rNow, rSlow: D.rSlow, bias: D.bias, flood: D.flood, floods: D.floods, floodSkip: D.floodSkip, floodOn: !!T.flood, floodDrawn: window.__tideFloodDrawn || [], floodLabels: window.__tideFloodLabels || [], floodLabelNote: window.__tideFloodLabelNote || null, nowChip: window.__tideNowChip || null, legend: window.__tideLegend || [], hover: window.__tideHover || null, sid: D.sid, start: D.R.start, end: D.R.end, now: D.now,
+    rNow: D.rNow, rSlow: D.rSlow, bias: D.bias, flood: D.flood, floods: D.floods, floodSkip: D.floodSkip, floodOn: !!T.flood, floodDrawn: window.__tideFloodDrawn || [], floodLabels: window.__tideFloodLabels || [], floodLabelNote: window.__tideFloodLabelNote || null, legend: window.__tideLegend || [], hover: window.__tideHover || null, sid: D.sid, start: D.R.start, end: D.R.end, now: D.now,
     statsBox: window.__tideStatsBox || null, chrome: window.__tideChrome || null, arch: ARCH, calib: D.calib ? D.calib.c.map((b) => b.corr) : null, calibBg: D.calibBg ? { t: D.calibBg.t, c: D.calibBg.c.map((b) => b.corr) } : null, ver: D.ver.length, verHindcast: D.ver.filter((p) => !p[2]).length, issues: D.nIssues, archived: D.nArchive, vl: D.vl, sd: D.sd, stats: D.stats,
-    condAboveFrac: D.cond.length ? D.cond.filter(([t, v]) => v >= (interp(D.pred, t) || 0)).length / D.cond.length : null, sharp: window.__tideSharp || null } : { err: window.__tideErr || null },
+    condAboveFrac: D.cond.length ? D.cond.filter(([t, v]) => v >= (interp(D.pred, t) || 0)).length / D.cond.length : null, sharp: window.__tideSharp || null, windOn: !!T.wind, sst: D.sst || null, aifs: D.aifs || null, windTest: window.__tideWindTest || null, nowLabel: window.__tideNowLabel || null, nowChip: window.__tideNowLabel || null, tab: T.state } : { err: window.__tideErr || null },
 };
 ui(); syncURL(); load();
 setInterval(() => { if (document.visibilityState === "visible") load(); }, 10 * 60000);   // new observations every 6 min; refresh every 10
