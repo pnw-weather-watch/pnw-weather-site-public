@@ -585,7 +585,12 @@ function drawChart(c, W, H, opt) {
   else bits.push("Forecast pressure unavailable; holding the latest observed pressure");
   if (bits.length) info.push(bits.join("  \u00b7  "));
   if (D.aifs && D.aifs.note) info.push(D.aifs.note);
-  info.push(T.wind
+  // PNW Weather: on a phone the full explanation pushed the plot down to a sliver (the bar has an extra state-tab row);
+  // show a one-line summary there; the full text stays in the page footer.
+  if (portrait) info.push(T.wind
+    ? "Conditional (Wind surge on) = official tide + air pressure + warm water + recent gauge offset (12 h fade) + surge-model wind only. Experimental; details below."
+    : "Conditional (default) = official tide + air pressure + warm water + recent gauge offset (12 h fade). No surge model. Experimental; details below.");
+  else info.push(T.wind
     ? `Conditional (Wind surge on) = the official tide prediction, plus the effect of air pressure (lower pressure raises the water; observed pressure for times already past, a European AIFS ensemble forecast ahead), plus a warm-water adjustment from sea-surface temperature compared with a typical year, plus a correction from the last few days of gauge readings (the leftover after pressure and warm water are taken out is held through the forecast, and a 12-hour fade starts the line at the latest observation). Wind-driven setup from the NOAA surge model is added on top of that, without applying the pressure or warm-water terms a second time. Experimental, not official. If forecast pressure is missing, the latest observation is held; if sea temperature is missing, the warm-water term is zero.`
     : `Conditional (default) = the official tide prediction, plus the effect of air pressure (lower pressure raises the water; observed pressure for times already past, a European AIFS ensemble forecast ahead), plus a warm-water adjustment from sea-surface temperature compared with a typical year, plus a correction from the last few days of gauge readings: the leftover after pressure and warm water are taken out is held through the forecast, and a 12-hour fade starts the line at the latest observation. Wind-driven setup from the NOAA surge model is off; turn on Wind surge to add only that wind part. Experimental, not official. If forecast pressure is missing, the latest observation is held; if sea temperature is missing, the warm-water term is zero.`);
   const infoFs = portrait ? 12.5 : 12.5, lh = 18 * s;
