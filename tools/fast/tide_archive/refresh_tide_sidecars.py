@@ -169,14 +169,30 @@ def refresh_aifs(out, work):
         if not rec:
             continue
         st = rec.get("steps") or {}
-        if "0" in st and "72" in st and len(st) >= 13:
+        # Prefer a cycle that reaches at least 240 h (9-day chart). Never publish a newer short extract over an
+        # older full-horizon one (port of Weather Bot e543744).
+        leads = [int(k) for k in st]
+        lead = max(leads) if leads else -1
+        if "0" in st and lead >= 240 and len(st) >= 41:
             picked = rec
             break
-        if not picked and "0" in st and len(st) >= 8:
-            picked = rec  # usable but short
+        if "0" in st and len(st) >= 8:
+            if not picked or lead > max(int(k) for k in (picked.get("steps") or {})):
+                picked = rec  # usable but short; keep looking for a longer cycle
     if not picked:
         print("aifs: no usable cycle")
         return None
+    # PNW Weather: also never replace the branch copy with a shorter-horizon cycle while that copy is recent (< 24 h old).
+    try:
+        cur = loadj(dest)
+        if cur and cur.get("steps"):
+            lead_cur = max(int(k) for k in cur["steps"]); lead_new = max(int(k) for k in picked["steps"])
+            age_h = (D.datetime.now(D.timezone.utc) - D.datetime.strptime(str(cur.get("cycle")), "%Y%m%d%H").replace(tzinfo=D.timezone.utc)).total_seconds() / 3600
+            if lead_new < lead_cur and age_h < 24:
+                print(f"aifs: keep {cur.get('cycle')} ({lead_cur} h); new {picked.get('cycle')} reaches only {lead_new} h")
+                return dest
+    except Exception as e:
+        print("aifs: compare with branch copy skipped:", e)
     savej(dest, picked)
     print("aifs wrote", dest, "cycle", picked.get("cycle"), "steps", len(picked.get("steps") or {}))
     return dest

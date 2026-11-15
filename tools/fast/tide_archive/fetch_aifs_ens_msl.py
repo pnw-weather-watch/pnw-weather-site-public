@@ -33,7 +33,7 @@ HOSTS = [
     "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com",
     "https://data.ecmwf.int/forecasts",
 ]
-STEPS = list(range(0, 73, 6))
+STEPS = list(range(0, 361, 6))   # full AIFS ENS open-data horizon (72 h snapped the Conditional line back; Weather Bot e543744)
 MIN_MEM = 40
 
 def log(msg):
@@ -226,30 +226,36 @@ def extract_single_file(path_base, tmp, idxs_hint=None):
 
 def extract_ens_step(c, s, tmp):
     """Return dict for one step, with source tag."""
+    # Retry the 51-member ENS mean before falling back (port of Weather Bot 5329b19): a truncated range or a
+    # short S3 blip is not "ENS unavailable".
     note = None
-    try:
-        pf_rows, pf_url = load_index(aifs_ens_path(c, s, "pf"))
-        cf_rows, cf_url = load_index(aifs_ens_path(c, s, "cf"))
-        pf_m = [x for x in pf_rows if x.get("param") == "msl"]
-        cf_m = [x for x in cf_rows if x.get("param") == "msl"]
-        if len(pf_m) + len(cf_m) < MIN_MEM:
-            raise RuntimeError(f"only {len(pf_m)+len(cf_m)} msl members")
-        # same grib url per kind
-        tdir = os.path.join(tmp, "ens")
-        os.makedirs(tdir, exist_ok=True)
-        paths = []
-        if pf_m:
-            paths += fetch_ranges(pf_url + ".grib2", pf_m, os.path.join(tmp, "pf"), parallel=12)
-        if cf_m:
-            paths += fetch_ranges(cf_url + ".grib2", cf_m, os.path.join(tmp, "cf"), parallel=2)
-        msl, glatlon, n, grid = mean_from_members(paths)
-        if n < MIN_MEM:
-            raise RuntimeError(f"decoded {n} members")
-        return {"source": "aifs-ens-mean", "n_members": n, "msl_hpa": msl,
-                "grid": {sid: list(glatlon[sid]) for sid in STATIONS},
-                "grid_spec": list(grid), "note": note}
-    except Exception as e:
-        note = f"aifs-ens failed ({type(e).__name__}: {e})"
+    last_err = None
+    for attempt in range(3):
+        try:
+            pf_rows, pf_url = load_index(aifs_ens_path(c, s, "pf"))
+            cf_rows, cf_url = load_index(aifs_ens_path(c, s, "cf"))
+            pf_m = [x for x in pf_rows if x.get("param") == "msl"]
+            cf_m = [x for x in cf_rows if x.get("param") == "msl"]
+            if len(pf_m) + len(cf_m) < MIN_MEM:
+                raise RuntimeError(f"only {len(pf_m)+len(cf_m)} msl members")
+            shutil.rmtree(os.path.join(tmp, "pf"), ignore_errors=True)
+            shutil.rmtree(os.path.join(tmp, "cf"), ignore_errors=True)
+            os.makedirs(os.path.join(tmp, "ens"), exist_ok=True)
+            paths = []
+            if pf_m:
+                paths += fetch_ranges(pf_url + ".grib2", pf_m, os.path.join(tmp, "pf"), parallel=12)
+            if cf_m:
+                paths += fetch_ranges(cf_url + ".grib2", cf_m, os.path.join(tmp, "cf"), parallel=2)
+            msl, glatlon, n, grid = mean_from_members(paths)
+            if n < MIN_MEM:
+                raise RuntimeError(f"decoded {n} members")
+            return {"source": "aifs-ens-mean", "n_members": n, "msl_hpa": msl,
+                    "grid": {sid: list(glatlon[sid]) for sid in STATIONS},
+                    "grid_spec": list(grid), "note": note}
+        except Exception as e:
+            last_err = e
+            print(f"  ens attempt {attempt+1}/3 for f{s:03d} failed: {type(e).__name__}: {e}", flush=True)
+    note = f"aifs-ens failed after 3 attempts ({type(last_err).__name__}: {last_err})"
     # fallback AIFS single
     try:
         msl, glatlon, n, grid, url = extract_single_file(aifs_single_path(c, s), os.path.join(tmp, "single"))
@@ -331,7 +337,7 @@ def main():
     ap.add_argument("--start", default="2026-10-01T00:00:00Z")
     ap.add_argument("--end", default="2026-11-14T18:00:00Z")
     ap.add_argument("--cycle", help="single cycle YYYYMMDDHH")
-    ap.add_argument("--steps", default="0-72")
+    ap.add_argument("--steps", default="0-360")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     a, b = args.steps.split("-")

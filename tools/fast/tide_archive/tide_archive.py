@@ -211,7 +211,10 @@ def p_at(obs_pts, fc_pts, t, now_t):
         v = interp(obs_pts, t)
         if v is not None:
             return v
-    return interp(fc_pts, t)
+    v = interp(fc_pts, t)
+    if v is None and fc_pts and t > fc_pts[-1][0]:
+        v = fc_pts[-1][1]   # hold the last forecast pressure (same as tide.js holdLast; no snap back)
+    return v
 
 def conditional_free(T, pred, obs, air, aifs_rec, sst_st, sid, now_t=None):
     """STOFS-free default residual, matching site/tide/tide.js (wind off).

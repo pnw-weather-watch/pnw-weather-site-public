@@ -323,12 +323,16 @@ async function forecastPressure(st) {
       ? parseT((raw.length === 16 ? raw + ":00" : raw).replace("Z", ""))
       : parseT(raw.slice(0, 4) + "-" + raw.slice(4, 6) + "-" + raw.slice(6, 8) + "T" + raw.slice(8, 10) + ":00");
     const steps = {};
-    let src = rec.source || "aifs-ens-mean";
+    const srcs = new Set();
     for (const [h, row] of Object.entries(rec.steps)) {
       const v = (row.msl_hpa && row.msl_hpa[st] != null) ? row.msl_hpa[st] : null;
       if (v != null) steps[+h] = v;
-      if (row.source && row.source !== "aifs-ens-mean") src = row.source;
+      if (row.source) srcs.add(row.source);
     }
+    // Only label the run as a fallback if no step is the 51-member ENS mean (Weather Bot 5329b19).
+    let src = rec.source || "aifs-ens-mean";
+    if (srcs.size && !srcs.has("aifs-ens-mean")) src = [...srcs][0];
+    else src = "aifs-ens-mean";
     const pts = hourlyFromSix(init, steps);
     if (pts.length) return { pts, src, run: rec.cycle || rec.init, note: rec.note || null, latency: rec.meta || null };
   }
@@ -418,6 +422,16 @@ function interp(pts, t) {   // linear on a sorted [t,v] array, null outside
   const a = pts[lo], b = pts[hi]; if (b[0] === a[0]) return a[1]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]);
 }
 
+function holdLast(pts, t) {
+  // After the last forecast hour, keep that value instead of snapping back to the issue-time
+  // observation (that step was a kink in the Conditional line; Weather Bot e543744).
+  if (!pts || !pts.length) return null;
+  const v = interp(pts, t);
+  if (v != null) return v;
+  if (t > pts[pts.length - 1][0]) return pts[pts.length - 1][1];
+  return null;
+}
+
 async function load() {
   const my = ++seq; const R = range(); const now = R.now;
   setMsg("Loading tides\u2026");
@@ -457,7 +471,7 @@ async function load() {
     const base = rSlow != null ? rSlow : 0;
     const rsEnd = rs && rs.length ? rs[rs.length - 1] : null;
     const pObsPts = (obsP && obsP.pts) || [], pFcPts = (fcP && fcP.pts) || [], pGfsPts = gfsP || [];
-    const pIB = (t) => { const po = (t <= now) ? interp(pObsPts, t) : null; return po != null ? po : interp(pFcPts, t); };
+    const pIB = (t) => { const po = (t <= now) ? interp(pObsPts, t) : null; return po != null ? po : holdLast(pFcPts, t); };
     // SST term: k x anomaly vs a typical year (best source / in-situ blend). Full anomaly, not a
     // recent-change increment — default does not use STOFS, so there is no 5-day model bias to double-count.
     const W = (sst && sst.W != null && isFinite(sst.W)) ? +sst.W : ((sst && sst.k && (sst.ssta != null || sst.ssta30 != null)) ? sst.k * (sst.ssta != null ? sst.ssta : sst.ssta30) : 0);
@@ -591,8 +605,8 @@ function drawChart(c, W, H, opt) {
     ? "Conditional (Wind surge on) = official tide + air pressure + warm water + recent gauge offset (12 h fade) + surge-model wind only. Experimental; details below."
     : "Conditional (default) = official tide + air pressure + warm water + recent gauge offset (12 h fade). No surge model. Experimental; details below.");
   else info.push(T.wind
-    ? `Conditional (Wind surge on) = the official tide prediction, plus the effect of air pressure (lower pressure raises the water; observed pressure for times already past, a European AIFS ensemble forecast ahead), plus a warm-water adjustment from sea-surface temperature compared with a typical year, plus a correction from the last few days of gauge readings (the leftover after pressure and warm water are taken out is held through the forecast, and a 12-hour fade starts the line at the latest observation). Wind-driven setup from the NOAA surge model is added on top of that, without applying the pressure or warm-water terms a second time. Experimental, not official. If forecast pressure is missing, the latest observation is held; if sea temperature is missing, the warm-water term is zero.`
-    : `Conditional (default) = the official tide prediction, plus the effect of air pressure (lower pressure raises the water; observed pressure for times already past, a European AIFS ensemble forecast ahead), plus a warm-water adjustment from sea-surface temperature compared with a typical year, plus a correction from the last few days of gauge readings: the leftover after pressure and warm water are taken out is held through the forecast, and a 12-hour fade starts the line at the latest observation. Wind-driven setup from the NOAA surge model is off; turn on Wind surge to add only that wind part. Experimental, not official. If forecast pressure is missing, the latest observation is held; if sea temperature is missing, the warm-water term is zero.`);
+    ? `Conditional (Wind surge on) = the official tide prediction, plus the effect of air pressure (lower pressure raises the water; observed pressure for times already past, a European AIFS ensemble forecast ahead), plus a warm-water adjustment from sea-surface temperature compared with a typical year, plus a correction from the last few days of gauge readings (the leftover after pressure and warm water are taken out is held through the forecast, and a 12-hour fade starts the line at the latest observation). Wind-driven setup from the NOAA surge model is added on top of that, without applying the pressure or warm-water terms a second time. Experimental, not official. If no forecast pressure is available, the latest observation is held; if the forecast ends before the end of the chart, the last forecast pressure is held; if sea temperature is missing, the warm-water term is zero.`
+    : `Conditional (default) = the official tide prediction, plus the effect of air pressure (lower pressure raises the water; observed pressure for times already past, a European AIFS ensemble forecast ahead), plus a warm-water adjustment from sea-surface temperature compared with a typical year, plus a correction from the last few days of gauge readings: the leftover after pressure and warm water are taken out is held through the forecast, and a 12-hour fade starts the line at the latest observation. Wind-driven setup from the NOAA surge model is off; turn on Wind surge to add only that wind part. Experimental, not official. If no forecast pressure is available, the latest observation is held; if the forecast ends before the end of the chart, the last forecast pressure is held; if sea temperature is missing, the warm-water term is zero.`);
   const infoFs = portrait ? 12.5 : 12.5, lh = 18 * s;
   // wrap info lines to width
   c.font = F(600, infoFs); const wrapped = [];
