@@ -5,6 +5,8 @@ rm -rf public; mkdir -p public/fonts public/obs public/old
 cp $K/web/forecast/obs/obs.js $K/web/forecast/obs/obs.css $K/web/forecast/obs/basemap.json $K/web/forecast/obs/obsimg.js public/obs/
 cp $SRC/fonts/* public/fonts/; cp $SRC/theme.css $SRC/selection.js $SRC/viewer.js $SRC/cameras.js $SRC/coastline.js $SRC/compare.html $SRC/compare.js $SRC/meteograms.js $SRC/buoys_ndbc.json $SRC/reqbox.js public/
 if [ -d $SRC/cam ]; then cp -r $SRC/cam public/cam; fi
+# Tides page (public, static; browser reads NOAA CO-OPS / STOFS / the GitHub tide-archive branch directly, no /d/ or R2)
+mkdir -p public/tide; cp $SRC/tide/tide.js public/tide/; cp $SRC/tide/index.html public/tide/index.html
 cp $K/web/forecast/base.css $K/web/forecast/forecast.css public/old/
 for d in mkeys slayers; do [ -d $SRC/$d ] && cp -r $SRC/$d public/ || true; done   # site-shipped "@" keys / town layers once you generate them
 inj='s#<head>#<head><meta name="robots" content="noindex,nofollow">#'
@@ -17,6 +19,9 @@ python3 - "$SHA" << 'PY'
 import pathlib, re, sys
 sha = sys.argv[1]
 root = pathlib.Path("public")
+tp = root / "tide" / "index.html"
+if tp.exists():
+    tp.write_text(re.sub(r'src="tide\.js(?:\?v=[^"]*)?"', f'src="tide.js?v={sha}"', tp.read_text()))
 for p in list(root.glob("*.html")) + list(root.glob("*.js")):
     t = p.read_text()
     t2 = re.sub(r'((?:src|href)="(?:theme\.css|viewer\.js|selection\.js|coastline\.js|cameras\.js|meteograms\.js|compare\.js|reqbox\.js))(?:\?v=[^"]*)?"',
@@ -27,6 +32,6 @@ for p in list(root.glob("*.html")) + list(root.glob("*.js")):
 print("asset query", sha)
 PY
 mkdir -p public/functions 2>/dev/null; rm -rf public/functions
-printf '/*\n  X-Robots-Tag: noindex\n/viewer.js\n  Cache-Control: no-cache, must-revalidate\n/cameras.js\n  Cache-Control: no-cache, must-revalidate\n/selection.js\n  Cache-Control: no-cache, must-revalidate\n/coastline.js\n  Cache-Control: no-cache, must-revalidate\n/theme.css\n  Cache-Control: no-cache, must-revalidate\n/index.html\n  Cache-Control: no-cache, must-revalidate\n/meteograms*\n  Cache-Control: no-cache, must-revalidate\n/compare.*\n  Cache-Control: no-cache, must-revalidate\n/reqbox.js\n  Cache-Control: no-cache, must-revalidate\n/cam/*\n  Cache-Control: public, max-age=31536000, immutable\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n' > public/_headers
+printf '/*\n  X-Robots-Tag: noindex\n/viewer.js\n  Cache-Control: no-cache, must-revalidate\n/cameras.js\n  Cache-Control: no-cache, must-revalidate\n/selection.js\n  Cache-Control: no-cache, must-revalidate\n/coastline.js\n  Cache-Control: no-cache, must-revalidate\n/theme.css\n  Cache-Control: no-cache, must-revalidate\n/index.html\n  Cache-Control: no-cache, must-revalidate\n/meteograms*\n  Cache-Control: no-cache, must-revalidate\n/compare.*\n  Cache-Control: no-cache, must-revalidate\n/reqbox.js\n  Cache-Control: no-cache, must-revalidate\n/tide/*\n  Cache-Control: no-cache, must-revalidate\n/cam/*\n  Cache-Control: public, max-age=31536000, immutable\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n' > public/_headers
 printf '{"version":1,"include":["/d/*","/req"],"exclude":[]}\n' > public/_routes.json
 echo "built deploy/public (functions: copy ../tools/fast/functions next to public when deploying: wrangler reads ./functions)"

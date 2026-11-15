@@ -39,7 +39,7 @@ canvas{display:block;width:auto;height:auto;max-width:100%;max-height:100%;touch
 @media (max-height:500px) and (min-width:701px){#bar label{font-size:0}#bar label select{font-size:12px}#bar input[type=range]{min-width:120px}}
 body.bare #bar{display:none}
 /* side-by-side frames (compare.html): no page-level extras, smaller bar */
-body.embed #share,body.embed #obsbtn,body.embed #stat,body.embed #pfbtn,body.embed #pfcabtn{display:none}
+body.embed #share,body.embed #obsbtn,body.embed #tidebtn,body.embed #stat,body.embed #pfbtn,body.embed #pfcabtn{display:none}
 body.embed #bar{gap:6px;padding:6px 8px}
 /* 11-01 (Benjamin t2027u: "move the compare views directly under the slider ... menus drop down BELOW the views so the views never change
    size or position"): in compare frames the map comes first, top-aligned, sized only by the frame width (capped to the frame height),
@@ -119,6 +119,7 @@ table.pf td small.el{color:var(--muted);font-weight:500;font-size:11px}table.pf 
   <button id="mgbtn" title="Hour-by-hour forecast for a town or pass">Meteogram</button>
   <button id="pfbtn" title="Snow, temperature and wind for Washington mountain passes"><span class="lg">Washington Pass Forecaster</span><span class="sm">WA Passes</span></button><button id="pfcabtn" title="Snow, temperature and wind for California passes"><span class="lg">California Pass Forecaster</span><span class="sm">CA Passes</span></button>
   <button id="obsbtn" title="Live station observations (NWS / Environment Canada)"><span class="lg">Observations</span><span class="sm">Obs</span></button>
+  <button id="tidebtn" type="button" onclick="location.href='tide/'" title="NOAA tide predictions, observed water level and flood stages (Washington and California)">Tides</button>
   <span id="stat"></span>
 </div>
 <div id="wrap"><canvas id="map"></canvas><div id="tip" hidden></div></div>
