@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse, datetime as D, json, os, sys, tempfile, urllib.request
 
 S3 = "https://noaa-gestofs-pds.s3.amazonaws.com/"
-STATIONS = ["9439040","9440910","9441102","9442396","9443090","9444090","9444900","9449880","9449424","9447130","9446484"]
+STATIONS = ["9439040","9440581","9440910","9441102","9442396","9443090","9444090","9444900","9449880","9449424","9447130","9446484"]
 
 import tide_stations_ca as _CA   # PNW Weather: California stations
 STATIONS = STATIONS + list(_CA.CA)
@@ -102,7 +102,7 @@ def main():
         if os.path.exists(dest):
             try:
                 j = json.load(open(dest))
-                if j.get("stations") and "9441102" in j["stations"]:
+                if j.get("stations") and all(sid in j["stations"] for sid in STATIONS):
                     skip += 1
                     continue
             except Exception:
