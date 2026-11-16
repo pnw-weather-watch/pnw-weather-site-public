@@ -243,17 +243,17 @@ def conditional_free(T, pred, obs, air, aifs_rec, sst_st, sid, now_t=None):
     t0c = t_obs if t_obs is not None else T
     W = 0.0
     if sst_st:
-        if sst_st.get("W") is not None:
-            try:
-                W = float(sst_st["W"])
-            except (TypeError, ValueError):
-                W = 0.0
-        elif sst_st.get("k_ft_per_c") is not None:
+        # Same as tide.js: W = k x latest daily anomaly vs 1991-2020 (never a stored multi-day W); stored W only if k/ssta missing.
+        k_, ssta = sst_st.get("k_ft_per_c"), sst_st.get("ssta")
+        if ssta is None:
             ssta = sst_st.get("ssta30_c")
-            if ssta is None:
-                ssta = sst_st.get("ssta")
-            if ssta is not None:
-                W = float(sst_st["k_ft_per_c"]) * float(ssta)
+        try:
+            if k_ is not None and ssta is not None:
+                W = float(k_) * float(ssta)
+            elif sst_st.get("W") is not None:
+                W = float(sst_st["W"])
+        except (TypeError, ValueError):
+            W = 0.0
     fc_pts = aifs_hourly(aifs_rec, sid)
     ib0 = ib_ft(p_at(air, fc_pts, t0c, now_t)) or 0.0
     # 5-day unexplained offset: mean(r_obs - IB - W) on hours with residual + pressure

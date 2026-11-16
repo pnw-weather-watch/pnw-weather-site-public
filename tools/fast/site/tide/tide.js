@@ -413,9 +413,10 @@ async function sstTerm(st, now) {
   if (!rec) return { adj: 0, dT: 0, ssta30: null, ssta: null, k: 0, W: 0, src: "none" };
   const ssta = rec.ssta != null ? +rec.ssta : (rec.ssta30_c != null ? +rec.ssta30_c : 0);
   const k = rec.k_ft_per_c != null ? +rec.k_ft_per_c : 0;
-  const W = rec.W != null ? +rec.W : (rec.steric_ft != null ? +rec.steric_ft : k * ssta);
+  // Always k x the latest daily anomaly vs 1991-2020 (Weather Bot 7464617); never a sidecar W that may still be k x a 30-day mean.
+  const W = (isFinite(k) && isFinite(ssta)) ? k * ssta : (rec.W != null ? +rec.W : (rec.steric_ft != null ? +rec.steric_ft : 0));
   return {
-    adj: rec.adj_ft || 0, dT: rec.d_c, ssta, ssta30: rec.ssta30_c != null ? +rec.ssta30_c : ssta, k, W,
+    adj: rec.adj_ft || 0, dT: rec.d_c, ssta, ssta30: ssta, k, W,
     steric: rec.steric_ft, last_day: rec.last_day, src: rec.source || rec.src || src, url: src,
     blend: rec.blend || null, clim: rec.clim || rec.clim_note || null,
     source_short: rec.source_short || null
@@ -635,8 +636,8 @@ function drawChart(c, W, H, opt) {
   const bits = [];
   if (D.pr) bits.push(`Pressure ${D.pr.hpa.toFixed(1)} hPa (about ${sgn(ibFt(D.pr.hpa) || 0, 2)} ft on the water)`);
   if (D.sst && D.sst.src && D.sst.src !== "none") {
-    const a30 = D.sst.ssta30, Wft = D.sst.W;
-    if (a30 != null) bits.push(`Sea temperature ${sgn(a30, 2)} \u00b0C (${sgn(a30 * 1.8, 1)} \u00b0F) vs the 1991-2020 average${Wft != null ? ", adding " + sgn(Wft, 2) + " ft" : ""}`);
+    const a30 = D.sst.ssta, Wft = D.sst.W;
+    if (a30 != null) bits.push(`Sea temperature ${sgn(a30, 2)} \u00b0C (${sgn(a30 * 1.8, 1)} \u00b0F) vs 1991-2020 average${Wft != null ? ", adding " + sgn(Wft, 2) + " ft" : ""}`);
   } else if (D.sst && D.sst.src === "none") {
     bits.push("Sea temperature unavailable; warm-water term set to 0 ft");
   }
@@ -839,7 +840,7 @@ function readout(t) {
     const bits2 = [`pressure ${sgn(pt.ib, 2)} ft` + (pt.p != null ? ` (${pt.p.toFixed(1)} hPa)` : ""), `warm water ${sgn(pt.W, 2)} ft`];
     if (D.sst && D.sst.src && D.sst.src !== "none") {
       const extra = [];
-      if (D.sst.ssta30 != null) extra.push(`${sgn(D.sst.ssta30, 2)} \u00b0C / ${sgn(D.sst.ssta30 * 1.8, 1)} \u00b0F vs 1991-2020 average (not added)`);
+      if (D.sst.ssta != null) extra.push(`${sgn(D.sst.ssta, 2)} \u00b0C / ${sgn(D.sst.ssta * 1.8, 1)} \u00b0F vs 1991-2020 average (not added)`);
       if (D.sst.dT != null) extra.push(`recent ${sgn(D.sst.dT, 2)} \u00b0C, ${sgn(D.sst.adj || 0, 2)} ft fades in`);
       if (extra.length) bits2[1] += ` (${extra.join("; ")})`;
     }
