@@ -1,5 +1,5 @@
 // Tides viewer (Conditional, 2026-11-14): official NOAA tide + air-pressure effect (observed for
-// past/now, AIFS ENS mean forecast ahead) + SST anomaly vs a typical year + a multi-day observed
+// past/now, AIFS ENS mean forecast ahead) + SST anomaly vs the 1991-2020 average + a multi-day observed
 // leftover held through the forecast and a 12 h fade so the line starts at the latest gauge reading.
 // Default does not use STOFS. "Wind surge" (off by default) adds only STOFS wind = (swl minus the
 // 5-day station anomaly minus pressure effect on STOFS forcing). Toggle identity: on - off = wind.
@@ -15,7 +15,7 @@ const TZ = "America/Los_Angeles";
 // Benjamin t3044u: list A to Z by name (default stays Westport 9441102). Birch Bay has no NOAA gauge, prediction station or
 // STOFS point of its own (CO-OPS metadata, 11-14); it uses Cherry Point 9449424, the nearest NOAA gauge, about 4 mi south on the same shore.
 const STATIONS_WA = [
-  ["9439040", "Astoria, OR"], ["birchbay", "Birch Bay, WA"], ["9449424", "Cherry Point, WA"], ["9449880", "Friday Harbor, WA"],
+  ["9439040", "Astoria, OR"], ["birchbay", "Birch Bay, WA"], ["9440581", "Cape Disappointment, WA"], ["9449424", "Cherry Point, WA"], ["9449880", "Friday Harbor, WA"],
   ["9442396", "La Push, WA"], ["9443090", "Neah Bay, WA"], ["9444090", "Port Angeles, WA"], ["9444900", "Port Townsend, WA"],
   ["9447130", "Seattle, WA"], ["9446484", "Tacoma, WA"], ["9440910", "Toke Point, WA"], ["9441102", "Westport, WA"],
 ];
@@ -179,12 +179,15 @@ function rhoUnesco(T, S) {
 }
 function alphaThermal(T, S) { const dT = 0.05, r1 = rhoUnesco(T - dT, S), r2 = rhoUnesco(T + dT, S); return -(r2 - r1) / (2 * dT) / ((r1 + r2) / 2); }
 function Wft(dT, T, S, He) { if (dT == null || T == null || !He) return 0; return alphaThermal(T, S) * dT * He * FT_PER_M; }
-const COORDS = {"9439040":[46.207306,-123.7683],"9440910":[46.7075,-123.96694],"9441102":[46.90431,-124.10508],"9442396":[47.912838,-124.63574],"9443090":[48.370724,-124.601585],"9444090":[48.125,-123.44],"9444900":[48.11122,-122.759674],"9449880":[48.545277,-123.0125],"9449424":[48.862717,-122.75858],"9447130":[47.60264,-122.3393],"9446484":[47.2667,-122.4133],"9414750":[37.771954,-122.30026],"9416841":[38.914555,-123.71108],"9419750":[41.74561,-124.18439],"9410230":[32.86689,-117.25714],"9410678":[33.7478,-118.2158],"9410660":[33.72,-118.272],"9415102":[38.0346,-122.1252],"9413450":[36.60889,-121.89139],"9418767":[40.766907,-124.21735],"9415020":[37.994167,-122.97361],"9415144":[38.056,-122.0395],"9412110":[35.168888,-120.754166],"9414523":[37.506813,-122.21191],"9414863":[37.9283,-122.4],"9410170":[32.715557,-117.17667],"9414290":[37.806305,-122.46589],"9411340":[34.40459,-119.6925],"9410840":[34.0083,-118.5]};
-const SALT = {"9439040":25,"9440910":32.2,"9441102":32.2,"9442396":32.2,"9443090":32.2,"9444090":31,"9444900":31,"9449880":31,"9449424":31,"9447130":30,"9446484":30};
+const COORDS = {"9439040":[46.207306,-123.7683],"9440581":[46.28103,-124.04628],"9440910":[46.7075,-123.96694],"9441102":[46.90431,-124.10508],"9442396":[47.912838,-124.63574],"9443090":[48.370724,-124.601585],"9444090":[48.125,-123.44],"9444900":[48.11122,-122.759674],"9449880":[48.545277,-123.0125],"9449424":[48.862717,-122.75858],"9447130":[47.60264,-122.3393],"9446484":[47.2667,-122.4133],"9414750":[37.771954,-122.30026],"9416841":[38.914555,-123.71108],"9419750":[41.74561,-124.18439],"9410230":[32.86689,-117.25714],"9410678":[33.7478,-118.2158],"9410660":[33.72,-118.272],"9415102":[38.0346,-122.1252],"9413450":[36.60889,-121.89139],"9418767":[40.766907,-124.21735],"9415020":[37.994167,-122.97361],"9415144":[38.056,-122.0395],"9412110":[35.168888,-120.754166],"9414523":[37.506813,-122.21191],"9414863":[37.9283,-122.4],"9410170":[32.715557,-117.17667],"9414290":[37.806305,-122.46589],"9411340":[34.40459,-119.6925],"9410840":[34.0083,-118.5]};
+const SALT = {"9439040":25,"9440581":32.2,"9440910":32.2,"9441102":32.2,"9442396":32.2,"9443090":32.2,"9444090":31,"9444900":31,"9449880":31,"9449424":31,"9447130":30,"9446484":30};
+// 9440581 Cape Disappointment (CPTW1, PNW Weather 2026-11-15, port of Weather Bot a6733f5): official NOAA gauge with live water
+// levels and predictions; no barometer, so observed pressure comes from Toke Point, then Westport (P_FALLBACK). SST from its own
+// sst.json row (NDBC 46029 Columbia River Bar, else Coral Reef Watch). No official NWS flood stages, so none are drawn.
 const SST_MAP = {};   // PNW Weather: unused; SST never comes from a neighbor station (sst.json per station)
 const SST_OWN = {9441102:1,9442396:1,9443090:1,9444090:1,9444900:1,9446484:1};
-const P_FALLBACK = {"9439040":["9440910","9441102"],"9410678":["9410660"]};   // barometer only (Long Beach has none; Los Angeles is 6 km away). Never used for SST.
-const H_EFF = {"9439040":0,"9440910":0,"9441102":0,"9442396":0,"9443090":0,"9444090":0,"9444900":0,"9449880":0,"9449424":0,"9447130":0,"9446484":0};   // filled from backtest (m); 0 means no SST height until calibrated
+const P_FALLBACK = {"9439040":["9440910","9441102"],"9440581":["9440910","9441102"],"9410678":["9410660"]};   // barometer only (Long Beach has none; Los Angeles is 6 km away). Never used for SST.
+const H_EFF = {"9439040":0,"9440581":0,"9440910":0,"9441102":0,"9442396":0,"9443090":0,"9444090":0,"9444900":0,"9449880":0,"9449424":0,"9447130":0,"9446484":0};   // filled from backtest (m); 0 means no SST height until calibrated
 let AUX = null;
 async function loadAux() {
   if (AUX) return AUX;
@@ -232,14 +235,16 @@ async function fetchJsonOk(u) {
 }
 function recFreshness(rec) {
   if (!rec) return -1;
-  const c = cycleMs(rec);
-  if (c != null) return c;
-  if (rec.refreshed_at) { const t = Date.parse(rec.refreshed_at); if (isFinite(t)) return t; }
-  if (rec.last_day) { const t = Date.parse(rec.last_day + "T00:00:00Z"); if (isFinite(t)) return t; }
   let last = -1;
+  const bump = (t) => { if (isFinite(t) && t > last) last = t; };
+  const c = cycleMs(rec);
+  if (c != null) bump(c);
+  if (rec.refreshed_at) bump(Date.parse(rec.refreshed_at));
+  if (rec.generated_at) bump(Date.parse(rec.generated_at));
+  if (rec.last_day) bump(Date.parse(rec.last_day + "T00:00:00Z"));
   if (rec.stations) {
     for (const row of Object.values(rec.stations)) {
-      if (row && row.last_day) { const t = Date.parse(row.last_day + "T00:00:00Z"); if (isFinite(t) && t > last) last = t; }
+      if (row && row.last_day) bump(Date.parse(row.last_day + "T00:00:00Z"));
     }
   }
   return last;
@@ -247,6 +252,9 @@ function recFreshness(rec) {
 function pickFresher(a, b) {
   if (!a) return b || null;
   if (!b) return a;
+  // in-situ-primary 1991-2020 SST beats an older-method archive copy even if that copy is newer-dated (Weather Bot fc4270c)
+  const rank = (rec) => (rec && rec.sst_method === "insitu-primary-1991-2020" ? 2 : 1);
+  if (rank(a) !== rank(b)) return rank(a) > rank(b) ? a : b;
   return recFreshness(b) > recFreshness(a) ? b : a;
 }
 let ARCH_IDX_P = null;
@@ -354,11 +362,18 @@ async function gfsPressure(st) {
 // SST sidecar (sst.json): shipped with the site; a newer copy on the tide-archive branch wins. A 404 there is fine.
 const SSTU = window.TIDE_SST || (typeof ARCH !== "undefined" ? ARCH + "sst.json" : "sst.json");
 // Section 16.1: one short line naming the products the Conditional uses (port of Weather Bot 69681fb).
-function sstProductLabel(sst) {
-  const s = String((sst && (sst.src || sst.source)) || "");
-  if (/oisst/i.test(s)) return "NOAA OISST";
+function sstProductLabel(sst) {   // live in-situ first, then Coral Reef Watch, OISST last (sst.json source_short)
+  if (!sst) return null;
+  if (sst.source_short) return sst.source_short;
+  const s = String(sst.src || sst.source || "");
+  const g = s.match(/NOAA gauge at [^,)]+/i);
+  if (g) return g[0];
+  const b = s.match(/NDBC [A-Z0-9]+(?: \([^)]+\))?/i);
+  if (b) return b[0];
+  if (/coral|crw|reef watch/i.test(s)) return "NOAA Coral Reef Watch";
+  if (/mur/i.test(s)) return "NASA MUR";
   if (/geopolar/i.test(s)) return "NOAA Geo-Polar Blended";
-  if (/mur/i.test(s)) return "MUR";
+  if (/oisst/i.test(s)) return "NOAA OISST";
   return null;
 }
 function aifsProductLabel(aifs) {
@@ -368,8 +383,15 @@ function aifsProductLabel(aifs) {
   if (/ifs/i.test(aifs.src)) return "ECMWF IFS pressure";
   return "ECMWF AIFS ensemble pressure";
 }
-function productsLine(wind, sst, aifs) {
-  const parts = ["NOAA official tide prediction", "NOAA gauge water levels and pressure"];
+function productsLine(wind, sst, aifs, obsP, st) {
+  const parts = ["NOAA official tide prediction"];
+  const pSid = obsP && obsP.sid;
+  if (pSid && st && pSid !== st) {   // barometer borrowed from another gauge (Astoria, Cape Disappointment, Long Beach)
+    const raw = (STATIONS.find((s) => s[0] === pSid) || [pSid, pSid])[1];
+    parts.push("NOAA gauge water levels", raw.replace(/, (WA|OR|CA)$/, "") + " gauge pressure");
+  } else {
+    parts.push("NOAA gauge water levels and pressure");
+  }
   const a = aifsProductLabel(aifs);
   if (a) parts.push(a);
   const s = sstProductLabel(sst);
@@ -395,7 +417,8 @@ async function sstTerm(st, now) {
   return {
     adj: rec.adj_ft || 0, dT: rec.d_c, ssta, ssta30: rec.ssta30_c != null ? +rec.ssta30_c : ssta, k, W,
     steric: rec.steric_ft, last_day: rec.last_day, src: rec.source || rec.src || src, url: src,
-    blend: rec.blend || null, clim: rec.clim || null
+    blend: rec.blend || null, clim: rec.clim || rec.clim_note || null,
+    source_short: rec.source_short || null
   };
 }
 
@@ -496,7 +519,7 @@ async function load() {
     const rsEnd = rs && rs.length ? rs[rs.length - 1] : null;
     const pObsPts = (obsP && obsP.pts) || [], pFcPts = (fcP && fcP.pts) || [], pGfsPts = gfsP || [];
     const pIB = (t) => { const po = (t <= now) ? interp(pObsPts, t) : null; return po != null ? po : holdLast(pFcPts, t); };
-    // SST term: k x anomaly vs a typical year (best source / in-situ blend). Full anomaly, not a
+    // SST term: k x anomaly vs the 1991-2020 average (best source / in-situ blend). Full anomaly, not a
     // recent-change increment — default does not use STOFS, so there is no 5-day model bias to double-count.
     const W = (sst && sst.W != null && isFinite(sst.W)) ? +sst.W : ((sst && sst.k && (sst.ssta != null || sst.ssta30 != null)) ? sst.k * (sst.ssta != null ? sst.ssta : sst.ssta30) : 0);
     const r0v = rNow != null ? rNow : (base || 0);
@@ -613,7 +636,7 @@ function drawChart(c, W, H, opt) {
   if (D.pr) bits.push(`Pressure ${D.pr.hpa.toFixed(1)} hPa (about ${sgn(ibFt(D.pr.hpa) || 0, 2)} ft on the water)`);
   if (D.sst && D.sst.src && D.sst.src !== "none") {
     const a30 = D.sst.ssta30, Wft = D.sst.W;
-    if (a30 != null) bits.push(`Sea temperature ${sgn(a30, 2)} \u00b0C (${sgn(a30 * 1.8, 1)} \u00b0F) vs a typical year${Wft != null ? ", adding " + sgn(Wft, 2) + " ft" : ""}`);
+    if (a30 != null) bits.push(`Sea temperature ${sgn(a30, 2)} \u00b0C (${sgn(a30 * 1.8, 1)} \u00b0F) vs the 1991-2020 average${Wft != null ? ", adding " + sgn(Wft, 2) + " ft" : ""}`);
   } else if (D.sst && D.sst.src === "none") {
     bits.push("Sea temperature unavailable; warm-water term set to 0 ft");
   }
@@ -621,7 +644,7 @@ function drawChart(c, W, H, opt) {
   else if (D.aifs && D.aifs.src) bits.push(`Forecast pressure ${D.aifs.src}`);
   if (bits.length) info.push(bits.join("  \u00b7  "));
   // Section 16.1: the long explanation is gone (desktop and phone); the footer keeps the full notes.
-  info.push(productsLine(T.wind, D.sst, D.aifs));
+  info.push(productsLine(T.wind, D.sst, D.aifs, D.obsP, D.sid));
   const infoFs = portrait ? 12.5 : 12.5, lh = 18 * s;
   // wrap info lines to width
   c.font = F(600, infoFs); const wrapped = [];
@@ -816,7 +839,7 @@ function readout(t) {
     const bits2 = [`pressure ${sgn(pt.ib, 2)} ft` + (pt.p != null ? ` (${pt.p.toFixed(1)} hPa)` : ""), `warm water ${sgn(pt.W, 2)} ft`];
     if (D.sst && D.sst.src && D.sst.src !== "none") {
       const extra = [];
-      if (D.sst.ssta30 != null) extra.push(`${sgn(D.sst.ssta30, 2)} \u00b0C / ${sgn(D.sst.ssta30 * 1.8, 1)} \u00b0F vs normal (not added)`);
+      if (D.sst.ssta30 != null) extra.push(`${sgn(D.sst.ssta30, 2)} \u00b0C / ${sgn(D.sst.ssta30 * 1.8, 1)} \u00b0F vs 1991-2020 average (not added)`);
       if (D.sst.dT != null) extra.push(`recent ${sgn(D.sst.dT, 2)} \u00b0C, ${sgn(D.sst.adj || 0, 2)} ft fades in`);
       if (extra.length) bits2[1] += ` (${extra.join("; ")})`;
     }
@@ -970,7 +993,7 @@ window.TIDE = {
   qa: () => D ? { st: D.st, name: D.name, pred: D.pred.length, obs: D.obs.length, cond: D.cond.length, method: D.method, cycle: D.cyc ? new Date(D.cyc.t).toISOString() : null,
     rNow: D.rNow, rSlow: D.rSlow, bias: D.bias, flood: D.flood, floods: D.floods, floodSkip: D.floodSkip, floodOn: !!T.flood, floodDrawn: window.__tideFloodDrawn || [], floodLabels: window.__tideFloodLabels || [], floodLabelNote: window.__tideFloodLabelNote || null, legend: window.__tideLegend || [], hover: window.__tideHover || null, sid: D.sid, start: D.R.start, end: D.R.end, now: D.now,
     statsBox: window.__tideStatsBox || null, chrome: window.__tideChrome || null, arch: ARCH, calib: D.calib ? D.calib.c.map((b) => b.corr) : null, calibBg: D.calibBg ? { t: D.calibBg.t, c: D.calibBg.c.map((b) => b.corr) } : null, ver: D.ver.length, verHindcast: D.ver.filter((p) => !p[2]).length, issues: D.nIssues, archived: D.nArchive, vl: D.vl, sd: D.sd, stats: D.stats,
-    condAboveFrac: D.cond.length ? D.cond.filter(([t, v]) => v >= (interp(D.pred, t) || 0)).length / D.cond.length : null, sharp: window.__tideSharp || null, windOn: !!T.wind, sst: D.sst || null, aifs: D.aifs || null, windTest: window.__tideWindTest || null, nowLabel: window.__tideNowLabel || null, nowChip: window.__tideNowLabel || null, tab: T.state, products: productsLine(!!T.wind, D.sst, D.aifs) } : { err: window.__tideErr || null },
+    condAboveFrac: D.cond.length ? D.cond.filter(([t, v]) => v >= (interp(D.pred, t) || 0)).length / D.cond.length : null, sharp: window.__tideSharp || null, windOn: !!T.wind, sst: D.sst || null, aifs: D.aifs || null, windTest: window.__tideWindTest || null, nowLabel: window.__tideNowLabel || null, nowChip: window.__tideNowLabel || null, tab: T.state, products: productsLine(!!T.wind, D.sst, D.aifs, D.obsP, D.sid) } : { err: window.__tideErr || null },
 };
 ui(); syncURL(); load();
 setInterval(() => { if (document.visibilityState === "visible") load(); }, 10 * 60000);   // new observations every 6 min; refresh every 10

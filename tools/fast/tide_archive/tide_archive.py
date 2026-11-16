@@ -21,6 +21,7 @@ API = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?application=pnw
 S3 = "https://noaa-gestofs-pds.s3.amazonaws.com/"
 STATIONS = {"9441102": "WPTW1", "9440910": "TOKW1", "9442396": "LAPW1", "9443090": "NEAW1", "9444090": "PTAW1", "9444900": "PTWW1",
             "9449880": "FRDW1", "9449424": "CHYW1", "9447130": "EBSW1", "9446484": "TCNW1", "9439040": "ASTO3",
+            "9440581": "CPTW1",   # Cape Disappointment (PNW Weather 2026-11-15): no barometer; pressure from Toke Point, then Westport
             # California tab (PNW Weather, 2026-11-14). Long Beach LBFC1 is not in the STOFS point file: its wind part stays 0.
             "9414750": "AAMC1", "9416841": "ANVC1", "9419750": "CECC1", "9410230": "LJAC1", "9410678": "LBFC1", "9410660": "OHBC1",
             "9415102": "MZXC1", "9413450": "MEYC1", "9418767": "HBYC1", "9415020": "PRYC1", "9415144": "PCOC1", "9412110": "PSLC1",
@@ -34,6 +35,8 @@ H6, HR, DAY = 6 * 60000, 3600000, 86400000
 FT_PER_HPA = 3.28084 / 100   # 1 cm per hPa in ft, same as tide.js ibFt (PNW Weather: was undefined in the 7f37665 copy)
 TAU_BIAS, TAU_RELAX, SLOW_DAYS, LEAD_H = 12 * HR, 24 * HR, 30, 72
 ISSUE_HOURS = (2, 8, 14, 20)
+# Gauges without a barometer borrow observed pressure (never SST) from these, in order; same as tide.js P_FALLBACK.
+P_FALLBACK = {"9439040": ["9440910", "9441102"], "9440581": ["9440910", "9441102"], "9410678": ["9410660"]}
 CACHE = os.environ.get("TIDE_CACHE", "/tmp/tide_archive_cache")
 
 
@@ -408,6 +411,10 @@ def main():
         pred = coops("predictions", st, T0 - SLOW_DAYS * DAY - DAY, T1 + (LEAD_H + 3) * HR, "&interval=6")
         obs = coops("water_level", st, T0 - SLOW_DAYS * DAY - DAY, obs_end)
         air = coops_metric_pressure(st, T0 - 6 * DAY, obs_end)
+        for fb in ([] if air else P_FALLBACK.get(st, [])):   # barometer only, same table as tide.js P_FALLBACK
+            air = coops_metric_pressure(fb, T0 - 6 * DAY, obs_end)
+            if air:
+                break
         snaps = []
         for s in slots:
             T = int(s.timestamp() * 1000)

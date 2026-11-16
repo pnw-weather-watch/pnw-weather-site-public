@@ -4,7 +4,7 @@
 import json, os, time, urllib.request, datetime as D
 UA={"User-Agent":"pnw-weather-tides"}
 API="https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?application=pnw_weather_tides&time_zone=gmt&units=english&format=json&datum=MLLW"
-ST=["9439040","9440910","9441102","9442396","9443090","9444090","9444900","9449880","9449424","9447130","9446484"]
+ST=["9439040","9440581","9440910","9441102","9442396","9443090","9444090","9444900","9449880","9449424","9447130","9446484"]
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tide_stations_ca as _CA
