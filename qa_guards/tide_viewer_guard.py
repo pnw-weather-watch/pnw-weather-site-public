@@ -602,6 +602,20 @@ async def tide_page(br, W, H, dpr, phone, tag):
             for ln in (dq.get("notes") or []):
                 if ln.startswith("Conditional accounts") and _re.search(r"\d", ln): fail(f"{tag}: qualitative note shows figures ({ln!r})")
             if not any((ln or "").startswith("Conditional accounts") for ln in (dq.get("notes") or [])): fail(f"{tag}: qualitative note missing ({dq.get('notes')})")
+            # 11-17 (Benjamin pt391u): Details lists only the sources feeding the Conditional, one row per input, no figures.
+            dr = await pg.evaluate("() => { const q = window.TIDE.qa(); const el = document.getElementById('details'); return { rows: q.detailRows || [], dom: el ? [...el.querySelectorAll('dt')].map((x) => [x.textContent, x.nextElementSibling ? x.nextElementSibling.textContent : '']) : [], h: el && el.querySelector('h3') ? el.querySelector('h3').textContent : null, wind: q.windOn, sst: q.sst ? (q.sst.src || null) : null }; }")
+            rws, labs = dr.get("rows") or [], [r[0] for r in (dr.get("rows") or [])]
+            if dr.get("h") != "Conditional sources": fail(f"{tag}: Details heading is {dr.get('h')!r}, expected 'Conditional sources'")
+            if [list(r) for r in dr.get("dom") or []] != [list(r) for r in rws]: fail(f"{tag}: Details DOM rows differ from TIDE.qa().detailRows ({dr.get('dom')} vs {rws})")
+            for need in ("Tide prediction", "Observed water level", "Air pressure", "Pressure forecast"):
+                if need not in labs: fail(f"{tag}: Details row {need!r} missing ({labs})")
+            if dr.get("sst") and dr.get("sst") != "none" and "Sea temperature" not in labs: fail(f"{tag}: Details row 'Sea temperature' missing ({labs})")
+            allowed = {"Tide prediction", "Observed water level", "Air pressure", "Pressure forecast", "Sea temperature", "Sea temperature forecast", "Wind surge", "Sea level anomaly", "Pressure inside the surge model"}
+            if set(labs) - allowed: fail(f"{tag}: Details has non-source rows {sorted(set(labs) - allowed)}")
+            if not dr.get("wind") and any(l in labs for l in ("Wind surge", "Sea level anomaly", "Pressure inside the surge model")): fail(f"{tag}: STOFS rows shown with Wind surge off ({labs})")
+            for k, v in rws:
+                if _re.search(r"\b(ft|hPa|mb)\b|\u00b0|[+\u2212-]\d+(\.\d+)?\s*(ft|\u00b0)", v): fail(f"{tag}: Details row {k!r} shows a figure ({v!r})")
+            print(f"  {tag}: Details sources ok ({len(rws)} rows: {', '.join(labs)})")
         # t3060u: Flood levels chip default ON, off hides lines+labels+readout rows, on restores, persists
         tog = await pg.evaluate("() => { const b = document.getElementById('floodtog'); const q = window.TIDE.qa(); return { exists: !!b, pressed: b && b.getAttribute('aria-pressed'), text: b && b.textContent, floodOn: q.floodOn, drawn: q.floodDrawn, nlab: (q.floodLabels || []).length }; }")
         if not tog or not tog.get("exists") or "Flood levels" not in (tog.get("text") or ""):
