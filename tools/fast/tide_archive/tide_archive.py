@@ -380,6 +380,28 @@ def station_pressure(st, b, e):
     return avg_pressure([g[1] for g in got]), [g[0] for g in got]
 
 
+def station_pressure_wide(st, b, e, b_wide, e_wide=None):
+    """Same choice and result as station_pressure(st, b, e), with the same requests, but each request starts at b_wide
+    (<= b) so the store dump gets the 30-day series the page reads. Selection is judged on [b, e] only.
+    Returns (points in [b, e], source ids, the gauge's own series over [b_wide, e_wide])."""
+    e_wide = max(e, e_wide or e)
+    cut = lambda pts: [p for p in pts if b <= p[0] <= e]
+    own_w = coops_metric_pressure(st, b_wide, e_wide)
+    own = cut(own_w)
+    if own:
+        return own, [st], own_w
+    got = []
+    for fb in P_NEIGHBORS.get(st, []):
+        if len(got) >= P_NEIGHBORS_N:
+            break
+        pts = cut(coops_metric_pressure(fb, b_wide, e_wide))
+        if pts:
+            got.append((fb, pts))
+    if not got:
+        return [], [], own_w
+    return avg_pressure([g[1] for g in got]), [g[0] for g in got], own_w
+
+
 def p_at(obs_pts, fc_pts, t, now_t):
     if t <= now_t:
         v = interp(obs_pts, t)
@@ -545,11 +567,30 @@ def slot_floor(ms):
     return d
 
 
+def _dump_coops(root, st, pred, obs, own_air):
+    """Persist the series this snapshot already paid for (no extra CO-OPS calls) for the R2 chart store.
+    Air pressure is the gauge's OWN barometer series only (empty when it has none); neighbor averages are never stored
+    as this station's series (the neighbors are dumped as their own stations)."""
+    os.makedirs(os.path.join(root, st), exist_ok=True)
+    nows = D.datetime.now(D.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    def save(product, pts):
+        rec = {"station": st, "product": product, "pts": [[t, v] for t, v in pts], "updated": nows,
+               "source": "tide-archive-dump", "n": len(pts), "last_t": pts[-1][0] if pts else None,
+               "first_t": pts[0][0] if pts else None}
+        fn = os.path.join(root, st, f"{product}.json")
+        json.dump(rec, open(fn + ".tmp", "w"), separators=(",", ":")); os.replace(fn + ".tmp", fn)
+    save("predictions", pred)
+    save("water_level", obs)
+    if own_air:
+        save("air_pressure", own_air)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--issue", help="'now' = live snapshot for the current issue slot")
     ap.add_argument("--backfill", nargs=2, metavar=("FROM", "TO"), help="YYYYMMDDHH YYYYMMDDHH (UTC), hindcast")
+    ap.add_argument("--dump-coops", default="", help="write the predictions/water_level/air_pressure already fetched (no extra CO-OPS calls) so the precompute store can reuse them")
     a = ap.parse_args()
     now = int(time.time() * 1000)
     if a.issue == "now":
@@ -590,13 +631,24 @@ def main():
 
     def one(item):
         st, sid = item
+        # --dump-coops (R2 chart store, 11-17): the SAME requests, only with a wider window (no extra CO-OPS calls):
+        # predictions to now + 8 d (default chart), water level and air pressure from 33 d back (30-day page window).
+        # The snapshot itself still gets exactly the original windows (sliced), so its numbers do not change.
+        pb, pe, ob = T0 - SLOW_DAYS * DAY - DAY, T1 + (LEAD_H + 3) * HR, T0 - SLOW_DAYS * DAY - DAY
+        # water level / air pressure also run to now (+6 min), so the store is current even when the slot is late.
+        wpe, wob, woe = (max(pe, now + 8 * DAY), min(ob, now - 33 * DAY), max(obs_end, now + H6)) if a.dump_coops else (pe, ob, obs_end)
         try:
-            pred = coops("predictions", st, T0 - SLOW_DAYS * DAY - DAY, T1 + (LEAD_H + 3) * HR, "&interval=6")
-            obs = coops("water_level", st, T0 - SLOW_DAYS * DAY - DAY, obs_end)
+            pred_w = coops("predictions", st, pb, wpe, "&interval=6")
+            obs_w = coops("water_level", st, wob, woe)
         except Exception as ex:  # noqa: BLE001  (throttled / unreachable: skip this station, keep the others and the push)
             note_skipped_station(st, f"{type(ex).__name__}: {ex}")
             return st, 0
-        air, p_src = station_pressure(st, T0 - 6 * DAY, obs_end)
+        pred = [p for p in pred_w if p[0] <= pe] if wpe != pe else pred_w
+        obs = [p for p in obs_w if ob <= p[0] <= obs_end] if (wob, woe) != (ob, obs_end) else obs_w
+        if a.dump_coops:
+            air, p_src, own_air_w = station_pressure_wide(st, T0 - 6 * DAY, obs_end, min(T0 - 6 * DAY, now - 33 * DAY), woe)
+        else:
+            (air, p_src), own_air_w = station_pressure(st, T0 - 6 * DAY, obs_end), None
         snaps = []
         for s in slots:
             T = int(s.timestamp() * 1000)
@@ -609,6 +661,11 @@ def main():
                 if kind == "archive": snap["made"] = now
                 snaps.append(snap)
         write(a.out, st, snaps)
+        if a.dump_coops:
+            try:
+                _dump_coops(a.dump_coops, st, pred_w, obs_w, own_air_w)
+            except Exception as ex:  # noqa: BLE001  (the chart store is optional; never fail the archive for it)
+                print(f"::warning::dump-coops {st}: {type(ex).__name__}: {ex}", flush=True)
         return st, len(snaps)
 
     with ThreadPoolExecutor(4) as ex:

@@ -5,7 +5,7 @@ rm -rf public; mkdir -p public/fonts public/obs public/old
 cp $K/web/forecast/obs/obs.js $K/web/forecast/obs/obs.css $K/web/forecast/obs/basemap.json $K/web/forecast/obs/obsimg.js public/obs/
 cp $SRC/fonts/* public/fonts/; cp $SRC/theme.css $SRC/selection.js $SRC/viewer.js $SRC/cameras.js $SRC/coastline.js $SRC/compare.html $SRC/compare.js $SRC/meteograms.js $SRC/buoys_ndbc.json $SRC/reqbox.js public/
 if [ -d $SRC/cam ]; then cp -r $SRC/cam public/cam; fi
-# Tides page (public, static; browser reads NOAA CO-OPS / STOFS / the GitHub tide-archive branch directly, no /d/ or R2)
+# Tides page (public, static; default chart may be precomputed to R2 and read through /d/; live NOAA / archive are the fallback)
 mkdir -p public/tide; cp $SRC/tide/tide.js public/tide/; cp $SRC/tide/index.html public/tide/index.html
 # STOFS-free Conditional sidecars shipped with the site (the tide-archive branch copy wins only when its v1/index.json lists it)
 for f in sst.json sst_fc.json aifs_ens_msl.json stofs_anom.json; do cp $SRC/tide/$f public/tide/; done

@@ -29,7 +29,7 @@ jobs:
         with:
           sparse-checkout: |
             tools/fast/tide_archive
-            tools/fast/site/tide/sst.json
+            tools/fast/site/tide
           path: src
       - uses: actions/checkout@v4
         with:
@@ -52,7 +52,7 @@ jobs:
             --aifs-work "$RUNNER_TEMP/aifs_ens_msl" \
             || echo "sidecar refresh reported an error; archive will use whatever is already on the branch plus page fallbacks"
       - name: Snapshot (live STOFS-free residual; marks itself hindcast if the run is >3 h late)
-        run: python src/tools/fast/tide_archive/tide_archive.py --out arch --issue now
+        run: python src/tools/fast/tide_archive/tide_archive.py --out arch --issue now --dump-coops "$RUNNER_TEMP/coops_dump"
       - name: Daily self-calibration, background only (new coefficients at the 08 UTC = 12 AM PST run; stored as rc/cal, not shown on the site)
         run: |
           python src/tools/fast/tide_archive/calibrate.py --out arch --from now --to now \
@@ -67,6 +67,26 @@ jobs:
           git commit -q -m "tide archive $(date -u +%Y%m%dT%H%MZ)"
           for i in 1 2 3; do git push -q origin HEAD:tide-archive && exit 0; git pull -q --rebase origin tide-archive; done
           exit 1
+      # Fast tide charts (Benjamin card t390s1748, option b): refreshed by these 4 daily archive runs only, plus the page's own
+      # live top-up. Zero extra CO-OPS calls: the store under tide/v1/coops/ is fed from the snapshot's --dump-coops, the
+      # headless builder answers every CO-OPS request from that store, and the result goes to R2 tide/v1/<station>.json.
+      # tide/v1/ is written only from main (the scripts refuse it elsewhere). A failure here never fails the archive run.
+      - name: Tide charts -> R2 tide/v1/ (store update, zero-CO-OPS build, publish)
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          PNW_R2_ACCESS_KEY_ID: ${{ secrets.PNW_R2_ACCESS_KEY_ID }}
+          PNW_R2_SECRET_ACCESS_KEY: ${{ secrets.PNW_R2_SECRET_ACCESS_KEY }}
+          TIDE_R2_PREFIX: tide/v1/
+          TIDE_R2_ARCH: ${{ github.workspace }}/arch/v1
+        run: |
+          python -m pip install --quiet boto3==1.43.122 playwright==1.64.1
+          python -m playwright install --with-deps chromium > /dev/null
+          python src/tools/fast/tide_archive/tide_r2_coops_ingest.py --dump-only --download --upload \
+            --out "$RUNNER_TEMP/coops_store" --prefix "$TIDE_R2_PREFIX" --dump "$RUNNER_TEMP/coops_dump" \
+            --seed-meta tide/precompute-preview/coops/
+          python src/tools/fast/tide_archive/tide_r2_publish.py --prefix "$TIDE_R2_PREFIX"
       - name: CO-OPS call counts (snapshot vs calibration)
         if: always()
         run: |
