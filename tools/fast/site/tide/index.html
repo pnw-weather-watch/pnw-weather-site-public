@@ -3,9 +3,9 @@
 <title>PNW Weather: Tides</title>
 <meta name="robots" content="noindex,nofollow">
 <link rel="preload" href="../fonts/Montserrat-sub.woff2" as="font" type="font/woff2" crossorigin>
-<script>/* 11-17 (preview/tide-r2): start downloading the precomputed chart (R2, via /d/) before tide.js arrives; tide.js uses it only if the station and view match */
+<script>/* 11-17 (tide/v1, card t390s1748): start downloading the precomputed chart (R2, via /d/) before tide.js arrives; tide.js uses it only if the station and view match */
 (function(){try{var q=new URLSearchParams(location.search),d=function(k,v){var x=q.get(k);return x===null||x===v};if(q.get("from")||!d("days","9")||!d("vl","24")||!d("sd","7"))return;
-var st=q.get("st")||localStorage.getItem("tide:st")||"9441102",u=(window.TIDE_R2||"/d/tide/precompute-preview/")+encodeURIComponent(st)+".json";
+var st=q.get("st")||localStorage.getItem("tide:st")||"9441102",u=(window.TIDE_R2||"/d/tide/v1/")+encodeURIComponent(st)+".json";
 window.__tideR2Pre={url:u,p:fetch(u,{cache:"no-cache"}).then(function(r){return r.ok?r.json():null}).catch(function(){return null})}}catch(e){}})();</script>
 <!-- 11-17 speed: open the data connections while tide.js downloads -->
 <link rel="preconnect" href="https://api.tidesandcurrents.noaa.gov" crossorigin>

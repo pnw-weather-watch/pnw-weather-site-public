@@ -4,7 +4,7 @@
 Appends only new hours of predictions, water_level and air_pressure (and
 refreshes mdapi at most daily) under tide/precompute-preview/coops/. Keeps the
 30-day series the Tides page needs. Refuses to start during a tide-archive
-slot unless --force. Does not write tide/v1/.
+slot unless --force. tide/v1/ is written only from the tide-archive workflow on main.
 
   tide_r2_coops_ingest.py [--out DIR] [--prefix tide/precompute-preview/] [--upload]
                           [--st 9441102,9447130] [--force] [--full] [--no-preds]
@@ -42,7 +42,7 @@ def download_store(s3, prefix, out):
         resp = s3.list_objects_v2(**kw)
         for obj in resp.get("Contents") or []:
             key = obj["Key"]
-            if not key.startswith(prefix) or key.startswith("tide/v1/"):
+            if not key.startswith(prefix):
                 raise SystemExit(f"refuse unexpected key {key}")
             rel = key[len(prefix):]
             if not rel or rel.endswith("/"):
@@ -71,7 +71,7 @@ def upload_store(s3, prefix, out, only=None):
                 if fn != "index.json":
                     continue
             key = prefix + rel.replace("\\", "/")
-            if key.startswith("tide/v1/") or not key.startswith(prefix):
+            if not key.startswith(prefix) or (key.startswith(C.PROD) and not C.v1_write_allowed()):
                 raise SystemExit(f"refuse key {key}")
             s3.upload_file(path, C.BUCKET, key, ExtraArgs={"ContentType": "application/json"})
             n += 1
@@ -108,6 +108,43 @@ def import_dump(dump_dir, out, now):
     return n
 
 
+def seed_meta(s3, src_prefix, out):
+    """Copy mdapi meta files that are missing locally from another (read-only) store prefix. No CO-OPS."""
+    n = 0
+    for st in C.STATIONS:
+        for which in ("floodlevels", "datums"):
+            fn = os.path.join(out, st, f"meta_{which}.json")
+            if os.path.isfile(fn):
+                continue
+            os.makedirs(os.path.dirname(fn), exist_ok=True)
+            try:
+                s3.download_file(C.BUCKET, f"{src_prefix}{st}/meta_{which}.json", fn); n += 1
+            except Exception as e:  # noqa: BLE001
+                print(f"seed-meta {st} {which}: {type(e).__name__}", flush=True)
+    print(f"seeded {n} meta files from {src_prefix}", flush=True)
+    return n
+
+
+def dump_only(a, prefix):
+    """Archive hook (tide-archive workflow): store <- R2, merge the snapshot's --dump-coops, seed missing meta, store -> R2.
+    Makes zero CO-OPS calls."""
+    s3 = r2_client() if (a.upload or a.download or a.seed_meta) else None
+    os.makedirs(a.out, exist_ok=True)
+    if a.download:
+        download_store(s3, prefix, a.out)
+    now = C.now_ms()
+    n = import_dump(a.dump, a.out, now)
+    if a.seed_meta:
+        seed_meta(s3, C.check_prefix(a.seed_meta.rsplit("coops/", 1)[0], write=False) + "coops/", a.out)
+    miss = [st for st in C.STATIONS if not os.path.isfile(os.path.join(a.out, st, "meta_floodlevels.json"))]
+    C.write_index(a.out, {"updated": D.datetime.now(D.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "calls": 0,
+                          "source": "tide-archive --dump-coops", "series_imported": n, "missing_meta": miss, "prefix": prefix})
+    print(json.dumps({"calls": 0, "series_imported": n, "missing_meta": miss, "prefix": prefix}), flush=True)
+    if a.upload:
+        upload_store(s3, prefix, a.out)
+    return 0 if n else 1
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="/tmp/tide_r2_coops")
@@ -120,8 +157,12 @@ def main():
     ap.add_argument("--no-preds", action="store_true", help="skip predictions (use when they already cover the lead)")
     ap.add_argument("--dump", default="", help="merge a --dump-coops directory first (no CO-OPS)")
     ap.add_argument("--pace", type=float, default=0.35)
+    ap.add_argument("--dump-only", action="store_true", help="zero CO-OPS: merge --dump into the store (plus --seed-meta) and stop")
+    ap.add_argument("--seed-meta", default="", help="R2 prefix (read-only) to copy missing mdapi meta_*.json from, e.g. tide/precompute-preview/coops/")
     a = ap.parse_args()
-    prefix = C.coops_prefix(a.prefix)
+    prefix = C.coops_prefix(a.prefix, write=a.upload)
+    if a.dump_only:
+        return dump_only(a, prefix)
     blocked, why = C.archive_blackout()
     if blocked and not a.force:
         print(f"SKIP {why}"); return 0

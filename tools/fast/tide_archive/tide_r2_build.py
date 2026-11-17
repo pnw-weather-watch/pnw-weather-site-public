@@ -16,8 +16,9 @@ sys.path.insert(0, HERE)
 ORIGIN = "https://tide-build.invalid"
 SHELL = '<!doctype html><meta charset="utf-8"><script>window.TIDE_HEADLESS=true</script><script src="tide.js"></script>'
 NOAA = "api.tidesandcurrents.noaa.gov"
+ARCH_URL = "https://raw.githubusercontent.com/pnw-weather-watch/pnw-weather-site-public/tide-archive/v1/"   # = tide.js ARCH
 
-async def build(site, out, only, now, coops, allow_live):
+async def build(site, out, only, now, coops, allow_live, arch=""):
     os.makedirs(out, exist_ok=True)
     if not coops and not allow_live:
         raise SystemExit("tide_r2_build.py: --coops DIR is required (builder must not call CO-OPS). Use --allow-live-noaa only to debug.")
@@ -52,6 +53,14 @@ async def build(site, out, only, now, coops, allow_live):
             await route.fulfill(status=status, content_type=ctype, body=body,
                                 headers={"access-control-allow-origin": "*"})
         await ctx.route("https://api.tidesandcurrents.noaa.gov/**", noaa)
+        if arch:   # --arch: answer tide-archive requests from the checkout the workflow just committed (fresh; no raw CDN lag)
+            async def arch_route(route):
+                rel = route.request.url[len(ARCH_URL):].split("?")[0]
+                f = os.path.join(arch, rel)
+                if ".." in rel or not os.path.isfile(f):
+                    return await route.fulfill(status=404, body="not found", headers={"access-control-allow-origin": "*"})
+                await route.fulfill(status=200, content_type="application/json", body=open(f, "rb").read(), headers={"access-control-allow-origin": "*"})
+            await ctx.route(ARCH_URL + "**", arch_route)
         async def new_page():
             pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:200]))
             if now: await pg.clock.set_fixed_time(now / 1000.0)
@@ -90,8 +99,10 @@ def main():
     ap.add_argument("--st", default=""); ap.add_argument("--now", type=int, default=0)
     ap.add_argument("--coops", default=os.environ.get("TIDE_R2_COOPS", ""))
     ap.add_argument("--allow-live-noaa", action="store_true")
+    ap.add_argument("--arch", default="", help="local tide-archive v1/ directory to serve instead of raw.githubusercontent.com")
     a = ap.parse_args()
     bad, n = asyncio.run(build(os.path.abspath(a.site), os.path.abspath(a.out), [s for s in a.st.split(",") if s], a.now,
-                               os.path.abspath(a.coops) if a.coops else "", a.allow_live_noaa))
+                               os.path.abspath(a.coops) if a.coops else "", a.allow_live_noaa,
+                               os.path.abspath(a.arch) if a.arch else ""))
     sys.exit(1 if bad else 0)
 if __name__ == "__main__": main()

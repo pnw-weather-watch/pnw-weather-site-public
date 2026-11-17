@@ -57,7 +57,7 @@ const ARCH = window.TIDE_ARCH || "https://raw.githubusercontent.com/pnw-weather-
 // at once. Live NOAA / S3 / archive requests run only as a fallback (file missing, wrong calculation version, another view) or a
 // freshness top-up (file older than R2_FRESH, or the archive index changed after the file was built), never before the first paint.
 // PREVIEW prefix only: production will use tide/v1/ if this is later approved to go live.
-const TIDE_R2 = window.TIDE_R2 || "/d/tide/precompute-preview/";
+const TIDE_R2 = window.TIDE_R2 || "/d/tide/v1/";
 const R2_FRESH = 12 * 60000, R2_MS = 4000, R2_SCHEMA = 1;
 const CALC_VER = "20261116sstfc1";   // bump whenever the Conditional / verification calculation changes (files from another version are ignored)
 const HEADLESS = !!window.TIDE_HEADLESS;

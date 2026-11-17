@@ -4,7 +4,7 @@
 The 30-day predictions / water_level / air_pressure (and mdapi meta) the Tides
 page needs live under a preview R2 prefix (default tide/precompute-preview/coops/).
 Ingest appends only new hours. The headless builder reads these files and must
-not call CO-OPS. Production prefix tide/v1/ is refused.
+not call CO-OPS. Production prefix tide/v1/ is writable only from the tide-archive workflow on main.
 """
 from __future__ import annotations
 import datetime as D, json, os, re, time, urllib.error, urllib.parse, urllib.request
@@ -51,20 +51,30 @@ _last_call = 0.0
 _pace = 0.35
 
 
-def check_prefix(prefix: str) -> str:
+PROD = "tide/v1/"
+
+
+def v1_write_allowed() -> bool:
+    """Production prefix tide/v1/ is written only by the tide-archive workflow running from main (Benjamin t390s1748)."""
+    return os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("GITHUB_REF") == "refs/heads/main"
+
+
+def check_prefix(prefix: str, write: bool = True) -> str:
     if not prefix.endswith("/"):
         prefix += "/"
     if not prefix.startswith("tide/") or ".." in prefix:
         raise SystemExit("prefix must be under tide/")
-    if prefix == "tide/v1/" or prefix.startswith("tide/v1/"):
-        raise SystemExit("refusing production prefix tide/v1/ (preview port only)")
+    if prefix.startswith(PROD):
+        if write and not v1_write_allowed():
+            raise SystemExit("tide/v1/ is the production prefix: only the tide-archive workflow on main writes it")
+        return prefix
     if not any(prefix.startswith(a) for a in ALLOWED):
-        raise SystemExit(f"prefix {prefix!r} is not a preview tide prefix ({ALLOWED})")
+        raise SystemExit(f"prefix {prefix!r} is not a tide prefix ({ALLOWED} or {PROD} from main)")
     return prefix
 
 
-def coops_prefix(chart_prefix: str) -> str:
-    return check_prefix(chart_prefix) + "coops/"
+def coops_prefix(chart_prefix: str, write: bool = True) -> str:
+    return check_prefix(chart_prefix, write) + "coops/"
 
 
 def gmt(ms: int) -> str:
