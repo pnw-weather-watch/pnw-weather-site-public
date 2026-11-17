@@ -545,11 +545,30 @@ def slot_floor(ms):
     return d
 
 
+def _dump_coops(root, st, pred, obs, air, p_src):
+    """Persist series this snapshot already paid for. Air is only dumped when it is the gauge's own
+    barometer (neighbor averages must not be stored as that station's series). The page still needs
+    30-day air pressure; this dump is typically the last 6 days."""
+    import datetime as _D
+    os.makedirs(os.path.join(root, st), exist_ok=True)
+    nows = _D.datetime.now(_D.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    def save(product, pts):
+        rec = {"station": st, "product": product, "pts": [[t, v] for t, v in pts], "updated": nows,
+               "source": "tide-archive-dump", "n": len(pts), "last_t": pts[-1][0] if pts else None,
+               "first_t": pts[0][0] if pts else None}
+        fn = os.path.join(root, st, f"{product}.json")
+        json.dump(rec, open(fn, "w"), separators=(",", ":"))
+    save("predictions", pred)
+    save("water_level", obs)
+    if p_src == [st] and air:
+        save("air_pressure", air)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--issue", help="'now' = live snapshot for the current issue slot")
     ap.add_argument("--backfill", nargs=2, metavar=("FROM", "TO"), help="YYYYMMDDHH YYYYMMDDHH (UTC), hindcast")
+    ap.add_argument("--dump-coops", default="", help="write the predictions/water_level/air_pressure already fetched (no extra CO-OPS calls) so the precompute store can reuse them")
     a = ap.parse_args()
     now = int(time.time() * 1000)
     if a.issue == "now":
@@ -609,6 +628,8 @@ def main():
                 if kind == "archive": snap["made"] = now
                 snaps.append(snap)
         write(a.out, st, snaps)
+        if a.dump_coops:
+            _dump_coops(a.dump_coops, st, pred, obs, air, p_src)
         return st, len(snaps)
 
     with ThreadPoolExecutor(4) as ex:
