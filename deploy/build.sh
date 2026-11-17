@@ -8,7 +8,7 @@ if [ -d $SRC/cam ]; then cp -r $SRC/cam public/cam; fi
 # Tides page (public, static; browser reads NOAA CO-OPS / STOFS / the GitHub tide-archive branch directly, no /d/ or R2)
 mkdir -p public/tide; cp $SRC/tide/tide.js public/tide/; cp $SRC/tide/index.html public/tide/index.html
 # STOFS-free Conditional sidecars shipped with the site (the tide-archive branch copy wins only when its v1/index.json lists it)
-for f in sst.json aifs_ens_msl.json stofs_anom.json; do cp $SRC/tide/$f public/tide/; done
+for f in sst.json sst_fc.json aifs_ens_msl.json stofs_anom.json; do cp $SRC/tide/$f public/tide/; done
 cp $K/web/forecast/base.css $K/web/forecast/forecast.css public/old/
 for d in mkeys slayers; do [ -d $SRC/$d ] && cp -r $SRC/$d public/ || true; done   # site-shipped "@" keys / town layers once you generate them
 inj='s#<head>#<head><meta name="robots" content="noindex,nofollow">#'
