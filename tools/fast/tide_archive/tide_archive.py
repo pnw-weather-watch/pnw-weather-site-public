@@ -14,7 +14,7 @@ No keys: CO-OPS API + NOAA Open Data (noaa-gestofs-pds) are public.
   python tide_archive.py --out DIR --issue now            # live snapshot (kind=archive) for the current issue slot
   python tide_archive.py --out DIR --backfill 2026110602 2026111414   # hindcast slots in [a, b]
 """
-import threading
+import atexit, sys, threading
 import argparse, datetime as D, json, math, os, re, time, urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
@@ -49,6 +49,62 @@ UA = {"User-Agent": "pnw-weather-tides/1.0 (+https://github.com/pnw-weather-watc
 COOPS_GAP = 0.3   # seconds between CO-OPS requests (CO-OPS asks heavy callers to space out calls; it throttles with HTTP 403)
 _last_coops = [0.0]
 _coops_lock = threading.Lock()
+# Throttle budget: total 403/429 back-off allowed per workflow RUN (snapshot + calibration share it through the
+# COOPS_STATS file). Once used up, further CO-OPS calls in that run fail fast with CoopsGiveUp; callers skip the
+# station with a warning, so a throttled run neither hangs nor fails (Weather Bot suggestion, Nov 17).
+COOPS_THROTTLE_BUDGET_S = float(os.environ.get("COOPS_THROTTLE_BUDGET_S", "240"))
+COOPS_STATS = os.environ.get("COOPS_STATS", "")
+STEP = {"tide_archive.py": "snapshot", "calibrate.py": "calibration"}.get(os.path.basename(sys.argv[0] if sys.argv else ""), "")
+STATS = {"calls": 0, "http403": 0, "http429": 0, "other_errors": 0, "throttle_wait_s": 0.0, "gave_up": False, "skipped_calls": 0, "skipped_stations": []}
+
+
+class CoopsGiveUp(RuntimeError):
+    pass
+
+
+def _load_stats_file():
+    try:
+        return json.load(open(COOPS_STATS)) if COOPS_STATS and os.path.exists(COOPS_STATS) else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+_PRIOR_WAIT = sum(float((v or {}).get("throttle_wait_s", 0)) for k, v in _load_stats_file().items() if k != STEP)
+
+
+def _budget_left():
+    return COOPS_THROTTLE_BUDGET_S - _PRIOR_WAIT - STATS["throttle_wait_s"]
+
+
+def note_skipped_station(st, why):
+    STATS["skipped_stations"].append(st)
+    # after the throttle give-up, stay quiet (one warning was already printed); otherwise flag the station
+    print(f"{'' if STATS['gave_up'] else '::warning::'}{STEP or 'tide'}: station {st} skipped this run ({why})", flush=True)
+
+
+def stats_line():
+    s = STATS
+    return (f"coops-stats step={STEP or '?'} calls={s['calls']} http403={s['http403']} http429={s['http429']} other_errors={s['other_errors']} "
+            f"throttle_wait_s={s['throttle_wait_s']:.0f} budget_s={COOPS_THROTTLE_BUDGET_S:.0f} prior_steps_wait_s={_PRIOR_WAIT:.0f} "
+            f"gave_up={'yes' if s['gave_up'] else 'no'} skipped_calls={s['skipped_calls']} skipped_stations={','.join(s['skipped_stations']) or '-'}")
+
+
+def _write_stats():
+    if not STEP:
+        return
+    print(stats_line(), flush=True)
+    if COOPS_STATS:
+        d = _load_stats_file(); d[STEP] = dict(STATS, throttle_wait_s=round(STATS["throttle_wait_s"], 1))
+        json.dump(d, open(COOPS_STATS + ".tmp", "w")); os.replace(COOPS_STATS + ".tmp", COOPS_STATS)
+    summ = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summ:
+        s = STATS
+        with open(summ, "a") as f:
+            f.write(f"**CO-OPS {STEP}:** {s['calls']} calls, {s['http403']} x 403, {s['http429']} x 429, throttle wait {s['throttle_wait_s']:.0f} s"
+                    f"{' (budget used up, gave up)' if s['gave_up'] else ''}, skipped stations: {', '.join(s['skipped_stations']) or 'none'}\n\n")
+
+
+atexit.register(_write_stats)
 
 
 def get(u, tries=4):
@@ -57,15 +113,40 @@ def get(u, tries=4):
     for i in range(tries):
         if coops_url:
             with _coops_lock:   # the snapshot step fetches with 4 threads; keep the spacing global
+                if STATS["gave_up"]:
+                    STATS["skipped_calls"] += 1
+                    raise CoopsGiveUp("CO-OPS throttle budget used up for this run")
                 w = _last_coops[0] + COOPS_GAP - time.time()
                 if w > 0: time.sleep(w)
                 _last_coops[0] = time.time()
+                STATS["calls"] += 1
         try:
             return urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=90).read()
         except Exception as e:  # noqa: BLE001
             err = e
-            throttled = getattr(e, "code", None) in (403, 429)
-            if i < tries - 1: time.sleep((20, 45, 90)[min(i, 2)] if throttled else 2 + 3 * i)   # throttling needs a longer back-off
+            code = getattr(e, "code", None)
+            throttled = code in (403, 429)
+            if coops_url:
+                with _coops_lock:
+                    if code == 403: STATS["http403"] += 1
+                    elif code == 429: STATS["http429"] += 1
+                    else: STATS["other_errors"] += 1
+            if i >= tries - 1:
+                break
+            if throttled and coops_url:   # throttling needs a longer back-off, capped by the per-run budget
+                with _coops_lock:
+                    left = _budget_left()
+                    if left <= 0 or STATS["gave_up"]:
+                        if not STATS["gave_up"]:
+                            STATS["gave_up"] = True
+                            print(f"::warning::CO-OPS throttling (HTTP {code}): {COOPS_THROTTLE_BUDGET_S:.0f} s back-off budget used up; "
+                                  "skipping the remaining CO-OPS calls this run", flush=True)
+                        raise CoopsGiveUp(f"CO-OPS HTTP {code}; throttle budget used up")
+                    w = min((20, 45, 90)[min(i, 2)], left)
+                    STATS["throttle_wait_s"] += w
+                time.sleep(w)
+            else:
+                time.sleep(2 + 3 * i)
     raise err
 
 
@@ -509,8 +590,12 @@ def main():
 
     def one(item):
         st, sid = item
-        pred = coops("predictions", st, T0 - SLOW_DAYS * DAY - DAY, T1 + (LEAD_H + 3) * HR, "&interval=6")
-        obs = coops("water_level", st, T0 - SLOW_DAYS * DAY - DAY, obs_end)
+        try:
+            pred = coops("predictions", st, T0 - SLOW_DAYS * DAY - DAY, T1 + (LEAD_H + 3) * HR, "&interval=6")
+            obs = coops("water_level", st, T0 - SLOW_DAYS * DAY - DAY, obs_end)
+        except Exception as ex:  # noqa: BLE001  (throttled / unreachable: skip this station, keep the others and the push)
+            note_skipped_station(st, f"{type(ex).__name__}: {ex}")
+            return st, 0
         air, p_src = station_pressure(st, T0 - 6 * DAY, obs_end)
         snaps = []
         for s in slots:

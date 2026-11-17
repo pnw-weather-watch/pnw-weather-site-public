@@ -95,7 +95,7 @@ def main():
                 pred = dict(A.coops("predictions", st, lo, max(cals[-1], t) + 76 * HR, "&interval=6"))
                 obs = dict(A.coops("water_level", st, lo, min(now, cals[-1]) + A.H6))
             except Exception as ex:  # noqa: BLE001
-                print(f"calibrate: {st} skipped this run ({type(ex).__name__}: {ex})", file=sys.stderr); continue
+                A.note_skipped_station(st, f"{type(ex).__name__}: {ex}"); continue
         for C in cals:
             e = hist.setdefault(C, {"t": C, "lookback_d": a.lookback, "shrink_k": SHRINK_K, "cap": CAP, "min_snaps": MIN_SNAPS,
                                     "ranges": RANGES, "centres": CENTRES, "st": {}})
