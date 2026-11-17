@@ -1127,39 +1127,50 @@ function setDetailsOpen(on) {
   if (el) { el.classList.toggle("open", !!on); el.hidden = !on; }
   if (b) { b.setAttribute("aria-pressed", on ? "true" : "false"); b.setAttribute("aria-expanded", on ? "true" : "false"); }
 }
+// 11-17 (Benjamin pt391u): "Don't need all those details, just the sources of what we are using." The panel lists only the data
+// sources that feed the Conditional line, one short row per input, with their cycle / date; no figures. Display only (CALC_VER unchanged).
+const fCycle = (ms) => { if (ms == null || !isFinite(ms)) return null; const d = new Date(ms); return d.toISOString().slice(0, 10) + " " + String(d.getUTCHours()).padStart(2, "0") + " UTC"; };
+const fCycleStr = (c) => { const m = String(c || "").match(/^(\d{4})(\d{2})(\d{2})(\d{2})$/); return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]} UTC` : (c ? String(c) : null); };
+function detailSources(d) {   // [label, text] rows; exported through TIDE.qa().detailRows for the guards
+  if (!d) return [];
+  const rows = [], nm = (id) => ((STATIONS.find((x) => x[0] === id) || [id, id])[1]).replace(/, (WA|OR|CA)$/, "");
+  const sid = d.sid || sidOf(d.st);
+  rows.push(["Tide prediction", `NOAA CO-OPS official tide prediction for ${nm(sid)}`]);
+  const lastObs = d.obs && d.obs.length ? d.obs[d.obs.length - 1] : null;
+  rows.push(["Observed water level", `NOAA gauge at ${nm(sid)}` + (lastObs ? `, newest reading ${fTime.format(new Date(lastObs[0]))} ${zoneName(lastObs[0])}` : ", no recent reading")]);
+  const ps = (d.obsP && d.obsP.sids) || [];
+  if (ps.length === 1 && ps[0] === sid) rows.push(["Air pressure", `NOAA gauge at ${nm(sid)} (this gauge)`]);
+  else if (ps.length) rows.push(["Air pressure", (ps.length > 1 ? "average of the NOAA gauges at " + ps.map(nm).join(" and ") : "NOAA gauge at " + nm(ps[0])) + " (no barometer here)"]);
+  else if (d.obsP) rows.push(["Air pressure", "no gauge reading; forecast pressure only"]);
+  const ai = d.aifs;
+  if (ai && (ai.run || ai.src)) {
+    const run = fCycleStr(ai.run);
+    if (!ai.src || ai.src === "aifs-ens-mean") rows.push(["Pressure forecast", "ECMWF AIFS ensemble mean" + (run ? `, ${run} run` : "")]);
+    else rows.push(["Pressure forecast", (aifsProductLabel(ai) || ai.src).replace(/ pressure$/, "") + (/open-meteo/i.test(ai.src) ? " via Open-Meteo" : "") + (run ? `, ${run} run` : "")]);
+  }
+  const sst = d.sst;
+  if (sst && sst.src && sst.src !== "none") {
+    const lab = sstProductLabel(sst) || String(sst.src);
+    const day = sst.last_day ? fMd.format(new Date(sst.last_day + "T12:00:00Z")) : null;
+    rows.push(["Sea temperature", (/^NDBC /.test(lab) ? "NOAA buoy " : "") + lab + (/coral reef watch/i.test(lab) ? " satellite" : "") + (day ? `, daily value for ${day}` : "") + ", compared with the 1991-2020 average"]);
+    const fc = sst.fc;
+    if (fc && fc.pts && fc.pts.length) {
+      const runs = fc.runs ? Object.values(fc.runs).filter(Boolean) : [];
+      rows.push(["Sea temperature forecast", runs.length ? runs.join(", ") : (fc.label || fc.src || "forecast")]);
+    }
+  }
+  if (d.windOn && d.cyc) {
+    rows.push(["Wind surge", `NOAA STOFS-2D-Global, ${fCycle(d.cyc.t)} run`]);
+    const sc = d.windCycle && d.windCycle.sidecar;
+    if (sc != null) rows.push(["Sea level anomaly", `NOAA STOFS-2D-Global 5-day bias correction, ${fCycle(sc)} run`]);
+    rows.push(["Pressure inside the surge model", "NOAA GFS via Open-Meteo (removed so pressure is not counted twice)"]);
+  }
+  return rows;
+}
 function fillDetails() {
   const el = $("details"); if (!el || !D) return;
-  const lastObs = D.obs.length ? D.obs[D.obs.length - 1] : null;
-  const tRef = lastObs ? lastObs[0] : D.now;
-  const pt = D.partsAt ? D.partsAt(tRef) : {};
-  const row = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
-  const nm = (id) => ((STATIONS.find((x) => x[0] === id) || [id, id])[1]).replace(/, (WA|OR|CA)$/, "");
-  const bits = [];
-  if (lastObs) bits.push(row("Latest observed", `${lastObs[1].toFixed(2)} ft at ${fTime.format(new Date(lastObs[0]))} ${zoneName(lastObs[0])}`));
-  if (D.rNow != null) bits.push(row("Residual", `${sgn(D.rNow, 2)} ft (observed \u2212 official prediction)`));
-  if (pt.p != null) bits.push(row("Air pressure", `${pt.p.toFixed(1)} hPa, about ${sgn(pt.ib, 2)} ft on the water`));
-  else if (D.pr) bits.push(row("Air pressure", `${D.pr.hpa.toFixed(1)} hPa, about ${sgn(ibFt(D.pr.hpa) || 0, 2)} ft on the water`));
-  const ps = (D.obsP && D.obsP.sids) || [];
-  if (ps.length) bits.push(row("Pressure source", (ps.length === 1 && ps[0] === D.sid) ? "this gauge" : (ps.length > 1 ? "average of " + ps.map(nm).join(" and ") + " (no barometer here)" : nm(ps[0]) + " (no barometer here)") + "; AIFS ENS mean for hours ahead"));
-  if (D.sst && D.sst.src && D.sst.src !== "none") {
-    const a = D.sst.ssta, Wft = (pt.W != null ? pt.W : D.sst.W);
-    let t = (Wft != null ? `${sgn(Wft, 2)} ft` : "unavailable");
-    if (a != null) t += ` from ${sgn(a, 2)} \u00b0C (${sgn(a * 1.8, 1)} \u00b0F) vs the 1991-2020 average`;
-    if (D.sst.source_short || D.sst.src) t += ` (${D.sst.source_short || D.sst.src})`;
-    bits.push(row("Sea temperature", t));
-    const fc = D.sst.fc;
-    if (fc && fc.pts && fc.pts.length && a != null && D.partsAt) {
-      const tEnd = Math.min(D.R.end, fc.end), pe = D.partsAt(tEnd), dEnd = (pe && pe.dSst) || 0;
-      bits.push(row("Sea temperature forecast", `${sgn(a + dEnd, 2)} \u00b0C by ${fMd.format(new Date(tEnd))} (${sgn(dEnd, 2)} \u00b0C change, ${sgn((pe.W != null ? pe.W : 0), 2)} ft); held after ${fMd.format(new Date(fc.end))} (${fc.label || fc.src || "forecast"}${fc.runs ? ", " + Object.values(fc.runs).join(", ") : ""})`));
-    }
-  } else bits.push(row("Sea temperature", "unavailable; warm-water term set to 0 ft"));
-  if (pt.offset5 != null) bits.push(row("Held leftover", `${sgn(pt.offset5, 2)} ft (5-day mean after pressure and sea temperature)`));
-  if (pt.leftover != null) bits.push(row("Fade to latest observation", `${sgn(pt.leftover, 2)} ft at the newest reading, fading over 12 hours`));
-  if (T.wind && pt.wind != null) bits.push(row("Wind surge", `${sgn(pt.wind, 2)} ft`));
-  if (D.aifs && D.aifs.run) bits.push(row("Pressure forecast", `AIFS ENS ${String(D.aifs.run)}` + (D.aifs.src && D.aifs.src !== "aifs-ens-mean" ? ` (${D.aifs.src})` : "")));
-  else if (D.aifs && D.aifs.src) bits.push(row("Pressure forecast", D.aifs.src));
-  if (T.wind && D.cyc) bits.push(row("Surge model", new Date(D.cyc.t).toISOString().replace("T", " ").replace(".000Z", " UTC")));
-  el.innerHTML = `<h3>Conditional details</h3><dl>${bits.join("")}</dl>`;
+  const esc = (x) => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  el.innerHTML = `<h3>Conditional sources</h3><dl>${detailSources(D).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
 }
 function note() {
   const n = $("tnote");
@@ -1235,7 +1246,7 @@ window.TIDE = {
   qa: () => D ? { st: D.st, name: D.name, pred: D.pred.length, obs: D.obs.length, cond: D.cond.length, method: D.method, cycle: D.cyc ? new Date(D.cyc.t).toISOString() : null,
     rNow: D.rNow, rSlow: D.rSlow, bias: D.bias, flood: D.flood, floods: D.floods, floodSkip: D.floodSkip, floodOn: !!T.flood, floodDrawn: window.__tideFloodDrawn || [], floodLabels: window.__tideFloodLabels || [], floodLabelNote: window.__tideFloodLabelNote || null, legend: window.__tideLegend || [], hover: window.__tideHover || null, sid: D.sid, start: D.R.start, end: D.R.end, now: D.now,
     statsBox: window.__tideStatsBox || null, chrome: window.__tideChrome || null, arch: ARCH, calib: D.calib ? D.calib.c.map((b) => b.corr) : null, calibBg: D.calibBg ? { t: D.calibBg.t, c: D.calibBg.c.map((b) => b.corr) } : null, ver: D.ver.length, verHindcast: D.ver.filter((p) => !p[2]).length, issues: D.nIssues, archived: D.nArchive, vl: D.vl, sd: D.sd, stats: D.stats,
-    condAboveFrac: D.cond.length ? D.cond.filter(([t, v]) => v >= (interp(D.pred, t) || 0)).length / D.cond.length : null, sharp: window.__tideSharp || null, windOn: !!T.wind, sst: D.sst || null, aifs: D.aifs || null, windTest: window.__tideWindTest || null, nowLabel: window.__tideNowLabel || null, nowChip: window.__tideNowLabel || null, tab: T.state, products: productsLine(!!T.wind, D.sst, D.aifs, D.obsP, D.sid), obsP: D.obsP ? { src: D.obsP.src, sid: D.obsP.sid, sids: D.obsP.sids || [], n: (D.obsP.pts || []).length } : null, fcPsrc: D.fcP ? D.fcP.src : null, floodBanner: window.__tideFloodBanner || null, detailsOpen: detailsOpen(), canvasNotes: window.__tideCanvasNotes || null } : { err: window.__tideErr || null },
+    condAboveFrac: D.cond.length ? D.cond.filter(([t, v]) => v >= (interp(D.pred, t) || 0)).length / D.cond.length : null, sharp: window.__tideSharp || null, windOn: !!T.wind, sst: D.sst || null, aifs: D.aifs || null, windTest: window.__tideWindTest || null, nowLabel: window.__tideNowLabel || null, nowChip: window.__tideNowLabel || null, tab: T.state, products: productsLine(!!T.wind, D.sst, D.aifs, D.obsP, D.sid), obsP: D.obsP ? { src: D.obsP.src, sid: D.obsP.sid, sids: D.obsP.sids || [], n: (D.obsP.pts || []).length } : null, fcPsrc: D.fcP ? D.fcP.src : null, floodBanner: window.__tideFloodBanner || null, detailsOpen: detailsOpen(), detailRows: detailSources(D), canvasNotes: window.__tideCanvasNotes || null } : { err: window.__tideErr || null },
   setDetailsOpen, detailsOpen, fillDetails
 };
 if (HEADLESS) {   // tools/fast/tide_archive/tide_r2_build.py: build one station's default chart and return the file contents
