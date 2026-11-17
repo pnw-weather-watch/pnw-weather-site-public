@@ -21,6 +21,9 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      COOPS_STATS: ${{ github.workspace }}/coops_stats.json   # per-run CO-OPS call counts + shared 403/429 back-off budget
+      COOPS_THROTTLE_BUDGET_S: "240"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,7 +54,9 @@ jobs:
       - name: Snapshot (live STOFS-free residual; marks itself hindcast if the run is >3 h late)
         run: python src/tools/fast/tide_archive/tide_archive.py --out arch --issue now
       - name: Daily self-calibration, background only (new coefficients at the 08 UTC = 12 AM PST run; stored as rc/cal, not shown on the site)
-        run: python src/tools/fast/tide_archive/calibrate.py --out arch --from now --to now
+        run: |
+          python src/tools/fast/tide_archive/calibrate.py --out arch --from now --to now \
+            || echo "::warning::calibration failed (background-only); snapshots and sidecars are still pushed"
       - name: Commit and push
         working-directory: arch
         run: |
@@ -62,3 +67,20 @@ jobs:
           git commit -q -m "tide archive $(date -u +%Y%m%dT%H%MZ)"
           for i in 1 2 3; do git push -q origin HEAD:tide-archive && exit 0; git pull -q --rebase origin tide-archive; done
           exit 1
+      - name: CO-OPS call counts (snapshot vs calibration)
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          p = os.environ["COOPS_STATS"]; d = json.load(open(p)) if os.path.exists(p) else {}
+          tot = {k: sum(int((d.get(s) or {}).get(k, 0)) for s in d) for k in ("calls", "http403", "http429")}
+          wait = sum(float((d.get(s) or {}).get("throttle_wait_s", 0)) for s in d)
+          rows = ["| step | calls | 403 | 429 | throttle wait s | gave up | skipped stations |", "|---|---|---|---|---|---|---|"]
+          for s in ("snapshot", "calibration"):
+              v = d.get(s)
+              if v: rows.append(f"| {s} | {v['calls']} | {v['http403']} | {v['http429']} | {v['throttle_wait_s']:.0f} | {'yes' if v['gave_up'] else 'no'} | {', '.join(v['skipped_stations']) or '-'} |")
+          rows.append(f"| total | {tot['calls']} | {tot['http403']} | {tot['http429']} | {wait:.0f} | | |")
+          txt = "### CO-OPS calls this run\n\n" + "\n".join(rows) + "\n"
+          print(txt)
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(txt)
+          PY

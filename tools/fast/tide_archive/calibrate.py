@@ -86,8 +86,16 @@ def main():
         issues = load_station(a.out, st)
         if not issues: continue
         lo = cals[0] - (a.lookback + 1) * DAY
-        pred = dict(A.coops("predictions", st, lo, max(cals[-1], t) + 76 * HR, "&interval=6"))
-        obs = dict(A.coops("water_level", st, lo, min(now, cals[-1]) + A.H6))
+        # Fetch CO-OPS only when a calibration for this station is still missing (3 of the 4 daily runs reuse the
+        # stored 08 UTC coefficients), and skip a station on a fetch error instead of failing the whole run:
+        # calibration is background-only, and CO-OPS throttles (HTTP 403) heavy callers such as Actions runners.
+        pred = obs = {}
+        if any(st not in (hist.get(C) or {}).get("st", {}) for C in cals):
+            try:
+                pred = dict(A.coops("predictions", st, lo, max(cals[-1], t) + 76 * HR, "&interval=6"))
+                obs = dict(A.coops("water_level", st, lo, min(now, cals[-1]) + A.H6))
+            except Exception as ex:  # noqa: BLE001
+                A.note_skipped_station(st, f"{type(ex).__name__}: {ex}"); continue
         for C in cals:
             e = hist.setdefault(C, {"t": C, "lookback_d": a.lookback, "shrink_k": SHRINK_K, "cap": CAP, "min_snaps": MIN_SNAPS,
                                     "ranges": RANGES, "centres": CENTRES, "st": {}})
