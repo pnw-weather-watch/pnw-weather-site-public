@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build every station's default tide chart (tide_r2_build.py: tide.js run headless in Chromium) and upload one JSON per station to R2
+"""Build every station's default tide chart from the incremental CO-OPS store (zero NOAA calls) and upload one JSON per station to R2
 bucket pnw-models-data under --prefix (only keys under tide/ are ever written; nothing is deleted). Uses upload_r2.client()
 (PNW_R2_ACCESS_KEY_ID / PNW_R2_SECRET_ACCESS_KEY; never printed). The page reads them through /d/<key> like the map data.
   tide_r2_publish.py [--prefix tide/precompute-preview/] [--watch MIN --interval SEC] [--dry-run]
@@ -23,9 +23,27 @@ def check_prefix(prefix):
         raise SystemExit(f"prefix {prefix!r} is not a preview tide prefix ({ALLOWED})")
     return prefix
 
+def download_coops(s3, prefix, dest):
+    """Pull the incremental CO-OPS store from R2. The builder must not call NOAA."""
+    import tide_r2_coops as C
+    os.makedirs(dest, exist_ok=True)
+    return __import__("tide_r2_coops_ingest", fromlist=["download_store"]).download_store(s3, C.coops_prefix(prefix), dest)
+
 def publish(prefix, dry, s3):
     out = tempfile.mkdtemp(prefix="tide_r2_")
-    r = subprocess.run([sys.executable, os.path.join(HERE, "tide_r2_build.py"), "--out", out], capture_output=True, text=True, timeout=600)
+    coops = tempfile.mkdtemp(prefix="tide_r2_coops_")
+    if s3 is not None:
+        n = download_coops(s3, prefix, coops)
+        if n == 0:
+            print("no CO-OPS store in R2; refusing to call NOAA from the builder", flush=True)
+            return False
+    elif not os.environ.get("TIDE_R2_COOPS"):
+        print("no R2 client and TIDE_R2_COOPS unset; refusing to call NOAA from the builder", flush=True)
+        return False
+    else:
+        coops = os.environ["TIDE_R2_COOPS"]
+    cmd = [sys.executable, os.path.join(HERE, "tide_r2_build.py"), "--out", out, "--coops", coops]
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     print(r.stdout.strip()); ok = [f for f in sorted(glob.glob(f"{out}/*.json")) if not f.endswith("/index.json")]
     if r.returncode != 0 or not ok: print("build failed; nothing uploaded", r.stderr[-500:] if r.stderr else ""); return False
     n = 0

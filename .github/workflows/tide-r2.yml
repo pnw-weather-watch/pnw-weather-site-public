@@ -1,7 +1,8 @@
-# Tide charts -> R2 (preview only). Every station's default chart is built by running
-# tools/fast/site/tide/tide.js headless in Chromium (tools/fast/tide_archive/tide_r2_build.py)
-# and stored as one JSON per station in R2 bucket pnw-models-data under tide/precompute-preview/
-# (read by the preview page through /d/ like the map data).
+# Tide charts -> R2 (preview only). The job downloads the incremental CO-OPS store from
+# tide/precompute-preview/coops/ and builds every default chart with tide_r2_build.py
+# (headless Chromium, zero CO-OPS calls), then uploads the JSON under tide/precompute-preview/.
+# The paced ingest that talks to NOAA is NOT run here (it would share the Actions IP with
+# tide-archive). Run tide_r2_coops_ingest.py on a box, or import a tide_archive --dump-coops.
 #
 # SAFETY: no cron. This workflow must not run on main. Dispatch it only from preview/tide-r2
 # (or run tools/fast/tide_archive/tide_r2_publish.py locally). Do not enable a schedule until
