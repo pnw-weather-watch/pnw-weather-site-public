@@ -14,6 +14,7 @@ No keys: CO-OPS API + NOAA Open Data (noaa-gestofs-pds) are public.
   python tide_archive.py --out DIR --issue now            # live snapshot (kind=archive) for the current issue slot
   python tide_archive.py --out DIR --backfill 2026110602 2026111414   # hindcast slots in [a, b]
 """
+import threading
 import argparse, datetime as D, json, math, os, re, time, urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
@@ -44,13 +45,27 @@ P_NEIGHBORS_N = 2
 CACHE = os.environ.get("TIDE_CACHE", "/tmp/tide_archive_cache")
 
 
+UA = {"User-Agent": "pnw-weather-tides/1.0 (+https://github.com/pnw-weather-watch/pnw-weather-site-public)"}
+COOPS_GAP = 0.3   # seconds between CO-OPS requests (CO-OPS asks heavy callers to space out calls; it throttles with HTTP 403)
+_last_coops = [0.0]
+_coops_lock = threading.Lock()
+
+
 def get(u, tries=4):
     err = None
+    coops_url = "tidesandcurrents.noaa.gov" in u
     for i in range(tries):
+        if coops_url:
+            with _coops_lock:   # the snapshot step fetches with 4 threads; keep the spacing global
+                w = _last_coops[0] + COOPS_GAP - time.time()
+                if w > 0: time.sleep(w)
+                _last_coops[0] = time.time()
         try:
-            return urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "pnw-weather-tides"}), timeout=90).read()
+            return urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=90).read()
         except Exception as e:  # noqa: BLE001
-            err = e; time.sleep(2 + 3 * i)
+            err = e
+            throttled = getattr(e, "code", None) in (403, 429)
+            if i < tries - 1: time.sleep((20, 45, 90)[min(i, 2)] if throttled else 2 + 3 * i)   # throttling needs a longer back-off
     raise err
 
 

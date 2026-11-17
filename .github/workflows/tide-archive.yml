@@ -51,7 +51,9 @@ jobs:
       - name: Snapshot (live STOFS-free residual; marks itself hindcast if the run is >3 h late)
         run: python src/tools/fast/tide_archive/tide_archive.py --out arch --issue now
       - name: Daily self-calibration, background only (new coefficients at the 08 UTC = 12 AM PST run; stored as rc/cal, not shown on the site)
-        run: python src/tools/fast/tide_archive/calibrate.py --out arch --from now --to now
+        run: |
+          python src/tools/fast/tide_archive/calibrate.py --out arch --from now --to now \
+            || echo "::warning::calibration failed (background-only); snapshots and sidecars are still pushed"
       - name: Commit and push
         working-directory: arch
         run: |
