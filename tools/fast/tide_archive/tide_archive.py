@@ -35,8 +35,12 @@ H6, HR, DAY = 6 * 60000, 3600000, 86400000
 FT_PER_HPA = 3.28084 / 100   # 1 cm per hPa in ft, same as tide.js ibFt (PNW Weather: was undefined in the 7f37665 copy)
 TAU_BIAS, TAU_RELAX, SLOW_DAYS, LEAD_H = 12 * HR, 24 * HR, 30, 72
 ISSUE_HOURS = (2, 8, 14, 20)
-# Gauges without a barometer borrow observed pressure (never SST) from these, in order; same as tide.js P_FALLBACK.
-P_FALLBACK = {"9439040": ["9440910", "9441102"], "9440581": ["9440910", "9441102"], "9410678": ["9410660"]}
+# Pressure neighbors (nearest first, from tide.js COORDS; Weather Bot 480ffd9, Benjamin's rule). Any gauge with no NOAA air
+# pressure for the window uses the plain hourly average of the first P_NEIGHBORS_N neighbors that have it (observed/past hours,
+# barometer only, never SST). Forecast hours always use the per-station AIFS ENS mean (aifs_hourly / p_at).
+# Keep identical to P_NEIGHBORS in tools/fast/site/tide/tide.js (qa_guards/test_tide_pressure_neighbors.py checks this).
+P_NEIGHBORS = {"9439040":["9440581","9440910","9441102","9446484"],"9440581":["9439040","9440910","9441102","9446484"],"9440910":["9441102","9440581","9439040","9446484"],"9441102":["9440910","9440581","9439040","9442396"],"9442396":["9443090","9444090","9441102","9449880"],"9443090":["9442396","9444090","9449880","9444900"],"9444090":["9444900","9449880","9443090","9442396"],"9444900":["9444090","9449880","9447130","9449424"],"9449880":["9449424","9444900","9444090","9447130"],"9449424":["9449880","9444900","9444090","9447130"],"9447130":["9446484","9444900","9444090","9449880"],"9446484":["9447130","9444900","9444090","9440910"],"9414750":["9414290","9414863","9414523","9415102"],"9416841":["9415020","9414863","9414290","9415102"],"9419750":["9418767","9416841","9415020","9415102"],"9410230":["9410170","9410678","9410660","9410840"],"9410678":["9410660","9410840","9410230","9410170"],"9410660":["9410678","9410840","9410230","9410170"],"9415102":["9415144","9414863","9414750","9414290"],"9413450":["9414523","9414750","9414290","9414863"],"9418767":["9419750","9416841","9415020","9414863"],"9415020":["9414290","9414863","9414750","9415102"],"9415144":["9415102","9414863","9414750","9414290"],"9412110":["9411340","9413450","9410840","9410660"],"9414523":["9414750","9414290","9414863","9415102"],"9414863":["9414290","9414750","9415102","9415144"],"9410170":["9410230","9410678","9410660","9410840"],"9414290":["9414863","9414750","9415102","9414523"],"9411340":["9410840","9412110","9410660","9410678"],"9410840":["9410660","9410678","9411340","9410230"]}
+P_NEIGHBORS_N = 2
 CACHE = os.environ.get("TIDE_CACHE", "/tmp/tide_archive_cache")
 
 
@@ -196,7 +200,7 @@ def aifs_hourly(rec, sid):
 
 def coops_metric_pressure(st, b, e):
     url = (API.replace("units=english", "units=metric")
-           + f"&product=air_pressure&station={st}&begin_date={gmt(b)}&end_date={gmt(e)}&interval=h")
+           + f"&product=air_pressure&station={st}&begin_date={urllib.parse.quote(gmt(b))}&end_date={urllib.parse.quote(gmt(e))}&interval=h")   # 11-16: quote like coops(); a raw space raised InvalidURL so gauge pressure was never used (Weather Bot 9dc74b1)
     try:
         j = json.loads(get(url))
     except Exception:
@@ -208,6 +212,33 @@ def coops_metric_pressure(st, b, e):
         except (KeyError, TypeError, ValueError):
             continue
     return out
+
+
+def avg_pressure(series):
+    m = {}
+    for pts in series:
+        for t, v in pts:
+            a = m.setdefault(t, [0.0, 0])
+            a[0] += v; a[1] += 1
+    return [(t, a[0] / a[1]) for t, a in sorted(m.items())]
+
+
+def station_pressure(st, b, e):
+    """(points, source ids): the gauge's own air pressure, else the average of its nearest neighbors that have it."""
+    own = coops_metric_pressure(st, b, e)
+    if own:
+        return own, [st]
+    got = []
+    for fb in P_NEIGHBORS.get(st, []):
+        if len(got) >= P_NEIGHBORS_N:
+            break
+        pts = coops_metric_pressure(fb, b, e)
+        if pts:
+            got.append((fb, pts))
+    if not got:
+        return [], []
+    return avg_pressure([g[1] for g in got]), [g[0] for g in got]
+
 
 def p_at(obs_pts, fc_pts, t, now_t):
     if t <= now_t:
@@ -410,11 +441,7 @@ def main():
         st, sid = item
         pred = coops("predictions", st, T0 - SLOW_DAYS * DAY - DAY, T1 + (LEAD_H + 3) * HR, "&interval=6")
         obs = coops("water_level", st, T0 - SLOW_DAYS * DAY - DAY, obs_end)
-        air = coops_metric_pressure(st, T0 - 6 * DAY, obs_end)
-        for fb in ([] if air else P_FALLBACK.get(st, [])):   # barometer only, same table as tide.js P_FALLBACK
-            air = coops_metric_pressure(fb, T0 - 6 * DAY, obs_end)
-            if air:
-                break
+        air, p_src = station_pressure(st, T0 - 6 * DAY, obs_end)
         snaps = []
         for s in slots:
             T = int(s.timestamp() * 1000)
@@ -422,6 +449,7 @@ def main():
             snap = conditional_free(T, pred, obs, air, aifs, (sst and (sst.get("stations") or {}).get(st)), st, now)
             if snap:
                 snap["kind"] = kind
+                if p_src != [st]: snap["p_src"] = p_src   # neighbor-average pressure (or [] when none was available)
                 snap["cycle"] = f"{c:%Y%m%d%H}" if c else (aifs or {}).get("cycle")
                 if kind == "archive": snap["made"] = now
                 snaps.append(snap)
