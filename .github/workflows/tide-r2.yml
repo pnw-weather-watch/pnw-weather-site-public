@@ -1,0 +1,40 @@
+# Tide charts -> R2 (preview only). Every station's default chart is built by running
+# tools/fast/site/tide/tide.js headless in Chromium (tools/fast/tide_archive/tide_r2_build.py)
+# and stored as one JSON per station in R2 bucket pnw-models-data under tide/precompute-preview/
+# (read by the preview page through /d/ like the map data).
+#
+# SAFETY: no cron. This workflow must not run on main. Dispatch it only from preview/tide-r2
+# (or run tools/fast/tide_archive/tide_r2_publish.py locally). Do not enable a schedule until
+# Benjamin OKs a live ship, and only then with TIDE_R2_PREFIX / tide.js TIDE_R2 switched together.
+name: tide-r2
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "keep rebuilding for this many minutes (0 = once)"
+        default: "0"
+concurrency:
+  group: tide-r2-preview
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 58
+    env:
+      TIDE_R2_PREFIX: tide/precompute-preview/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install boto3==1.43.122 playwright==1.64.1 && python3 -m playwright install --with-deps chromium
+      - name: Build + publish (preview prefix only)
+        env:
+          PNW_R2_ACCESS_KEY_ID: ${{ secrets.PNW_R2_ACCESS_KEY_ID }}
+          PNW_R2_SECRET_ACCESS_KEY: ${{ secrets.PNW_R2_SECRET_ACCESS_KEY }}
+        run: python3 tools/fast/tide_archive/tide_r2_publish.py --prefix "$TIDE_R2_PREFIX" --watch "${{ inputs.minutes || '0' }}" --interval 360
