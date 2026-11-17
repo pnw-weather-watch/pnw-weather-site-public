@@ -411,6 +411,7 @@ function productsLine(wind, sst, aifs, obsP, st) {
   if (a) parts.push(a);
   const s = sstProductLabel(sst);
   if (s) parts.push("sea surface temperature (" + s + ")");
+  if (s && sst && sst.fc && sst.fc.label) parts.push("sea temperature forecast (" + sst.fc.label + ")");
   if (wind) parts.push("NOAA STOFS wind surge");
   return "Conditional uses: " + parts.join(", ") + ". Experimental, not official.";
 }
@@ -436,6 +437,36 @@ async function sstTerm(st, now) {
     blend: rec.blend || null, clim: rec.clim || rec.clim_note || null,
     source_short: rec.source_short || null
   };
+}
+
+// Forecast SST sidecar (sst_fc.json, tide-archive job; port of Weather Bot 1c467d0): per station, daily change in the sea temperature
+// anomaly vs the latest observed day (model change minus 1991-2020 seasonal change), valid 00 UTC.
+// Missing / stale / unknown station -> null -> the SST term stays flat (previous behaviour).
+const SSTFC_MAX_AGE = 72 * HR;
+async function sstFcTerm(st, now) {
+  const sstId = SST_MAP[st] || st;
+  const idx = await loadArchIndex();
+  const u = archSidecarUrl(idx, "sst_fc.json");
+  const arch = u ? await fetchJsonOk(u) : null;
+  const local = arch ? null : await fetchJsonOk("sst_fc.json");
+  const j = arch || local;
+  if (!j || !j.stations) return null;
+  const gen = Date.parse(j.generated_at || "");
+  if (!isFinite(gen) || now - gen > SSTFC_MAX_AGE) return null;
+  const row = j.stations[sstId] || (sstId === "birchbay" ? j.stations["9449424"] : null);
+  if (!row || !Array.isArray(row.d) || !row.d.length) return null;
+  const pts = row.d.map(([day, v]) => [Date.parse(day + "T00:00:00Z"), +v]).filter((p) => isFinite(p[0]) && isFinite(p[1])).sort((a, b) => a[0] - b[0]);
+  if (!pts.length) return null;
+  return { pts, src: j.source || null, label: j.source_short || null, runs: j.runs || null, end: pts[pts.length - 1][0], url: u || "sst_fc.json" };
+}
+// Change in the anomaly (deg C) from the newest observation t0 to t: linear in time between daily points, held
+// flat before the first and after the last point; 0 at and before t0 (past and observed hours are unchanged).
+// Mirrored in tide_archive.py sst_fc_delta().
+function sstFcDelta(fc, t0, t) {
+  if (!fc || !fc.pts || !fc.pts.length || !(t > t0)) return 0;
+  const at = (x) => { const p = fc.pts; if (x <= p[0][0]) return p[0][1]; if (x >= p[p.length - 1][0]) return p[p.length - 1][1];
+    for (let i = 1; i < p.length; i++) if (x <= p[i][0]) { const f = (x - p[i - 1][0]) / (p[i][0] - p[i - 1][0]); return p[i - 1][1] + f * (p[i][1] - p[i - 1][1]); } return p[p.length - 1][1]; };
+  return at(t) - at(t0);
 }
 
 async function archive(st, b, e) {   // snapshots issued in [b, e] (ms); missing months are fine (archive not started yet)
@@ -500,7 +531,7 @@ async function load() {
   setMsg("Loading tides\u2026");
   const key = T.st, st = sidOf(key), b0 = Math.min(R.start, now - SLOW_DAYS * DAY), eP = Math.max(R.end, now) + 3 * HR;
   try {
-    let [pred, obs, md, cyc, pr, arch, obsP, fcP, gfsP, sst] = await Promise.all([   // let: cyc may be re-paired below (Weather Bot f30622e)
+    let [pred, obs, md, cyc, pr, arch, obsP, fcP, gfsP, sst, , sstFc] = await Promise.all([   // let: cyc may be re-paired below (Weather Bot f30622e)
       coops("predictions", st, b0, eP, "&datum=MLLW&interval=6"),
       coops("water_level", st, b0, Math.min(R.end, now) + H6, "&datum=MLLW"),
       meta(st), stofsCycle(now).catch(() => null), pressure(st),
@@ -509,7 +540,9 @@ async function load() {
       forecastPressure(st).catch(() => ({ pts: [], src: null })),
       gfsPressure(st).catch(() => []),
       sstTerm(st, now).catch(() => ({ dT: 0, W: 0, src: "none" })),
-      loadAnom().catch(() => null)]);
+      loadAnom().catch(() => null),
+      sstFcTerm(st, now).catch(() => null)]);
+    if (sst && sst.src !== "none") sst.fc = sstFc; else sstFc = null;
     // Benjamin t3018u: the chart and stats show the RAW Conditional; the daily calibration is archived in the background only.
     const issues = arch.issues, calib = null, calibBg = arch.calib;
     if (my !== seq) return;
@@ -560,22 +593,27 @@ async function load() {
     }
     const offset5 = offN ? offSum / offN : 0;
     const leftover = r0v - ibA0 - W - offset5;
+    // Forecast SST anomaly: anomaly(t) = latest observed daily anomaly + forecast change after the newest observation
+    // (0 at and before t0c, so the seam is continuous and past hours are unchanged). offset5 / leftover keep the flat W.
+    const kSst = (sst && isFinite(sst.k)) ? +sst.k : 0;
+    const Wat = (t) => W + kSst * sstFcDelta(sstFc, t0c, t);   // = W at and before the newest observation
     const partsAt = (t) => {
       const dt = t - t0c;
       const ibv = ibFt(pIB(t));
       const ib = ibv == null ? ibA0 : ibv;
       const pNow = pIB(t);
-      const off = ib + W + offset5 + leftover * fadeAt(dt);
+      const Wt = Wat(t);
+      const off = ib + Wt + offset5 + leftover * fadeAt(dt);
       const inStofs = !!(rs && rsEnd && t <= rsEnd[0]);
       const rsT = inStofs ? interp(rs, t) : null;
       const anom = (inStofs && cycT != null) ? anomAt(st, t, cycT) : null;
       const wT = inStofs ? windOnly(rsT, anom, interp(pGfsPts, t)) : null;
       const wind = windComp(wT, wFull0, dt);
-      return { ib, W, wind, off, on: off + wind, p: pNow, offset5, leftover, anom };
+      return { ib, W: Wt, wind, off, on: off + wind, p: pNow, offset5, leftover, anom, dSst: Wt === W ? 0 : (Wt - W) / (kSst || 1) };
     };
     const resid = (t) => T.wind ? partsAt(t).on : partsAt(t).off;
     const cond = [], condRaw = [], condOff = [], condOn = [];
-    if (R.end > t0c && (rNow != null || W || pFcPts.length || pObsPts.length)) for (const [t, v] of pred) if (t >= t0c && t <= R.end) {
+    if (R.end > t0c && (rNow != null || W || sstFc || pFcPts.length || pObsPts.length)) for (const [t, v] of pred) if (t >= t0c && t <= R.end) {
       const pt = partsAt(t);
       condOff.push([t, v + pt.off]); condOn.push([t, v + pt.on]);
       const r = T.wind ? pt.on : pt.off;
@@ -652,7 +690,7 @@ function drawChart(c, W, H, opt) {
   // info lines (bottom): one short qualitative line + the sources line (port of Weather Bot 861e58e "ntd1").
   // Every figure (observed, residual, pressure, sea temperature, terms, cycles) is in the Details panel, which starts closed.
   const info = [];
-  info.push("Conditional accounts for air pressure, sea temperature, and recent observed water levels.");
+  info.push(D.sst && D.sst.fc ? "Conditional accounts for air pressure, sea temperature and its forecast, and recent observed water levels." : "Conditional accounts for air pressure, sea temperature, and recent observed water levels.");
   info.push(productsLine(T.wind, D.sst, D.aifs, D.obsP, D.sid));
   window.__tideCanvasNotes = info.slice();
   const infoFs = portrait ? 12.5 : 12.5, lh = 18 * s;
@@ -975,6 +1013,11 @@ function fillDetails() {
     if (a != null) t += ` from ${sgn(a, 2)} \u00b0C (${sgn(a * 1.8, 1)} \u00b0F) vs the 1991-2020 average`;
     if (D.sst.source_short || D.sst.src) t += ` (${D.sst.source_short || D.sst.src})`;
     bits.push(row("Sea temperature", t));
+    const fc = D.sst.fc;
+    if (fc && fc.pts && fc.pts.length && a != null && D.partsAt) {
+      const tEnd = Math.min(D.R.end, fc.end), pe = D.partsAt(tEnd), dEnd = (pe && pe.dSst) || 0;
+      bits.push(row("Sea temperature forecast", `${sgn(a + dEnd, 2)} \u00b0C by ${fMd.format(new Date(tEnd))} (${sgn(dEnd, 2)} \u00b0C change, ${sgn((pe.W != null ? pe.W : 0), 2)} ft); held after ${fMd.format(new Date(fc.end))} (${fc.label || fc.src || "forecast"}${fc.runs ? ", " + Object.values(fc.runs).join(", ") : ""})`));
+    }
   } else bits.push(row("Sea temperature", "unavailable; warm-water term set to 0 ft"));
   if (pt.offset5 != null) bits.push(row("Held leftover", `${sgn(pt.offset5, 2)} ft (5-day mean after pressure and sea temperature)`));
   if (pt.leftover != null) bits.push(row("Fade to latest observation", `${sgn(pt.leftover, 2)} ft at the newest reading, fading over 12 hours`));
