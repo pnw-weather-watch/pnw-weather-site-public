@@ -49,6 +49,10 @@ import tide_flood_verify as FV
 from playwright.async_api import async_playwright
 
 fails = []   # (msg, always_block)
+def box_overlap(a, b, eps=0.5):
+    return a['x'] + a['w'] > b['x'] + eps and b['x'] + b['w'] > a['x'] + eps and a['y'] + a['h'] > b['y'] + eps and b['y'] + b['h'] > a['y'] + eps
+
+
 def fail(msg, block=True): fails.append((msg, block)); print("FAIL", msg, flush=True)
 
 # ---- ported from Weather Bot e543744 / 5329b19 (checks 11 and 12) ----
@@ -576,6 +580,28 @@ async def tide_page(br, W, H, dpr, phone, tag):
             if pre.get("labels") and post_labs != pre.get("labels"):
                 fail(f"{tag}: hover shifted flood label positions")
             print(f"  {tag}: hover readout ok t={hov['h'].get('t')} rows={len(hov['h'].get('rows') or [])} tip={hov['h'].get('tip')}")
+            # 11-16 (Weather Bot 7e4af21): on the phone, flood levels on => the flood row exists above the readout slot, stays
+            # visible while the tap readout is open, and overlaps neither the readout nor the plot.
+            if phone:
+                fb = await pg.evaluate("() => { const q = window.TIDE.qa(); return { ban: q.floodBanner, floods: (q.floods || []).length, on: q.floodOn, chrome: q.chrome }; }")
+                ban, ch = fb.get("ban"), (fb.get("chrome") or {})
+                if fb.get("on") and fb.get("floods"):
+                    if not ban or not ban.get("parts"): fail(f"{tag}: phone flood row missing while the tap readout is open ({fb.get('ban')})")
+                    else:
+                        tipb, lay = hov["h"].get("tip"), (ch.get("layout") or {})
+                        bb = {"x": ban["x"], "y": ban["y"], "w": ban["w"], "h": ban["h"]}
+                        if isinstance(tipb, dict) and all(k in tipb for k in ("x", "y", "w", "h")) and box_overlap(bb, tipb):
+                            fail(f"{tag}: phone flood row overlaps the tap readout (row={bb} tip={tipb})")
+                        if lay.get("Y0") is not None and ban["y"] + ban["h"] > lay["Y0"] + 0.5:
+                            fail(f"{tag}: phone flood row overlaps the plot (row bottom {ban['y'] + ban['h']:.1f} > Y0 {lay['Y0']:.1f})")
+                        print(f"  {tag}: phone flood row ok ({ban.get('text')!r}, {ban.get('fs')}px)")
+            # 11-16 (Weather Bot 861e58e): Details panel starts closed; the on-canvas note has no figures.
+            dq = await pg.evaluate("() => { const q = window.TIDE.qa(); return { open: q.detailsOpen, notes: q.canvasNotes, btn: !!document.getElementById('detailsBtn') }; }")
+            if not dq.get("btn") or dq.get("open"): fail(f"{tag}: Details button missing or panel not closed at start ({dq})")
+            import re as _re
+            for ln in (dq.get("notes") or []):
+                if ln.startswith("Conditional accounts") and _re.search(r"\d", ln): fail(f"{tag}: qualitative note shows figures ({ln!r})")
+            if not any((ln or "").startswith("Conditional accounts") for ln in (dq.get("notes") or [])): fail(f"{tag}: qualitative note missing ({dq.get('notes')})")
         # t3060u: Flood levels chip default ON, off hides lines+labels+readout rows, on restores, persists
         tog = await pg.evaluate("() => { const b = document.getElementById('floodtog'); const q = window.TIDE.qa(); return { exists: !!b, pressed: b && b.getAttribute('aria-pressed'), text: b && b.textContent, floodOn: q.floodOn, drawn: q.floodDrawn, nlab: (q.floodLabels || []).length }; }")
         if not tog or not tog.get("exists") or "Flood levels" not in (tog.get("text") or ""):
