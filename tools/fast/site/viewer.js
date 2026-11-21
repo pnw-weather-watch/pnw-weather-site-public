@@ -2152,8 +2152,12 @@ function drawBarbs(ctx, st, D, P, V) {   // matplotlib barbs (length 5.6 pt, 5 k
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const x = (st.W - 1) * i / (nx - 1), y = (st.H - 1) * (1 - j / (ny - 1)), k = Math.round(y) * st.W + Math.round(x);
     const uu = sample(st, u, k), vv = sample(st, v, k); if (!isFinite(uu)) continue;
-    const a = Cang ? camSample(Cang, Cang.ang, st.x0 + x, st.y0 + y)
+    // LUT ang is y-up (north-up => −π/2). cameras.js ang is y-down pixel space
+    // (north-up => +π/2), so it must be negated or arrows/barbs on camera views
+    // (pnwwide, pnwhr, hiw, bay, CA close-ups, …) point 180° the wrong way.
+    const aRaw = Cang ? camSample(Cang, Cang.ang, st.x0 + x, st.y0 + y)
       : lutA[(Math.min(L.ny - 1, Math.round(y / L.stride)) * L.nx + Math.min(L.nx - 1, Math.round(x / L.stride))) * 3 + 2];
+    const a = Cang ? -aRaw : aRaw;
     const nX = Math.cos(a), nY = -Math.sin(a);           // north, y up
     const eX = nY, eY = -nX;                              // east = north turned clockwise
     const wx = uu * eX + vv * nX, wy = uu * eY + vv * nY, sp = Math.hypot(uu, vv);
