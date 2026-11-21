@@ -103,6 +103,7 @@ def grid(cam):
             lon[j, i] = lo
             lat[j, i] = la
             x2, y2 = cam.pixel(lo, min(la + 0.05, 89))
+                        # y-down pixel angle (north-up => +π/2). The viewer negates this so it matches LUT ang (y-up, north-up => −π/2).
             ang[j, i] = np.arctan2(-(y2 - y), x2 - x)
     return nx, ny, lon, lat, ang
 
