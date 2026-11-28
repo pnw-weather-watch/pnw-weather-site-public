@@ -1009,8 +1009,15 @@ function sampleMask(st, F, k, mins) {
   add(F[i], (1 - tx) * (1 - ty)); add(F[i + 1], tx * (1 - ty)); add(F[i + g], (1 - tx) * ty); add(F[i + g + 1], tx * ty);
   return w > 0.25 ? s / w : NaN;
 }
-function sampleRC(F, w, fi, fj) {
+function sampleRC(F, w, fi, fj, mins) {
   const r = Math.floor(fi), c = Math.floor(fj), ty = fi - r, tx = fj - c;
+  // 11-28 audit: SST anomaly marks land as a "no data" code under min_show (-8.1). Town readouts blend only valid corners (as the fill does)
+  // and are NaN on land, so inland towns no longer print "-8" and coast towns are not pulled down by the land code.
+  if (mins !== undefined) {
+    let s = 0, wt = 0; const add = (v, ww) => { if (v >= mins && ww > 0) { s += v * ww; wt += ww; } };
+    add(F[r * w + c], (1 - tx) * (1 - ty)); add(F[r * w + c + 1], tx * (1 - ty)); add(F[(r + 1) * w + c], (1 - tx) * ty); add(F[(r + 1) * w + c + 1], tx * ty);
+    return wt > 0.25 ? s / wt : NaN;
+  }
   return (F[r * w + c] * (1 - tx) + F[r * w + c + 1] * tx) * (1 - ty) + (F[(r + 1) * w + c] * (1 - tx) + F[(r + 1) * w + c + 1] * tx) * ty;
 }
 
@@ -1177,7 +1184,7 @@ async function render(lite) {
     if (passView && t.kind === "pass") continue;   // pass name + readout is drawn together
     if (WT && WT.re.has(t.name)) continue;   // re-placed with the coast towns
     if (!(t.fi >= 0 && t.fj >= 0 && t.fi < D.h - 1 && t.fj < D.w - 1)) continue;
-    let v = sampleRC(D.fill, D.w, t.fi, t.fj); if (!isFinite(v)) continue;   // HRRR: integer = nearest 3 km point; global: bilinear at the pin
+    let v = sampleRC(D.fill, D.w, t.fi, t.fj, pid === "ssta" ? P.min_show : undefined); if (!isFinite(v)) continue;   // HRRR: integer = nearest 3 km point; global: bilinear at the pin
     if (pid === "t2m" && t.t2m_corr !== undefined) v += t.t2m_corr;          // pass summit height correction (temp_maps)
     haloText(ctx, fmtVal(P, v), t.x * LW, t.y * LH, `800 ${pt(t.size)}px WXTheme`, t.color, pt(3.0), "left", "middle");
   }
@@ -1575,7 +1582,7 @@ function drawCamLabels(ctx, st, D, P, pid, V, LW, LH) {
     const q = name ? WXSelect.townPoint(model, V.towns, S._ap, name, lat, lon) : null;
     const ij = q ? [q.fi, q.fj] : WXSelect.latLonIndex(model, lat, lon);
     if (!ij || !(ij[0] >= 0 && ij[1] >= 0 && ij[0] < D.h - 1 && ij[1] < D.w - 1)) return NaN;
-    return sampleRC(D.fill, D.w, ij[0], ij[1]);
+    return sampleRC(D.fill, D.w, ij[0], ij[1], pid === "ssta" ? P.min_show : undefined);
   };
   const dot = (x, y, r) => {
     ctx.beginPath(); ctx.arc(x, y, r + pt(0.7), 0, 2 * Math.PI); ctx.fillStyle = "#ffffff"; ctx.fill();
